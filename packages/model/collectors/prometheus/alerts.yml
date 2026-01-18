@@ -1,0 +1,272 @@
+# =============================================================================
+# Prometheus Alerting Rules for GePT Data Collectors
+# =============================================================================
+
+groups:
+  # ============================================================================
+  # Collector Health Alerts
+  # ============================================================================
+  - name: gept_collectors
+    interval: 1m
+    rules:
+      # 5-Minute Collector Alerts
+      - alert: Collector5mStale
+        expr: time() - gept_5m_last_timestamp > 900
+        for: 5m
+        labels:
+          severity: critical
+          service: 5m-collector
+        annotations:
+          summary: "5-minute collector stale"
+          description: "5-minute collector hasn't collected data in {{ $value | humanizeDuration }}"
+
+      - alert: Collector5mHighErrorRate
+        expr: rate(gept_5m_requests_total{status="error"}[5m]) / rate(gept_5m_requests_total[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          service: 5m-collector
+        annotations:
+          summary: "5-minute collector high error rate"
+          description: "5-minute collector error rate is {{ $value | humanizePercentage }}"
+
+      # Hourly Collector Alerts
+      - alert: CollectorHourlyStale
+        expr: time() - gept_hourly_last_timestamp > 7200
+        for: 10m
+        labels:
+          severity: warning
+          service: hourly-collector
+        annotations:
+          summary: "Hourly collector stale"
+          description: "Hourly collector hasn't collected data in {{ $value | humanizeDuration }}"
+
+      # 1-Minute Collector Alerts
+      - alert: Collector1mStale
+        expr: time() - gept_1m_last_timestamp > 300
+        for: 5m
+        labels:
+          severity: warning
+          service: 1m-collector
+        annotations:
+          summary: "1-minute collector stale"
+          description: "1-minute collector hasn't collected data in {{ $value | humanizeDuration }}"
+
+      # Player Count Collector Alerts
+      - alert: PlayerCountCollectorStale
+        expr: time() - gept_player_count_last_timestamp > 300
+        for: 5m
+        labels:
+          severity: warning
+          service: player-count
+        annotations:
+          summary: "Player count collector stale"
+          description: "Player count collector hasn't collected data in {{ $value | humanizeDuration }}"
+
+      # News Collector Alerts
+      - alert: NewsCollectorStale
+        expr: time() - gept_news_last_timestamp > 3600
+        for: 10m
+        labels:
+          severity: warning
+          service: news-collector
+        annotations:
+          summary: "News collector stale"
+          description: "News collector hasn't collected data in {{ $value | humanizeDuration }}"
+
+  # ============================================================================
+  # Infrastructure Alerts
+  # ============================================================================
+  - name: gept_infrastructure
+    interval: 1m
+    rules:
+      # Disk Space Alert
+      - alert: DiskSpaceLow
+        expr: (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) < 0.15
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Disk space low"
+          description: "Disk space is below 15% on {{ $labels.instance }}"
+
+      - alert: DiskSpaceCritical
+        expr: (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) < 0.05
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Disk space critical"
+          description: "Disk space is below 5% on {{ $labels.instance }}"
+
+      # Database Connection Alert
+      - alert: DatabaseConnectionsFailing
+        expr: pg_up == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "PostgreSQL connection failed"
+          description: "Cannot connect to PostgreSQL database"
+
+      # High Memory Usage
+      - alert: HighMemoryUsage
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) > 0.9
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage"
+          description: "Memory usage is above 90% on {{ $labels.instance }}"
+
+  # ============================================================================
+  # Data Quality Alerts
+  # ============================================================================
+  - name: gept_data_quality
+    interval: 5m
+    rules:
+      # Low item collection rate
+      - alert: LowItemCollectionRate
+        expr: rate(gept_5m_items_total[1h]) < 100
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Low item collection rate"
+          description: "5-minute collector is collecting fewer items than expected"
+
+      # Collector health down
+      - alert: CollectorUnhealthy
+        expr: gept_5m_health == 0 or gept_hourly_health == 0 or gept_1m_health == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Collector unhealthy"
+          description: "One or more collectors are reporting unhealthy status"
+
+  # ============================================================================
+  # Data Freshness Alerts (from collector_monitor)
+  # ============================================================================
+  - name: gept_data_freshness
+    interval: 1m
+    rules:
+      # Alert when data exceeds freshness threshold
+      - alert: DataFreshnessStale
+        expr: gept_data_age_seconds > gept_data_freshness_threshold_seconds
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Data stale in {{ $labels.table }}"
+          description: "{{ $labels.table }} data is {{ $value | humanizeDuration }} old"
+
+      # Alert when freshness check reports unhealthy
+      - alert: DataFreshnessCritical
+        expr: gept_data_freshness_ok == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Data collection failed for {{ $labels.table }}"
+          description: "{{ $labels.table }} has been stale for more than 5 minutes"
+
+      # Monitor service health
+      - alert: CollectorMonitorDown
+        expr: up{job="gept-monitoring", instance=~".*collector-monitor.*"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Collector monitor service is down"
+          description: "The collector monitor service has stopped responding"
+
+  # ============================================================================
+  # Gap Detection Alerts (from gap_detector)
+  # ============================================================================
+  - name: gept_data_gaps
+    interval: 5m
+    rules:
+      # Alert when new gaps are detected
+      - alert: DataGapDetected
+        expr: increase(gept_gaps_detected_total[1h]) > 0
+        labels:
+          severity: warning
+        annotations:
+          summary: "Data gap detected"
+          description: "{{ $value }} new gaps detected in the last hour"
+
+      # Alert for unrecoverable gaps
+      - alert: UnrecoverableGaps
+        expr: gept_gaps_unrecoverable_total > 0
+        for: 1h
+        labels:
+          severity: critical
+        annotations:
+          summary: "Unrecoverable data gaps exist"
+          description: "{{ $value }} gaps cannot be backfilled automatically"
+
+      # Alert when backfill operations are failing
+      - alert: BackfillFailing
+        expr: rate(gept_gaps_backfill_errors_total[1h]) > 0.5
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Backfill operations failing"
+          description: "Backfill error rate is elevated"
+
+      # Gap detector service down
+      - alert: GapDetectorDown
+        expr: up{job="gept-monitoring", instance=~".*gap-detector.*"} == 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Gap detector service is down"
+          description: "The gap detector service has stopped responding"
+
+  # ============================================================================
+  # Watchdog Alerts (from watchdog service)
+  # ============================================================================
+  - name: gept_watchdog
+    interval: 1m
+    rules:
+      # Alert when a container is restarting repeatedly
+      - alert: ContainerRestartLoop
+        expr: increase(gept_watchdog_restarts_total[30m]) > 3
+        labels:
+          severity: critical
+        annotations:
+          summary: "Container {{ $labels.container }} in restart loop"
+          description: "{{ $labels.container }} has been restarted {{ $value }} times in 30 minutes"
+
+      # Alert when automatic recovery fails
+      - alert: WatchdogRecoveryFailed
+        expr: gept_watchdog_recovery_failed == 1
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Watchdog could not recover {{ $labels.container }}"
+          description: "Automatic recovery failed after max attempts"
+
+      # Watchdog service itself is down
+      - alert: WatchdogDown
+        expr: up{job="gept-monitoring", instance=~".*watchdog.*"} == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Watchdog service is down"
+          description: "The watchdog service itself has stopped responding"
+
+      # Container health status from watchdog
+      - alert: ContainerUnhealthy
+        expr: gept_watchdog_container_health == 0
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Container {{ $labels.container }} is unhealthy"
+          description: "Container {{ $labels.container }} has failed health checks"

@@ -1,0 +1,23 @@
+[Unit]
+Description=GePT Daily Training Timer
+Documentation=https://github.com/MarcusFranz/gept-foundations/issues/28
+
+[Timer]
+# Run at 0500 EST every day
+# EST is UTC-5, so 0500 EST = 1000 UTC
+# During EDT (daylight saving), 0500 EDT = 0900 UTC
+# Using 1000 UTC for consistency (will be 0500 EST / 0600 EDT)
+OnCalendar=*-*-* 10:00:00 UTC
+
+# If the system was off when timer should have triggered, run immediately
+Persistent=true
+
+# Random delay to prevent all systems from starting at exactly the same time
+# (useful if multiple instances exist)
+RandomizedDelaySec=300
+
+# Accuracy - how precise the timer needs to be
+AccuracySec=60
+
+[Install]
+WantedBy=timers.target

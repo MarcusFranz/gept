@@ -1,0 +1,180 @@
+# GePT Training Pipeline Configuration
+# See Issue #28 for full pipeline documentation
+
+# Schedule configuration
+schedule:
+  # Cron expression: 0500 EST = 1000 UTC (EST is UTC-5)
+  cron: "0 10 * * *"  # 10:00 UTC daily
+  timezone: "America/New_York"
+
+# Item selection criteria
+item_selection:
+  # Minimum 24-hour trading volume to consider an item
+  min_24h_volume: 10000
+
+  # Minimum data rows required for training (after feature warmup)
+  min_training_rows: 5000
+
+  # Maximum model age before forcing retraining (days)
+  max_model_age_days: 30
+
+  # Maximum calibration error before triggering retraining
+  max_calibration_error: 0.15
+
+  # Maximum items to train per daily run
+  max_items_per_run: 50
+
+  # Discovery mode (1st of month): train all qualifying items
+  discovery:
+    enabled: true
+    day_of_month: 1
+    max_items: 400
+
+  # Priority weights for item selection scoring
+  priority_weights:
+    no_model: 100        # Items with no trained model
+    auc_degradation: 80  # Items with AUC drift
+    calibration_error: 60  # Items with poor calibration
+    model_staleness: 40   # Items with old models
+    high_volume: 20       # High-volume items
+
+  # High-value item configuration (Issue #120)
+  # Items with price >= min_price_gp use relaxed volume thresholds
+  high_value:
+    enabled: true
+    # Price threshold: items >= this price are "high-value" (10M gp)
+    min_price_gp: 10000000
+    # Relaxed volume threshold for high-value items
+    min_24h_volume: 100
+    # Minimum data rows required (same as regular items)
+    min_training_rows: 5000
+    # Maximum high-value items to train per run (conservative)
+    max_items_per_run: 20
+    # Force-include specific item IDs (empty = none)
+    force_include_items: []
+    # Minimum history requirement (days)
+    min_history_days: 30
+    # Priority weights for high-value item selection
+    priority_weights:
+      no_model: 100
+      high_price: 50       # Higher price = higher priority
+      low_manipulation_risk: 30
+
+# Model validation thresholds
+validation:
+  # Minimum mean AUC across all 108 targets
+  min_mean_auc: 0.55
+
+  # Minimum number of targets with AUC > 0.52
+  min_targets_above_52: 50  # out of 108
+
+  # Maximum AUC regression vs production model (new model must not be this much worse)
+  max_auc_regression: 0.02
+
+  # Require at least this many validation samples
+  min_validation_samples: 1000
+
+# Model lifecycle configuration
+lifecycle:
+  # Sunset grace period in hours (DEPRECATED -> SUNSET -> ARCHIVED)
+  sunset_grace_period_hours: 48
+
+  # Auto-archive models after this many days in ARCHIVED state
+  # (cleanup old model files)
+  archive_cleanup_days: 90
+
+  # AUC threshold to trigger deprecation
+  deprecation_auc_threshold: 0.52
+
+  # Number of consecutive degraded readings before deprecation
+  degradation_readings_required: 3
+
+# Training configuration
+training:
+  # Data preparation
+  months_history: 6           # How many months of historical data to use
+  feature_warmup_rows: 300    # Rows to drop at start for feature computation
+
+  # CatBoost parameters (matches train_runpod_multitarget.py)
+  catboost:
+    iterations: 200
+    depth: 6
+    learning_rate: 0.1
+    od_wait: 50  # early stopping patience
+    task_type: "GPU"  # GPU or CPU
+
+  # Train/val/test split
+  train_ratio: 0.70
+  val_ratio: 0.15
+  test_ratio: 0.15
+
+  # Minimum positive samples per target to train
+  min_positive_samples: 20
+
+# Remote training (WSL machine)
+remote:
+  enabled: true
+
+  # WSL machine connection
+  host: "${WSL_HOST:-192.168.1.100}"  # Override with env var
+  port: "${WSL_PORT:-2222}"           # Windows port forwarding
+  user: "${WSL_USER:-ubuntu}"
+  ssh_key: ".secrets/wsl_key.pem"
+
+  # Remote paths
+  training_dir: "/home/ubuntu/gept"
+  data_dir: "/home/ubuntu/gept/data/prepared"
+  models_dir: "/home/ubuntu/gept/models"
+
+  # Timeouts (seconds)
+  connect_timeout: 30
+  training_timeout: 21600  # 6 hours max
+  transfer_timeout: 3600   # 1 hour for rsync
+
+  # GPU info (for logging)
+  gpu_name: "RTX 3060 12GB"
+
+# Local paths (Ampere server)
+local:
+  models_dir: "models"
+  data_dir: "/tmp/gept_training_data"
+  logs_dir: "/var/log/gept"
+
+# Performance tracking
+performance:
+  # How often to compute performance metrics (hours)
+  tracking_interval_hours: 24
+
+  # Minimum predictions to compute reliable metrics
+  min_predictions_for_metrics: 100
+
+  # Keep performance history for this many days
+  retention_days: 90
+
+# Alerting thresholds (for future Prometheus/Grafana integration)
+alerts:
+  # Alert if training job fails
+  training_failure: true
+
+  # Alert if no successful training for N days
+  no_training_days: 3
+
+  # Alert if active model count drops below threshold
+  min_active_models: 300
+
+  # Alert if average AUC drops below threshold
+  min_avg_auc: 0.54
+
+# Debug/development options
+debug:
+  # Dry run mode (no actual training or deployment)
+  dry_run: false
+
+  # Verbose logging
+  verbose: false
+
+  # Keep intermediate files
+  keep_temp_files: false
+
+  # Force training specific items (comma-separated IDs)
+  force_items: ""

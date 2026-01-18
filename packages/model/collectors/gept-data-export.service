@@ -1,0 +1,46 @@
+[Unit]
+Description=GePT Daily Training Data Export
+Documentation=https://github.com/MarcusFranz/gept-foundations
+After=network.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/home/ubuntu/gept
+
+# Environment (secrets loaded from file)
+EnvironmentFile=/home/ubuntu/gept/.secrets/export.env
+
+# GCP credentials
+Environment=GOOGLE_APPLICATION_CREDENTIALS=/home/ubuntu/.config/gcloud/gept-sa.json
+
+# GCS configuration
+Environment=GCS_BUCKET=osrs-models-mof
+Environment=REGION=us-central1
+Environment=JOB_NAME=gept-daily-train
+
+# Tiered training (enabled by default)
+Environment=TIER_MODE=true
+Environment=FORCE_DISCOVERY=false
+
+# Logging
+Environment=LOG_DIR=/var/log/gept
+
+# Execute the export script
+ExecStart=/home/ubuntu/gept/scripts/daily_export.sh
+
+# Logging to journal
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=gept-export
+
+# Timeout for long-running exports (30 minutes)
+TimeoutStartSec=1800
+
+# Restart policy (don't restart on failure - let timer handle next run)
+Restart=no
+
+[Install]
+WantedBy=multi-user.target

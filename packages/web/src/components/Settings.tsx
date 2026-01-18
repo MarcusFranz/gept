@@ -1,0 +1,642 @@
+import { createSignal, createEffect, Show, For } from 'solid-js';
+import { capitalPresets, formatGold, type AppSettings, defaultAppSettings } from '../lib/types';
+import Tooltip, { InfoIcon } from './Tooltip';
+
+interface UserSettings {
+  capital: number;
+  style: 'passive' | 'hybrid' | 'active';
+  risk: 'low' | 'medium' | 'high';
+  margin: 'conservative' | 'moderate' | 'aggressive';
+  slots: number;
+  min_roi: number;
+  tier: 'free' | 'premium';
+}
+
+interface RateLimitInfo {
+  daily: {
+    used: number;
+    limit: number;
+    remaining: number;
+  };
+  tier: string;
+}
+
+export default function Settings() {
+  const [settings, setSettings] = createSignal<UserSettings | null>(null);
+  const [appSettings, setAppSettings] = createSignal<AppSettings>(defaultAppSettings);
+  const [rateLimit, setRateLimit] = createSignal<RateLimitInfo | null>(null);
+  const [loading, setLoading] = createSignal(true);
+  const [saving, setSaving] = createSignal(false);
+  const [error, setError] = createSignal<string | null>(null);
+  const [success, setSuccess] = createSignal<string | null>(null);
+  const [customCapital, setCustomCapital] = createSignal(false);
+  const [activeTab, setActiveTab] = createSignal<'account' | 'app'>('account');
+
+  const fetchSettings = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch('/api/settings');
+      const data = await response.json();
+      if (data.success) {
+        setSettings(data.data.user);
+        setRateLimit(data.data.rateLimit);
+        // Check if capital is custom
+        const isPreset = capitalPresets.some(p => p.value === data.data.user.capital);
+        setCustomCapital(!isPreset);
+      } else {
+        setError(data.error);
+      }
+    } catch (err) {
+      setError('Failed to load settings');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadAppSettings = () => {
+    const saved = localStorage.getItem('appSettings');
+    if (saved) {
+      try {
+        setAppSettings({ ...defaultAppSettings, ...JSON.parse(saved) });
+      } catch {
+        setAppSettings(defaultAppSettings);
+      }
+    }
+  };
+
+  createEffect(() => {
+    fetchSettings();
+    loadAppSettings();
+  });
+
+  const saveAccountSettings = async () => {
+    if (!settings()) return;
+    setSaving(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      const response = await fetch('/api/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(settings())
+      });
+      const data = await response.json();
+      if (data.success) {
+        setSuccess('Settings saved successfully!');
+        setTimeout(() => setSuccess(null), 3000);
+      } else {
+        setError(data.error);
+      }
+    } catch (err) {
+      setError('Failed to save settings');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const saveAppSettings = () => {
+    localStorage.setItem('appSettings', JSON.stringify(appSettings()));
+    // Apply theme
+    document.documentElement.dataset.theme = appSettings().theme === 'system'
+      ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+      : appSettings().theme;
+    setSuccess('App settings saved!');
+    setTimeout(() => setSuccess(null), 3000);
+  };
+
+  const updateSetting = <K extends keyof UserSettings>(key: K, value: UserSettings[K]) => {
+    setSettings(s => s ? { ...s, [key]: value } : null);
+  };
+
+  const updateAppSetting = <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => {
+    setAppSettings(s => ({ ...s, [key]: value }));
+  };
+
+  const rateLimitPercent = () => {
+    if (!rateLimit()) return 0;
+    return (rateLimit()!.daily.used / rateLimit()!.daily.limit) * 100;
+  };
+
+  const rateLimitClass = () => {
+    const pct = rateLimitPercent();
+    if (pct >= 90) return 'danger';
+    if (pct >= 70) return 'warning';
+    return '';
+  };
+
+  return (
+    <div class="settings">
+      <h2>Settings</h2>
+
+      <div class="tabs">
+        <button
+          class={`tab ${activeTab() === 'account' ? 'active' : ''}`}
+          onClick={() => setActiveTab('account')}
+        >
+          Account Settings
+        </button>
+        <button
+          class={`tab ${activeTab() === 'app' ? 'active' : ''}`}
+          onClick={() => setActiveTab('app')}
+        >
+          App Settings
+        </button>
+      </div>
+
+      <Show when={success()}>
+        <div class="alert alert-success">{success()}</div>
+      </Show>
+
+      <Show when={error()}>
+        <div class="alert alert-error">{error()}</div>
+      </Show>
+
+      <Show when={loading()}>
+        <div class="settings-loading">
+          <div class="spinner"></div>
+        </div>
+      </Show>
+
+      {/* Account Settings Tab */}
+      <Show when={!loading() && activeTab() === 'account' && settings()}>
+        <div class="settings-section">
+          {/* Rate Limit */}
+          <div class="card rate-limit-card">
+            <div class="rate-limit-header">
+              <span class="rate-limit-title">Daily Queries</span>
+              <span class="rate-limit-count font-mono">
+                {rateLimit()?.daily.used} / {rateLimit()?.daily.limit}
+              </span>
+            </div>
+            <div class="progress">
+              <div
+                class={`progress-bar ${rateLimitClass()}`}
+                style={{ width: `${rateLimitPercent()}%` }}
+              />
+            </div>
+            <p class="rate-limit-tier text-sm text-muted mt-2">
+              Tier: <span class="font-medium">{settings()!.tier}</span>
+            </p>
+          </div>
+
+          {/* Capital */}
+          <div class="form-group">
+            <label class="label">Trading Capital</label>
+            <div class="capital-options">
+              <For each={capitalPresets}>
+                {(preset) => (
+                  <button
+                    class={`btn ${!customCapital() && settings()!.capital === preset.value ? 'btn-primary' : 'btn-secondary'} btn-sm`}
+                    onClick={() => {
+                      setCustomCapital(false);
+                      updateSetting('capital', preset.value);
+                    }}
+                  >
+                    {preset.label}
+                  </button>
+                )}
+              </For>
+              <button
+                class={`btn ${customCapital() ? 'btn-primary' : 'btn-secondary'} btn-sm`}
+                onClick={() => setCustomCapital(true)}
+              >
+                Custom
+              </button>
+            </div>
+            <Show when={customCapital()}>
+              <input
+                type="number"
+                class="input mt-2"
+                min="0"
+                max="2147483647"
+                value={settings()!.capital}
+                onInput={(e) => {
+                  const value = parseInt(e.currentTarget.value) || 0;
+                  updateSetting('capital', Math.max(0, Math.min(2147483647, value)));
+                }}
+                placeholder="Enter capital in GP"
+              />
+            </Show>
+            <p class="text-sm text-muted mt-1">
+              Current: {formatGold(settings()!.capital)}
+            </p>
+          </div>
+
+          {/* Style */}
+          <div class="form-group slider-group">
+            <label class="label label-with-tooltip">
+              Trading Style
+              <Tooltip text="How actively you want to monitor and adjust your trades" position="right">
+                <InfoIcon />
+              </Tooltip>
+            </label>
+            <div class="slider-container">
+              <input
+                type="range"
+                class="slider styled-slider"
+                min="0"
+                max="2"
+                value={['passive', 'hybrid', 'active'].indexOf(settings()!.style)}
+                onInput={(e) => {
+                  const styles = ['passive', 'hybrid', 'active'] as const;
+                  updateSetting('style', styles[parseInt(e.currentTarget.value)]);
+                }}
+              />
+              <div class="slider-labels">
+                <span class={settings()!.style === 'passive' ? 'active' : ''}>Passive</span>
+                <span class={settings()!.style === 'hybrid' ? 'active' : ''}>Hybrid</span>
+                <span class={settings()!.style === 'active' ? 'active' : ''}>Active</span>
+              </div>
+            </div>
+            <p class="slider-desc text-sm text-muted">
+              {settings()!.style === 'passive' && 'Less frequent, longer trades with higher margins'}
+              {settings()!.style === 'hybrid' && 'Balanced approach between speed and profit'}
+              {settings()!.style === 'active' && 'Frequent, shorter trades with faster turnover'}
+            </p>
+          </div>
+
+          {/* Risk */}
+          <div class="form-group slider-group">
+            <label class="label label-with-tooltip">
+              Risk Tolerance
+              <Tooltip text="Higher risk means larger potential profits but also more volatility" position="right">
+                <InfoIcon />
+              </Tooltip>
+            </label>
+            <div class="slider-container">
+              <input
+                type="range"
+                class="slider styled-slider"
+                min="0"
+                max="2"
+                value={['low', 'medium', 'high'].indexOf(settings()!.risk)}
+                onInput={(e) => {
+                  const risks = ['low', 'medium', 'high'] as const;
+                  updateSetting('risk', risks[parseInt(e.currentTarget.value)]);
+                }}
+              />
+              <div class="slider-labels">
+                <span class={settings()!.risk === 'low' ? 'active' : ''}>Low</span>
+                <span class={settings()!.risk === 'medium' ? 'active' : ''}>Medium</span>
+                <span class={settings()!.risk === 'high' ? 'active' : ''}>High</span>
+              </div>
+            </div>
+            <p class="slider-desc text-sm text-muted">
+              {settings()!.risk === 'low' && 'Conservative trades with stable, predictable returns'}
+              {settings()!.risk === 'medium' && 'Balanced risk/reward with moderate volatility'}
+              {settings()!.risk === 'high' && 'Higher profit potential with increased volatility'}
+            </p>
+          </div>
+
+          {/* Margin */}
+          <div class="form-group slider-group">
+            <label class="label label-with-tooltip">
+              Margin Preference
+              <Tooltip text="Controls the spread between buy and sell prices in recommendations" position="right">
+                <InfoIcon />
+              </Tooltip>
+            </label>
+            <div class="slider-container">
+              <input
+                type="range"
+                class="slider styled-slider"
+                min="0"
+                max="2"
+                value={['conservative', 'moderate', 'aggressive'].indexOf(settings()!.margin)}
+                onInput={(e) => {
+                  const margins = ['conservative', 'moderate', 'aggressive'] as const;
+                  updateSetting('margin', margins[parseInt(e.currentTarget.value)]);
+                }}
+              />
+              <div class="slider-labels">
+                <span class={settings()!.margin === 'conservative' ? 'active' : ''}>Conservative</span>
+                <span class={settings()!.margin === 'moderate' ? 'active' : ''}>Moderate</span>
+                <span class={settings()!.margin === 'aggressive' ? 'active' : ''}>Aggressive</span>
+              </div>
+            </div>
+            <p class="slider-desc text-sm text-muted">
+              {settings()!.margin === 'conservative' && 'Tighter spreads for faster fills'}
+              {settings()!.margin === 'moderate' && 'Standard margins for balanced trading'}
+              {settings()!.margin === 'aggressive' && 'Wider spreads for higher profit per flip'}
+            </p>
+          </div>
+
+          {/* Trade Slots */}
+          <div class="form-group">
+            <label class="label label-with-tooltip">
+              Trade Slots (Max: 8)
+              <Tooltip text="Number of simultaneous trades to track, matching your GE slots" position="right">
+                <InfoIcon />
+              </Tooltip>
+            </label>
+            <input
+              type="range"
+              class="slider"
+              min="1"
+              max="8"
+              value={settings()!.slots}
+              onInput={(e) => updateSetting('slots', parseInt(e.currentTarget.value))}
+            />
+            <p class="text-center font-mono">{settings()!.slots} slots</p>
+          </div>
+
+          <button
+            class="btn btn-primary w-full"
+            onClick={saveAccountSettings}
+            disabled={saving()}
+          >
+            {saving() ? 'Saving...' : 'Save Account Settings'}
+          </button>
+        </div>
+      </Show>
+
+      {/* App Settings Tab */}
+      <Show when={!loading() && activeTab() === 'app'}>
+        <div class="settings-section">
+          {/* Theme */}
+          <div class="form-group">
+            <label class="label">Theme</label>
+            <div class="option-group horizontal">
+              <For each={['light', 'dark', 'system'] as const}>
+                {(theme) => (
+                  <button
+                    class={`option-btn small ${appSettings().theme === theme ? 'active' : ''}`}
+                    onClick={() => updateAppSetting('theme', theme)}
+                  >
+                    {theme.charAt(0).toUpperCase() + theme.slice(1)}
+                  </button>
+                )}
+              </For>
+            </div>
+          </div>
+
+          {/* Currency Format */}
+          <div class="form-group">
+            <label class="label">Currency Format</label>
+            <div class="option-group horizontal">
+              <For each={['gp', 'k', 'm'] as const}>
+                {(currency) => (
+                  <button
+                    class={`option-btn small ${appSettings().currency === currency ? 'active' : ''}`}
+                    onClick={() => updateAppSetting('currency', currency)}
+                  >
+                    {currency === 'gp' && '1,234,567 gp'}
+                    {currency === 'k' && '1,234.5k'}
+                    {currency === 'm' && '1.23M'}
+                  </button>
+                )}
+              </For>
+            </div>
+          </div>
+
+          {/* Auto Refresh */}
+          <div class="form-group">
+            <label class="toggle-label">
+              <input
+                type="checkbox"
+                checked={appSettings().autoRefresh}
+                onChange={(e) => updateAppSetting('autoRefresh', e.currentTarget.checked)}
+              />
+              <span>Auto-refresh data</span>
+            </label>
+          </div>
+
+          {/* Compact View */}
+          <div class="form-group">
+            <label class="toggle-label">
+              <input
+                type="checkbox"
+                checked={appSettings().compactView}
+                onChange={(e) => updateAppSetting('compactView', e.currentTarget.checked)}
+              />
+              <span>Compact view</span>
+            </label>
+          </div>
+
+          {/* Show Profit Percent */}
+          <div class="form-group">
+            <label class="toggle-label">
+              <input
+                type="checkbox"
+                checked={appSettings().showProfitPercent}
+                onChange={(e) => updateAppSetting('showProfitPercent', e.currentTarget.checked)}
+              />
+              <span>Show profit as percentage</span>
+            </label>
+          </div>
+
+          <button
+            class="btn btn-primary w-full"
+            onClick={saveAppSettings}
+          >
+            Save App Settings
+          </button>
+        </div>
+      </Show>
+
+      <style>{`
+        .settings {
+          max-width: 600px;
+          margin: 0 auto;
+        }
+
+        .settings-loading {
+          display: flex;
+          justify-content: center;
+          padding: var(--space-6);
+        }
+
+        .settings-section {
+          margin-top: var(--space-4);
+        }
+
+        .alert {
+          padding: var(--space-3) var(--space-4);
+          border-radius: var(--radius-md);
+          margin-bottom: var(--space-4);
+        }
+
+        .alert-success {
+          background-color: var(--success-light);
+          color: var(--success);
+        }
+
+        .alert-error {
+          background-color: var(--danger-light);
+          color: var(--danger);
+        }
+
+        .rate-limit-card {
+          margin-bottom: var(--space-4);
+        }
+
+        .rate-limit-header {
+          display: flex;
+          justify-content: space-between;
+          margin-bottom: var(--space-2);
+        }
+
+        .rate-limit-title {
+          font-weight: 500;
+        }
+
+        .capital-options {
+          display: flex;
+          flex-wrap: wrap;
+          gap: var(--space-2);
+        }
+
+        .option-group {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: var(--space-2);
+        }
+
+        .option-group.horizontal {
+          grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+        }
+
+        .option-btn {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          text-align: center;
+          padding: var(--space-3);
+          background-color: var(--bg-tertiary);
+          border: 2px solid var(--border);
+          border-radius: var(--radius-md);
+          cursor: pointer;
+          transition: all var(--transition-fast);
+        }
+
+        .option-btn:hover {
+          border-color: var(--border-light);
+        }
+
+        .option-btn.active {
+          border-color: var(--accent);
+          background-color: var(--accent-light);
+        }
+
+        .option-btn.small {
+          padding: var(--space-2);
+        }
+
+        .option-title {
+          font-weight: 600;
+          margin-bottom: var(--space-1);
+        }
+
+        .option-desc {
+          font-size: var(--font-size-xs);
+          color: var(--text-muted);
+        }
+
+        .slider {
+          width: 100%;
+          height: 8px;
+          border-radius: var(--radius-full);
+          background: var(--bg-tertiary);
+          outline: none;
+          cursor: pointer;
+          -webkit-appearance: none;
+        }
+
+        .slider::-webkit-slider-thumb {
+          -webkit-appearance: none;
+          width: 20px;
+          height: 20px;
+          border-radius: 50%;
+          background: var(--accent);
+          cursor: pointer;
+        }
+
+        .slider::-moz-range-thumb {
+          width: 20px;
+          height: 20px;
+          border-radius: 50%;
+          background: var(--accent);
+          cursor: pointer;
+          border: none;
+        }
+
+        .slider-group {
+          background-color: var(--bg-secondary);
+          border: 1px solid var(--border);
+          border-radius: var(--radius-lg);
+          padding: var(--space-4);
+        }
+
+        .slider-container {
+          margin-top: var(--space-2);
+        }
+
+        .styled-slider {
+          height: 6px;
+          background: linear-gradient(to right, var(--bg-tertiary), var(--accent-light));
+        }
+
+        .styled-slider::-webkit-slider-thumb {
+          width: 24px;
+          height: 24px;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .styled-slider::-moz-range-thumb {
+          width: 24px;
+          height: 24px;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .slider-labels {
+          display: flex;
+          justify-content: space-between;
+          margin-top: var(--space-2);
+          font-size: var(--font-size-sm);
+          color: var(--text-muted);
+        }
+
+        .slider-labels span {
+          transition: color var(--transition-fast);
+        }
+
+        .slider-labels span.active {
+          color: var(--accent);
+          font-weight: 600;
+        }
+
+        .slider-desc {
+          margin-top: var(--space-2);
+          text-align: center;
+          min-height: 40px;
+        }
+
+        .toggle-label {
+          display: flex;
+          align-items: center;
+          gap: var(--space-3);
+          cursor: pointer;
+        }
+
+        .toggle-label input {
+          width: 18px;
+          height: 18px;
+          cursor: pointer;
+        }
+
+        .label-with-tooltip {
+          display: flex;
+          align-items: center;
+          gap: var(--space-2);
+        }
+
+        @media (max-width: 480px) {
+          .option-group {
+            grid-template-columns: 1fr;
+          }
+        }
+      `}</style>
+    </div>
+  );
+}

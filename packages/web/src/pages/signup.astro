@@ -1,0 +1,244 @@
+---
+import Layout from '../layouts/Layout.astro';
+
+// Redirect if already logged in
+if (Astro.locals.session) {
+  return Astro.redirect('/');
+}
+---
+
+<Layout title="Sign Up">
+  <div class="auth-page">
+    <div class="auth-card">
+      <div class="auth-header">
+        <img src="/images/logo-icon.png" alt="GePT" class="auth-logo" />
+        <h1>Create account</h1>
+        <p>Start flipping smarter</p>
+      </div>
+
+      <form id="signup-form" class="auth-form">
+        <div class="form-group">
+          <label for="name">Name</label>
+          <input
+            type="text"
+            id="name"
+            name="name"
+            required
+            autocomplete="name"
+            placeholder="Your name"
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="email">Email</label>
+          <input
+            type="email"
+            id="email"
+            name="email"
+            required
+            autocomplete="email"
+            placeholder="you@example.com"
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="password">Password</label>
+          <input
+            type="password"
+            id="password"
+            name="password"
+            required
+            autocomplete="new-password"
+            placeholder="••••••••"
+            minlength="8"
+          />
+          <span class="hint">At least 8 characters</span>
+        </div>
+
+        <div id="error-message" class="error-message"></div>
+
+        <button type="submit" class="btn-primary" id="submit-btn">
+          Create account
+        </button>
+      </form>
+
+      <p class="auth-footer">
+        Already have an account? <a href="/login">Sign in</a>
+      </p>
+    </div>
+  </div>
+</Layout>
+
+<script>
+  import { signUp } from '../lib/auth-client';
+
+  const form = document.getElementById('signup-form') as HTMLFormElement;
+  const errorMessage = document.getElementById('error-message') as HTMLDivElement;
+  const submitBtn = document.getElementById('submit-btn') as HTMLButtonElement;
+
+  form?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const name = (document.getElementById('name') as HTMLInputElement).value;
+    const email = (document.getElementById('email') as HTMLInputElement).value;
+    const password = (document.getElementById('password') as HTMLInputElement).value;
+
+    errorMessage.textContent = '';
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Creating account...';
+
+    try {
+      const result = await signUp.email({
+        name,
+        email,
+        password,
+      });
+
+      if (result.error) {
+        errorMessage.textContent = result.error.message || 'Could not create account';
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Create account';
+      } else {
+        // Success - redirect to home
+        window.location.href = '/';
+      }
+    } catch (err: any) {
+      console.error('Signup error:', err);
+      errorMessage.textContent = err?.message || 'Something went wrong. Please try again.';
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Create account';
+    }
+  });
+</script>
+
+<style>
+  .auth-page {
+    min-height: calc(100vh - 200px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-4);
+  }
+
+  .auth-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: var(--space-6);
+    max-width: 360px;
+    width: 100%;
+  }
+
+  .auth-header {
+    text-align: center;
+    margin-bottom: var(--space-5);
+  }
+
+  .auth-logo {
+    width: 64px;
+    height: 64px;
+    margin-bottom: var(--space-4);
+  }
+
+  .auth-header h1 {
+    font-size: var(--font-size-xl);
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: var(--space-1);
+  }
+
+  .auth-header p {
+    color: var(--text-secondary);
+    font-size: var(--font-size-sm);
+  }
+
+  .auth-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+  }
+
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+
+  .form-group label {
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    color: var(--text-primary);
+  }
+
+  .form-group input {
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    font-size: var(--font-size-sm);
+    transition: border-color var(--transition-fast);
+  }
+
+  .form-group input:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+
+  .form-group input::placeholder {
+    color: var(--text-muted);
+  }
+
+  .form-group .hint {
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
+  }
+
+  .error-message {
+    color: var(--danger);
+    font-size: var(--font-size-sm);
+    min-height: 1.25rem;
+  }
+
+  .error-message:empty {
+    display: none;
+  }
+
+  .btn-primary {
+    padding: var(--space-2) var(--space-4);
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    cursor: pointer;
+    transition: opacity var(--transition-fast);
+    border: none;
+    background: var(--accent);
+    color: var(--bg-primary);
+  }
+
+  .btn-primary:hover:not(:disabled) {
+    opacity: 0.9;
+  }
+
+  .btn-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .auth-footer {
+    margin-top: var(--space-5);
+    text-align: center;
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+  }
+
+  .auth-footer a {
+    color: var(--accent);
+    text-decoration: none;
+    font-weight: 500;
+  }
+
+  .auth-footer a:hover {
+    text-decoration: underline;
+  }
+</style>

@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- Simplified pixel sword going up like a chart -->
+  <path d="M4 28 L8 24 L10 26 L6 30 Z" fill="#8bc34a"/>
+  <path d="M8 24 L12 20 L14 22 L10 26 Z" fill="#8bc34a"/>
+  <path d="M12 20 L16 16 L18 18 L14 22 Z" fill="#8bc34a"/>
+  <!-- Hilt -->
+  <path d="M14 18 L18 14 L22 18 L18 22 Z" fill="#c9a66b"/>
+  <!-- Blade continues up -->
+  <path d="M18 14 L22 10 L24 12 L20 16 Z" fill="#8bc34a"/>
+  <path d="M22 10 L26 6 L28 8 L24 12 Z" fill="#8bc34a"/>
+  <path d="M26 6 L28 4 L30 4 L28 8 Z" fill="#8bc34a"/>
+</svg>

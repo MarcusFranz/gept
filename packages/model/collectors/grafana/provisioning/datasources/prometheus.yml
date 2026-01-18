@@ -1,0 +1,14 @@
+# =============================================================================
+# Grafana Datasource Provisioning - Prometheus
+# =============================================================================
+
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    uid: prometheus
+    access: proxy
+    url: http://gept-prometheus:9090
+    isDefault: true
+    editable: true

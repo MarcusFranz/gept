@@ -1,0 +1,140 @@
+# =============================================================================
+# GePT Model - Git Ignore
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Sensitive Files - NEVER commit these
+# -----------------------------------------------------------------------------
+.secrets/
+*.pem
+*.key
+*credentials*.json
+gept-*.json
+.env
+.env.*
+secrets/
+
+# -----------------------------------------------------------------------------
+# Large Model Files - Too big for git
+# -----------------------------------------------------------------------------
+models/
+models_downloaded/
+models_expanded/
+*.tar.gz
+*.zip
+*.pkl
+*.onnx
+*.joblib
+*.h5
+*.pt
+*.pth
+
+# -----------------------------------------------------------------------------
+# Python
+# -----------------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+venv/
+ENV/
+env/
+.venv/
+
+# -----------------------------------------------------------------------------
+# IDE and Editors
+# -----------------------------------------------------------------------------
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.pydevproject
+.settings/
+*.sublime-workspace
+*.sublime-project
+
+# -----------------------------------------------------------------------------
+# OS Generated
+# -----------------------------------------------------------------------------
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# -----------------------------------------------------------------------------
+# Project Specific - Generated/Temporary
+# -----------------------------------------------------------------------------
+# CatBoost training artifacts
+catboost_info/
+
+# Logs
+logs/
+*.log
+
+# Generated reports and analysis (can be regenerated)
+*_report.json
+*_results.json
+*_analysis.json
+current_predictions.json
+item_stats.json
+item_viability.json
+items_without_models.json
+overnight_evaluation_results.json
+full_predictions_analysis.json
+backtest_results.json
+
+# Pytest cache
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Data files (should be fetched from database)
+data/*.csv
+data/*.parquet
+data/*.json
+
+# Metrics (regenerated)
+metrics/
+
+# -----------------------------------------------------------------------------
+# Experiments - Results are regenerated, not committed
+# -----------------------------------------------------------------------------
+experiments/results/
+
+# -----------------------------------------------------------------------------
+# Cloud/Deployment - Keep templates, ignore actual configs
+# -----------------------------------------------------------------------------
+# Keep cloud/ directory but ignore sensitive items there too
+
+# -----------------------------------------------------------------------------
+# Claude Code - Track commands, ignore local settings
+# -----------------------------------------------------------------------------
+.claude/settings.local.json
+.claude/.DS_Store

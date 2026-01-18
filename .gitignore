@@ -1,0 +1,51 @@
+# Dependencies
+node_modules/
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Build outputs
+dist/
+build/
+*.egg-info/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Secrets - NEVER COMMIT
+.secrets/
+*.pem
+*.key
+
+# Logs
+logs/
+*.log
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Astro
+.astro/
+
+# Models (large files)
+packages/model/models/
+!packages/model/models/.gitkeep
+
+# Data caches
+packages/model/data/
+!packages/model/data/.gitkeep

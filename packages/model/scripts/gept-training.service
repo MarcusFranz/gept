@@ -1,0 +1,31 @@
+[Unit]
+Description=GePT Daily Model Training Pipeline
+Documentation=https://github.com/MarcusFranz/gept-foundations/issues/28
+After=network.target postgresql.service
+
+[Service]
+Type=oneshot
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/home/ubuntu/gept
+
+# Environment file with secrets
+EnvironmentFile=-/home/ubuntu/gept/.secrets/training.env
+
+# Main execution
+ExecStart=/home/ubuntu/gept/scripts/daily_training_pipeline.sh
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=gept-training
+
+# Resource limits
+TimeoutStartSec=21600
+# 6 hours max (training can be long)
+
+# Notifications on failure (requires mail configured)
+# OnFailure=gept-training-failure@%n.service
+
+[Install]
+WantedBy=multi-user.target

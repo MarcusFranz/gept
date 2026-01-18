@@ -1,0 +1,20 @@
+{
+  "name": "gept",
+  "version": "1.0.0",
+  "private": true,
+  "description": "GePT - Grand Exchange Prediction Tool Monorepo",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:web": "npm run dev --workspace=@gept/web",
+    "build:web": "npm run build --workspace=@gept/web",
+    "dev:engine": "npm run dev --workspace=@gept/engine",
+    "test": "npm run test --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.0"
+  }
+}

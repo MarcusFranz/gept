@@ -1,0 +1,413 @@
+---
+import '../styles/global.css';
+import ToastContainer from '../components/ToastContainer';
+import FeedbackWidget from '../components/FeedbackWidget';
+import SessionMonitor from '../components/SessionMonitor';
+import { ViewTransitions } from 'astro:transitions';
+
+interface Props {
+  title: string;
+  description?: string;
+  image?: string;
+}
+
+const {
+  title,
+  description = 'AI-powered Grand Exchange flipping recommendations for Old School RuneScape. Get real-time item suggestions and track your profits.',
+  image = '/images/og-image.png'
+} = Astro.props;
+
+const siteUrl = import.meta.env.SITE || 'https://gept.gg';
+const canonicalUrl = new URL(Astro.url.pathname, siteUrl).toString();
+const fullTitle = `${title} | GePT`;
+---
+
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content={description} />
+    <meta name="robots" content="index, follow" />
+    <meta name="author" content="GePT" />
+    <link rel="canonical" href={canonicalUrl} />
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content={canonicalUrl} />
+    <meta property="og:title" content={fullTitle} />
+    <meta property="og:description" content={description} />
+    <meta property="og:image" content={`${siteUrl}${image}`} />
+    <meta property="og:site_name" content="GePT" />
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:url" content={canonicalUrl} />
+    <meta name="twitter:title" content={fullTitle} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={`${siteUrl}${image}`} />
+
+    <!-- Theme color for mobile browsers -->
+    <meta name="theme-color" content="#8bc34a" />
+    <meta name="msapplication-TileColor" content="#1a1d23" />
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600&family=Rajdhani:wght@500;700&display=swap" rel="stylesheet" />
+
+    <title>{fullTitle}</title>
+    <ViewTransitions />
+  </head>
+  <body>
+    <div class="app">
+      <nav class="nav">
+        <div class="container">
+          <div class="nav-inner">
+            <a href="/" class="nav-brand">
+              <img src="/images/logo-icon.png" alt="GePT" class="nav-logo" />
+              <span class="nav-title-wrap">
+                <span class="nav-title">GePT</span>
+                <span class="tier-badge is-beta">BETA</span>
+              </span>
+            </a>
+            <div class="nav-actions">
+              <button class="theme-toggle" aria-label="Toggle theme">
+              <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="5"/>
+                <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+              </svg>
+              <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+              </svg>
+            </button>
+              <a href="/account" class="nav-account" aria-label="Account">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="8" r="4"/>
+                  <path d="M4 20c0-4 4-6 8-6s8 2 8 6"/>
+                </svg>
+              </a>
+            </div>
+          </div>
+        </div>
+      </nav>
+
+      <main class="main">
+        <slot />
+      </main>
+
+      <footer class="footer">
+        <div class="container">
+          <div class="footer-content">
+            <div class="footer-brand">
+              <img src="/images/logo-icon.png" alt="GePT" class="footer-logo" />
+              <span class="footer-title">GePT</span>
+            </div>
+            <p class="footer-tagline">AI-powered Grand Exchange flipping</p>
+            <p class="footer-disclaimer">Not affiliated with Jagex Ltd. OSRS is a trademark of Jagex Ltd.</p>
+          </div>
+        </div>
+      </footer>
+    </div>
+
+    <ToastContainer client:load />
+    <FeedbackWidget client:load />
+    <SessionMonitor client:load />
+
+    <script>
+      // Theme initialization (runs immediately to prevent flash)
+      try {
+        const savedTheme = localStorage.getItem('theme') || 'dark';
+        document.documentElement.dataset.theme = savedTheme;
+      } catch {
+        document.documentElement.dataset.theme = 'dark';
+      }
+    </script>
+    <script>
+      function initPage() {
+        // Theme toggle
+        const themeToggle = document.querySelector('.theme-toggle');
+        themeToggle?.addEventListener('click', () => {
+          const current = document.documentElement.dataset.theme;
+          const next = current === 'dark' ? 'light' : 'dark';
+          document.documentElement.dataset.theme = next;
+          try {
+            localStorage.setItem('theme', next);
+          } catch {
+            // Ignore localStorage errors (quota exceeded, private browsing, etc.)
+          }
+        });
+      }
+
+      // Run on initial load and after each navigation
+      document.addEventListener('astro:page-load', initPage);
+    </script>
+  </body>
+</html>
+
+<style>
+  .app {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .nav {
+    background-color: var(--bg-secondary);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .nav-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 56px;
+  }
+
+  .nav-brand {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    color: var(--text-primary);
+    font-weight: 700;
+    font-size: var(--font-size-xl);
+  }
+
+  .nav-logo {
+    width: 40px;
+    height: auto;
+    filter: drop-shadow(0 0 8px rgba(139, 195, 74, 0.3));
+  }
+
+  .nav-title-wrap {
+    position: relative;
+  }
+
+  .tier-badge {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    left: 100%;
+    margin-left: 6px;
+    padding: 1px 3px;
+    font-size: 8px;
+    font-weight: 700;
+    border-radius: 3px;
+    letter-spacing: 0.5px;
+    /* Free style - green */
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dark) 100%);
+    color: var(--btn-text-dark);
+  }
+
+  .tier-badge.is-pro {
+    /* Pro style - gold */
+    background: linear-gradient(135deg, var(--tier-pro) 0%, var(--gold) 50%, var(--tier-pro-dark) 100%);
+    color: var(--btn-text-dark);
+  }
+
+  .tier-badge.is-beta {
+    /* Beta style - blue/purple */
+    background: linear-gradient(135deg, var(--tier-beta) 0%, var(--tier-beta-light) 100%);
+    color: var(--btn-text-light);
+  }
+
+  .nav-title {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: 1px;
+  }
+
+  .nav-links {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+  }
+
+  .nav-link {
+    padding: var(--space-2) var(--space-3);
+    color: var(--text-secondary);
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    border-radius: var(--radius-md);
+    transition: all var(--transition-fast);
+  }
+
+  .nav-link:hover {
+    color: var(--text-primary);
+    background-color: var(--bg-hover);
+  }
+
+  .nav-link.active {
+    color: var(--accent);
+    background-color: var(--accent-light);
+  }
+
+  .theme-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+  }
+
+  .theme-toggle:hover {
+    color: var(--text-primary);
+    border-color: var(--border-light);
+    background-color: var(--bg-hover);
+  }
+
+  .theme-toggle svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .theme-toggle .icon-sun {
+    display: none;
+  }
+
+  .theme-toggle .icon-moon {
+    display: block;
+  }
+
+  [data-theme="light"] .theme-toggle .icon-sun {
+    display: block;
+  }
+
+  [data-theme="light"] .theme-toggle .icon-moon {
+    display: none;
+  }
+
+  .nav-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  .nav-account {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    color: var(--text-secondary);
+    transition: all var(--transition-fast);
+  }
+
+  .nav-account:hover {
+    color: var(--text-primary);
+    border-color: var(--border-light);
+    background-color: var(--bg-hover);
+  }
+
+  .nav-account svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .nav-menu-btn {
+    display: none;
+    padding: var(--space-2);
+    background: none;
+    border: none;
+    color: var(--text-primary);
+    cursor: pointer;
+  }
+
+  .nav-menu-btn svg {
+    width: 24px;
+    height: 24px;
+  }
+
+  .main {
+    flex: 1;
+  }
+
+  .footer {
+    padding: var(--space-5) 0;
+    border-top: 1px solid var(--border);
+    margin-top: auto;
+    background-color: var(--bg-secondary);
+  }
+
+  .footer-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  .footer-brand {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  .footer-logo {
+    width: 24px;
+    height: auto;
+    opacity: 0.7;
+  }
+
+  .footer-title {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: 1px;
+  }
+
+  .footer-tagline {
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+  }
+
+  .footer-disclaimer {
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
+    margin-top: var(--space-2);
+  }
+
+  @media (max-width: 768px) {
+    .nav-links {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      flex-direction: column;
+      background-color: var(--bg-secondary);
+      border-bottom: 1px solid var(--border);
+      padding: var(--space-2);
+      display: none;
+    }
+
+    .nav-links.open {
+      display: flex;
+    }
+
+    .nav-link {
+      width: 100%;
+      text-align: center;
+    }
+
+    .nav-menu-btn {
+      display: block;
+    }
+  }
+</style>

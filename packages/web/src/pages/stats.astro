@@ -1,0 +1,158 @@
+---
+import Layout from '../layouts/Layout.astro';
+import TradeHistoryView from '../components/TradeHistory';
+import Portfolio from '../components/Portfolio';
+---
+
+<Layout title="Stats">
+  <div class="container page stats-page">
+    <div class="stats-page-header">
+      <a href="/" class="back-button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M19 12H5M12 19l-7-7 7-7"/>
+        </svg>
+        Back
+      </a>
+      <div class="stats-tabs">
+        <button class="stats-tab active" data-tab="history">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <polyline points="12 6 12 12 16 14"/>
+          </svg>
+          History
+        </button>
+        <button class="stats-tab" data-tab="portfolio">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+            <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+            <line x1="12" y1="22.08" x2="12" y2="12"/>
+          </svg>
+          Portfolio
+        </button>
+      </div>
+    </div>
+
+    <div class="stats-content">
+      <div class="stats-panel active" data-panel="history">
+        <TradeHistoryView client:load />
+      </div>
+      <div class="stats-panel" data-panel="portfolio">
+        <Portfolio client:load />
+      </div>
+    </div>
+  </div>
+</Layout>
+
+<script>
+  function initTabs() {
+    const tabs = document.querySelectorAll('.stats-tab');
+    const panels = document.querySelectorAll('.stats-panel');
+
+    tabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        const target = tab.getAttribute('data-tab');
+
+        tabs.forEach(t => t.classList.remove('active'));
+        panels.forEach(p => p.classList.remove('active'));
+
+        tab.classList.add('active');
+        document.querySelector(`[data-panel="${target}"]`)?.classList.add('active');
+      });
+    });
+  }
+
+  document.addEventListener('astro:page-load', initTabs);
+</script>
+
+<style>
+  .stats-page {
+    padding-top: var(--space-4);
+    padding-bottom: var(--space-6);
+  }
+
+  .stats-page-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+    margin-bottom: var(--space-4);
+  }
+
+  .back-button {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    color: var(--text-secondary);
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    transition: all var(--transition-fast);
+  }
+
+  .back-button:hover {
+    background: var(--bg-hover);
+    border-color: var(--border-light);
+    color: var(--text-primary);
+  }
+
+  .back-button svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .stats-tabs {
+    display: flex;
+    gap: var(--space-1);
+    background: var(--bg-tertiary);
+    padding: 4px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border);
+  }
+
+  .stats-tab {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+  }
+
+  .stats-tab:hover {
+    color: var(--text-primary);
+  }
+
+  .stats-tab.active {
+    background: var(--bg-secondary);
+    color: var(--accent);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+
+  .stats-tab svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  .stats-content {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: var(--space-4);
+  }
+
+  .stats-panel {
+    display: none;
+  }
+
+  .stats-panel.active {
+    display: block;
+  }
+</style>
