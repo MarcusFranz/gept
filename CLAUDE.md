@@ -105,39 +105,136 @@ POST /api/v1/trade-outcome
   Response: { success: boolean }
 ```
 
-## Orchestrator Workflow
+## Workflows (User-Facing Commands)
 
-When you receive a task:
+Users invoke high-level workflows via slash commands:
 
-1. **Understand scope**: Does it touch model, engine, web, or multiple?
-2. **Check contracts**: Will changes affect the interfaces above?
-3. **Delegate appropriately**:
-   - Model work → spawn agent with `agents/model-agent.md`
-   - Engine work → spawn agent with `agents/engine-agent.md`
-   - Web work → spawn agent with `agents/web-agent.md`
-   - Server work → spawn agent with `agents/infra-agent.md`
-4. **Coordinate**: If crossing boundaries, update contracts first
-5. **Verify**: Check that changes don't break downstream consumers
+| Command | Purpose |
+|---------|---------|
+| `/feature` | Design and implement a new feature |
+| `/bugfix` | Diagnose and fix a bug |
+| `/refactor` | Safe refactoring with tests |
+| `/deploy` | Deploy to production using runbooks |
+| `/health` | System health check |
+| `/incident` | Production incident response |
 
-## Agent Spawning
+Each workflow defines a pipeline of agents that process the work.
 
-Use the Task tool to delegate:
+## Agent Pipeline Architecture
 
+```
+User Request
+     │
+     ▼
+┌─────────────────────┐
+│   ORCHESTRATOR      │  ← You (full system context)
+│   Understands scope │
+│   Coordinates work  │
+└─────────┬───────────┘
+          │
+          ▼
+┌─────────────────────┐
+│   PLANNER AGENT     │  ← Expands request to design doc
+│   Architecture      │     with requirements, steps, contracts
+│   Task breakdown    │
+└─────────┬───────────┘
+          │
+          ▼
+┌─────────────────────┐
+│   DISPATCHER        │  ← Analyzes dependencies
+│   (Orchestrator)    │     Determines parallelization
+└─────────┬───────────┘
+          │
+    ┌─────┴─────┬─────────┬─────────┐
+    ▼           ▼         ▼         ▼
+┌───────┐ ┌───────┐ ┌───────┐ ┌───────┐
+│ Model │ │Engine │ │ Web   │ │ Infra │  ← Specialized workers
+│Worker │ │Worker │ │Worker │ │Worker │     (parallel when possible)
+└───┬───┘ └───┬───┘ └───┬───┘ └───┬───┘
+    │         │         │         │
+    └─────────┴────┬────┴─────────┘
+                   │
+                   ▼
+          ┌─────────────────┐
+          │   QA AGENT      │  ← Tests, integration, validation
+          └─────────┬───────┘
+                    │
+                    ▼
+          ┌─────────────────┐
+          │   ORCHESTRATOR  │  ← Review results, report to user
+          └─────────────────┘
+```
+
+## Agent Spawning Patterns
+
+### Planning Phase
+```
+Task(
+    subagent_type="Plan",
+    prompt="Create a design document for: [feature description]
+           Consider: affected packages, contracts, risks
+           Output: markdown design doc",
+    description="Plan: feature design"
+)
+```
+
+### Worker Phase (spawn in parallel when no dependencies)
 ```
 Task(
     subagent_type="general-purpose",
     prompt="""
-    Context: [Read agents/model-agent.md]
+    You are a Model Worker for GePT.
 
-    Task: [specific task description]
+    Context: [include agents/model-agent.md content]
+    Design: [include design doc content]
+
+    Your tasks:
+    1. [specific task from design]
+    2. [specific task from design]
 
     Constraints:
-    - Do not modify predictions table schema without coordination
-    - Update shared/types if changing API contracts
+    - Do not modify predictions table schema
+    - Update shared/types if changing contracts
     """,
-    description="Model: [short description]"
+    description="Model: implement feature X"
 )
 ```
+
+### QA Phase
+```
+Task(
+    subagent_type="general-purpose",
+    prompt="Run tests and verify:
+           1. All test suites pass
+           2. Acceptance criteria met: [list from design]
+           3. No regressions introduced
+           4. Contracts maintained",
+    description="QA: verify implementation"
+)
+```
+
+## Subagent Context Files
+
+Located in `agents/` - include content in worker prompts:
+
+| File | Use For |
+|------|---------|
+| `model-agent.md` | ML pipeline, training, inference, collectors |
+| `engine-agent.md` | API endpoints, recommendations, business logic |
+| `web-agent.md` | Frontend, UI components, auth |
+| `infra-agent.md` | Server operations (ALWAYS use runbooks) |
+
+## Parallelization Rules
+
+**Can run in parallel:**
+- Independent package changes (model + web if no shared contract changes)
+- Multiple bug fixes in different files
+- Read-only exploration tasks
+
+**Must run sequentially:**
+- Contract changes → then consumers
+- Database schema → then code using it
+- Auth changes → then features depending on auth
 
 ## Server Infrastructure
 
