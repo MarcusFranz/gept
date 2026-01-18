@@ -49,3 +49,8 @@ packages/model/models/
 # Data caches
 packages/model/data/
 !packages/model/data/.gitkeep
+.claude/
+agents/
+docs/
+infra/runbooks/
+CLAUDE.md
