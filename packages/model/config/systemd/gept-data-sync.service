@@ -1,0 +1,43 @@
+[Unit]
+Description=GePT Data Sync Service
+Documentation=https://github.com/yourusername/gept
+After=network.target db-tunnel.service
+Wants=db-tunnel.service
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/home/ubuntu/gept
+
+# Environment
+Environment="PATH=/home/ubuntu/miniconda3/envs/gept/bin:/usr/local/bin:/usr/bin"
+Environment="PYTHONUNBUFFERED=1"
+
+# Main command
+ExecStart=/home/ubuntu/miniconda3/envs/gept/bin/python -u src/training/data_sync_service.py --daemon
+
+# Restart policy
+Restart=always
+RestartSec=30
+StartLimitInterval=300
+StartLimitBurst=5
+
+# Resource limits (data sync is lightweight)
+MemoryMax=2G
+CPUQuota=20%
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=gept-data-sync
+
+# Security
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/ubuntu/gept/data_cache /home/ubuntu/gept/logs
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

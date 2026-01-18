@@ -1,0 +1,10 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Portfolio from '../components/Portfolio';
+---
+
+<Layout title="Portfolio">
+  <div class="container page">
+    <Portfolio client:load />
+  </div>
+</Layout>

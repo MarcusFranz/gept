@@ -1,0 +1,77 @@
+# =============================================================================
+# Prometheus Configuration for GePT Data Collectors
+# =============================================================================
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    monitor: 'gept-collectors'
+
+# Alertmanager configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - 'gept-alertmanager:9093'
+
+# Rule files
+rule_files:
+  - /etc/prometheus/alerts.yml
+
+# Scrape configurations
+scrape_configs:
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Docker collectors (internal network)
+  - job_name: 'gept-docker-collectors'
+    static_configs:
+      - targets:
+          - 'osrs-5m-collector:9100'
+          - 'osrs-hourly-collector:9101'
+          - 'osrs-news-collector:9102'
+          - 'osrs-latest-1m:9103'
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+
+  # Systemd collectors (host network)
+  - job_name: 'gept-systemd-collectors'
+    static_configs:
+      - targets:
+          - 'host.docker.internal:9104'  # player_count
+          - 'host.docker.internal:9105'  # item_updater
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+
+  # Dashboard metrics
+  - job_name: 'gept-dashboard'
+    static_configs:
+      - targets:
+          - 'osrs-dashboard:8080'
+    metrics_path: '/metrics'
+    scrape_interval: 60s
+
+  # Defense in Depth Monitoring Services
+  - job_name: 'gept-monitoring'
+    static_configs:
+      - targets:
+          - 'gept-collector-monitor:9106'
+          - 'gept-gap-detector:9107'
+          - 'gept-watchdog:9108'
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+
+  # PostgreSQL metrics (if postgres_exporter is installed)
+  - job_name: 'postgresql'
+    static_configs:
+      - targets: ['host.docker.internal:9187']
+    scrape_interval: 60s
+
+  # Node metrics (if node_exporter is installed)
+  - job_name: 'node'
+    static_configs:
+      - targets: ['host.docker.internal:9100']
+    scrape_interval: 60s

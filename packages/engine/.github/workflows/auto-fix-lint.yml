@@ -1,0 +1,46 @@
+name: Auto-fix Lint Issues
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  auto-fix:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install formatting tools
+        run: |
+          pip install black isort flake8
+
+      - name: Run Black formatter
+        run: black . --line-length 100
+        continue-on-error: true
+
+      - name: Run isort (import sorting)
+        run: isort . --profile black
+        continue-on-error: true
+
+      - name: Commit and push if changes
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git add .
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "chore: auto-fix lint issues"
+            git push
+          fi

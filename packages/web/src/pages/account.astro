@@ -1,0 +1,764 @@
+---
+import Layout from '../layouts/Layout.astro';
+
+const user = Astro.locals.user;
+---
+
+<Layout title="Account">
+  <div class="container page">
+    <header class="page-header">
+      <h1>Account</h1>
+      <p class="text-secondary">Manage your profile and subscription</p>
+    </header>
+
+    <div class="account-grid">
+      <!-- Profile Section -->
+      <section class="account-section">
+        <div class="section-header">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="8" r="4"/>
+            <path d="M4 20c0-4 4-6 8-6s8 2 8 6"/>
+          </svg>
+          <h2>Profile</h2>
+        </div>
+        <div class="section-content">
+          <div class="form-group">
+            <label for="display-name">Display Name</label>
+            <input type="text" id="display-name" placeholder="Your display name" value={user?.name || ''} />
+          </div>
+          <div class="form-group">
+            <label for="email">Email</label>
+            <input type="email" id="email" placeholder="your@email.com" value={user?.email || ''} disabled />
+            <span class="hint">Email cannot be changed</span>
+          </div>
+          <button class="btn btn-primary" id="save-profile-btn">Save Changes</button>
+          <div id="profile-message" class="form-message"></div>
+        </div>
+      </section>
+
+      <!-- Subscription Section -->
+      <section class="account-section">
+        <div class="section-header">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="2" y="4" width="20" height="16" rx="2"/>
+            <path d="M2 10h20"/>
+          </svg>
+          <h2>Subscription</h2>
+        </div>
+        <div class="section-content">
+          <!-- Current Plan Display -->
+          <div class="current-plan" id="current-plan">
+            <div class="plan-card active is-beta" id="plan-display">
+              <div class="plan-info">
+                <span class="plan-badge beta">Beta</span>
+                <p class="plan-name">Beta Access</p>
+                <p class="plan-description">Full access to all features during beta</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Beta Features -->
+          <div class="beta-features-card">
+            <h3>Beta Includes</h3>
+            <ul class="plan-features">
+              <li>8 simultaneous trade slots</li>
+              <li>AI-powered recommendations</li>
+              <li>Real-time price tracking</li>
+              <li>Trade history & analytics</li>
+            </ul>
+            <p class="beta-note">Free during beta period</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Security Section -->
+      <section class="account-section">
+        <div class="section-header">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="11" width="18" height="11" rx="2"/>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+          </svg>
+          <h2>Security</h2>
+        </div>
+        <div class="section-content">
+          <div class="form-group">
+            <label for="current-password">Current Password</label>
+            <input type="password" id="current-password" placeholder="Enter current password" />
+          </div>
+          <div class="form-group">
+            <label for="new-password">New Password</label>
+            <input type="password" id="new-password" placeholder="Enter new password" minlength="8" />
+            <span class="hint">At least 8 characters</span>
+          </div>
+          <div class="form-group">
+            <label for="confirm-password">Confirm Password</label>
+            <input type="password" id="confirm-password" placeholder="Confirm new password" />
+          </div>
+          <button class="btn btn-primary" id="update-password-btn">Update Password</button>
+          <div id="password-message" class="form-message"></div>
+        </div>
+      </section>
+
+      <!-- Notifications Section -->
+      <section class="account-section">
+        <div class="section-header">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+            <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+          </svg>
+          <h2>Notifications</h2>
+        </div>
+        <div class="section-content">
+          <div class="toggle-option">
+            <div class="option-info">
+              <h3>Email Notifications</h3>
+              <p class="text-secondary">Receive updates about your trades</p>
+            </div>
+            <label class="toggle">
+              <input type="checkbox" checked />
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          <div class="toggle-option">
+            <div class="option-info">
+              <h3>Price Alerts</h3>
+              <p class="text-secondary">Get notified when prices change significantly</p>
+            </div>
+            <label class="toggle">
+              <input type="checkbox" checked />
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          <div class="toggle-option">
+            <div class="option-info">
+              <h3>Weekly Summary</h3>
+              <p class="text-secondary">Receive a weekly report of your trading activity</p>
+            </div>
+            <label class="toggle">
+              <input type="checkbox" />
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          <div class="toggle-option">
+            <div class="option-info">
+              <h3>Marketing Emails</h3>
+              <p class="text-secondary">News and updates about GePT</p>
+            </div>
+            <label class="toggle">
+              <input type="checkbox" />
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </div>
+      </section>
+
+      <!-- Danger Zone -->
+      <section class="account-section danger">
+        <div class="section-header">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 9v4M12 17h.01"/>
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+          </svg>
+          <h2>Danger Zone</h2>
+        </div>
+        <div class="section-content">
+          <div class="danger-option">
+            <div class="option-info">
+              <h3>Sign Out</h3>
+              <p class="text-secondary">Sign out of your account on this device</p>
+            </div>
+            <button class="btn btn-secondary" id="sign-out-btn">Sign Out</button>
+          </div>
+          <div class="danger-option">
+            <div class="option-info">
+              <h3>Delete Account</h3>
+              <p class="text-secondary">Permanently delete your account and all data</p>
+            </div>
+            <button class="btn btn-danger" id="delete-account-btn">Delete Account</button>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+</Layout>
+
+<script>
+  import { signOut, authClient } from '../lib/auth-client';
+
+  // Save profile changes
+  const saveProfileBtn = document.getElementById('save-profile-btn');
+  const profileMessage = document.getElementById('profile-message');
+
+  saveProfileBtn?.addEventListener('click', async () => {
+    const displayName = (document.getElementById('display-name') as HTMLInputElement).value;
+
+    if (!displayName.trim()) {
+      showMessage(profileMessage, 'Please enter a display name', 'error');
+      return;
+    }
+
+    saveProfileBtn.textContent = 'Saving...';
+    (saveProfileBtn as HTMLButtonElement).disabled = true;
+
+    try {
+      const result = await authClient.updateUser({
+        name: displayName.trim()
+      });
+
+      if (result.error) {
+        showMessage(profileMessage, result.error.message || 'Failed to save changes', 'error');
+      } else {
+        showMessage(profileMessage, 'Profile updated successfully', 'success');
+      }
+    } catch (err) {
+      showMessage(profileMessage, 'Something went wrong. Please try again.', 'error');
+    } finally {
+      saveProfileBtn.textContent = 'Save Changes';
+      (saveProfileBtn as HTMLButtonElement).disabled = false;
+    }
+  });
+
+  // Update password
+  const updatePasswordBtn = document.getElementById('update-password-btn');
+  const passwordMessage = document.getElementById('password-message');
+
+  updatePasswordBtn?.addEventListener('click', async () => {
+    const currentPassword = (document.getElementById('current-password') as HTMLInputElement).value;
+    const newPassword = (document.getElementById('new-password') as HTMLInputElement).value;
+    const confirmPassword = (document.getElementById('confirm-password') as HTMLInputElement).value;
+
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      showMessage(passwordMessage, 'Please fill in all password fields', 'error');
+      return;
+    }
+
+    if (newPassword.length < 8) {
+      showMessage(passwordMessage, 'New password must be at least 8 characters', 'error');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      showMessage(passwordMessage, 'New passwords do not match', 'error');
+      return;
+    }
+
+    updatePasswordBtn.textContent = 'Updating...';
+    (updatePasswordBtn as HTMLButtonElement).disabled = true;
+
+    try {
+      const result = await authClient.changePassword({
+        currentPassword,
+        newPassword
+      });
+
+      if (result.error) {
+        showMessage(passwordMessage, result.error.message || 'Failed to update password', 'error');
+      } else {
+        showMessage(passwordMessage, 'Password updated successfully', 'success');
+        // Clear password fields
+        (document.getElementById('current-password') as HTMLInputElement).value = '';
+        (document.getElementById('new-password') as HTMLInputElement).value = '';
+        (document.getElementById('confirm-password') as HTMLInputElement).value = '';
+      }
+    } catch (err) {
+      showMessage(passwordMessage, 'Something went wrong. Please try again.', 'error');
+    } finally {
+      updatePasswordBtn.textContent = 'Update Password';
+      (updatePasswordBtn as HTMLButtonElement).disabled = false;
+    }
+  });
+
+  // Sign out
+  const signOutBtn = document.getElementById('sign-out-btn');
+
+  signOutBtn?.addEventListener('click', async () => {
+    signOutBtn.textContent = 'Signing out...';
+    (signOutBtn as HTMLButtonElement).disabled = true;
+
+    try {
+      await signOut();
+      window.location.href = '/login';
+    } catch (err) {
+      signOutBtn.textContent = 'Sign Out';
+      (signOutBtn as HTMLButtonElement).disabled = false;
+    }
+  });
+
+  // Delete account
+  const deleteAccountBtn = document.getElementById('delete-account-btn');
+
+  deleteAccountBtn?.addEventListener('click', async () => {
+    const confirmed = confirm(
+      'Are you sure you want to delete your account? This action cannot be undone and all your data will be permanently deleted.'
+    );
+
+    if (!confirmed) return;
+
+    const doubleConfirm = confirm(
+      'This is your final warning. Your account and all associated data will be permanently deleted. Continue?'
+    );
+
+    if (!doubleConfirm) return;
+
+    deleteAccountBtn.textContent = 'Deleting...';
+    (deleteAccountBtn as HTMLButtonElement).disabled = true;
+
+    try {
+      const result = await authClient.deleteUser();
+
+      if (result.error) {
+        alert('Failed to delete account: ' + (result.error.message || 'Unknown error'));
+        deleteAccountBtn.textContent = 'Delete Account';
+        (deleteAccountBtn as HTMLButtonElement).disabled = false;
+      } else {
+        window.location.href = '/login';
+      }
+    } catch (err) {
+      alert('Something went wrong. Please try again.');
+      deleteAccountBtn.textContent = 'Delete Account';
+      (deleteAccountBtn as HTMLButtonElement).disabled = false;
+    }
+  });
+
+  // Helper function to show messages
+  function showMessage(element: HTMLElement | null, message: string, type: 'success' | 'error') {
+    if (!element) return;
+    element.textContent = message;
+    element.className = `form-message ${type}`;
+
+    // Clear message after 5 seconds
+    setTimeout(() => {
+      element.textContent = '';
+      element.className = 'form-message';
+    }, 5000);
+  }
+</script>
+
+<style>
+  .page-header {
+    text-align: center;
+    margin-bottom: var(--space-5);
+  }
+
+  .page-header h1 {
+    margin-bottom: var(--space-2);
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: var(--font-size-3xl);
+    font-weight: 600;
+    letter-spacing: 1px;
+  }
+
+  .account-grid {
+    display: grid;
+    gap: var(--space-4);
+    max-width: 800px;
+    margin: 0 auto;
+  }
+
+  .account-section {
+    background-color: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+  }
+
+  .account-section.danger {
+    border-color: var(--danger);
+  }
+
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-3) var(--space-4);
+    background-color: var(--bg-tertiary);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .section-header svg {
+    width: 20px;
+    height: 20px;
+    color: var(--accent);
+  }
+
+  .account-section.danger .section-header svg {
+    color: var(--danger);
+  }
+
+  .section-header h2 {
+    font-size: var(--font-size-lg);
+    font-weight: 600;
+  }
+
+  .section-content {
+    padding: var(--space-4);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+  }
+
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+
+  .form-group label {
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    color: var(--text-secondary);
+  }
+
+  .form-group input {
+    padding: var(--space-2) var(--space-3);
+    background-color: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    color: var(--text-primary);
+    font-size: var(--font-size-base);
+  }
+
+  .form-group input:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+
+  .avatar-upload {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+  }
+
+  .avatar-preview {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background-color: var(--bg-tertiary);
+    border: 2px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .avatar-preview svg {
+    width: 32px;
+    height: 32px;
+    color: var(--text-muted);
+  }
+
+  /* Plan Cards */
+  .plan-card {
+    padding: var(--space-3);
+    background-color: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+  }
+
+  .plan-card.active {
+    border-color: var(--accent);
+  }
+
+  .plan-card.active.is-pro {
+    background: linear-gradient(135deg, var(--bg-tertiary) 0%, rgba(139, 195, 74, 0.1) 100%);
+  }
+
+  .dev-toggle-section {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-3);
+    background-color: rgba(255, 193, 7, 0.1);
+    border: 1px dashed rgba(255, 193, 7, 0.5);
+    border-radius: var(--radius-md);
+  }
+
+  .dev-label {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+  }
+
+  .dev-badge {
+    padding: 2px 6px;
+    background-color: #ffc107;
+    color: #000;
+    font-size: 10px;
+    font-weight: 700;
+    border-radius: var(--radius-sm);
+  }
+
+  .plan-switcher {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  .plan-option {
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    color: var(--text-muted);
+    transition: color var(--transition-fast);
+  }
+
+  .plan-option.active {
+    color: var(--accent);
+  }
+
+  .pro-features-card {
+    padding: var(--space-3);
+    background-color: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+  }
+
+  .pro-features-card h3 {
+    font-size: var(--font-size-base);
+    font-weight: 600;
+    margin-bottom: var(--space-2);
+  }
+
+  .plan-badge {
+    display: inline-block;
+    padding: var(--space-1) var(--space-2);
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    border-radius: var(--radius-sm);
+    text-transform: uppercase;
+  }
+
+  .plan-badge.free {
+    background-color: var(--bg-hover);
+    color: var(--text-secondary);
+  }
+
+  .plan-badge.pro {
+    background-color: var(--accent);
+    color: var(--bg-primary);
+  }
+
+  .plan-badge.beta {
+    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+    color: #fff;
+  }
+
+  .plan-card.is-beta {
+    border-color: #6366f1;
+  }
+
+  .beta-features-card {
+    padding: var(--space-3);
+    background-color: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+  }
+
+  .beta-features-card h3 {
+    font-size: var(--font-size-base);
+    font-weight: 600;
+    margin-bottom: var(--space-2);
+  }
+
+  .beta-note {
+    font-size: var(--font-size-sm);
+    color: #8b5cf6;
+    font-weight: 500;
+    margin-top: var(--space-2);
+  }
+
+  .plan-name {
+    font-size: var(--font-size-lg);
+    font-weight: 600;
+    margin-top: var(--space-2);
+  }
+
+  .plan-description {
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+  }
+
+  .plan-price {
+    font-size: var(--font-size-xl);
+    font-weight: 700;
+    color: var(--accent);
+    margin-top: var(--space-1);
+  }
+
+  .plan-features {
+    margin-top: var(--space-2);
+    padding-left: var(--space-4);
+  }
+
+  .plan-features li {
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+    margin-bottom: var(--space-1);
+  }
+
+  .plan-card.pro .btn {
+    margin-top: var(--space-3);
+  }
+
+  .billing-info {
+    padding-top: var(--space-3);
+    border-top: 1px solid var(--border);
+  }
+
+  .billing-info h3 {
+    font-size: var(--font-size-base);
+    font-weight: 600;
+    margin-bottom: var(--space-2);
+  }
+
+  /* Security & Toggle Options */
+  .security-option,
+  .toggle-option,
+  .danger-option {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-3);
+    background-color: var(--bg-tertiary);
+    border-radius: var(--radius-md);
+  }
+
+  .option-info h3 {
+    font-size: var(--font-size-base);
+    font-weight: 500;
+  }
+
+  .option-info p {
+    font-size: var(--font-size-sm);
+  }
+
+  /* Toggle Switch */
+  .toggle {
+    position: relative;
+    display: inline-block;
+    width: 48px;
+    height: 26px;
+  }
+
+  .toggle input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+
+  .toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: var(--bg-hover);
+    border-radius: 26px;
+    transition: var(--transition-fast);
+  }
+
+  .toggle-slider:before {
+    position: absolute;
+    content: "";
+    height: 20px;
+    width: 20px;
+    left: 3px;
+    bottom: 3px;
+    background-color: var(--text-secondary);
+    border-radius: 50%;
+    transition: var(--transition-fast);
+  }
+
+  .toggle input:checked + .toggle-slider {
+    background-color: var(--accent);
+  }
+
+  .toggle input:checked + .toggle-slider:before {
+    transform: translateX(22px);
+    background-color: white;
+  }
+
+  /* Buttons */
+  .btn {
+    padding: var(--space-2) var(--space-4);
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    border: none;
+  }
+
+  .btn-primary {
+    background-color: var(--accent);
+    color: var(--bg-primary);
+  }
+
+  .btn-primary:hover {
+    background-color: var(--accent-hover);
+  }
+
+  .btn-secondary {
+    background-color: var(--bg-hover);
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+  }
+
+  .btn-secondary:hover {
+    background-color: var(--bg-tertiary);
+  }
+
+  .btn-accent {
+    background-color: var(--accent);
+    color: var(--bg-primary);
+  }
+
+  .btn-accent:hover {
+    background-color: var(--accent-hover);
+  }
+
+  .btn-danger {
+    background-color: var(--danger);
+    color: white;
+  }
+
+  .btn-danger:hover {
+    opacity: 0.9;
+  }
+
+  /* Form messages and hints */
+  .form-message {
+    font-size: var(--font-size-sm);
+    min-height: 1.25rem;
+  }
+
+  .form-message.success {
+    color: var(--accent);
+  }
+
+  .form-message.error {
+    color: var(--danger);
+  }
+
+  .hint {
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
+  }
+
+  @media (max-width: 640px) {
+    .security-option,
+    .toggle-option,
+    .danger-option {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: var(--space-2);
+    }
+
+    .toggle-option {
+      flex-direction: row;
+      align-items: center;
+    }
+  }
+</style>
+

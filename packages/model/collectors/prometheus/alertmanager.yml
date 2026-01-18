@@ -1,0 +1,85 @@
+# =============================================================================
+# Alertmanager Configuration for GePT Data Collectors
+# =============================================================================
+# Routes alerts to Discord webhook and optional email
+# =============================================================================
+
+global:
+  resolve_timeout: 5m
+
+# Alert routing configuration
+route:
+  # Group alerts by alertname and severity
+  group_by: ['alertname', 'severity']
+
+  # Wait 30 seconds before sending first notification for a group
+  group_wait: 30s
+
+  # Wait 5 minutes before sending updates for existing groups
+  group_interval: 5m
+
+  # Re-send notifications every 4 hours for ongoing alerts
+  repeat_interval: 4h
+
+  # Default receiver
+  receiver: 'discord-webhook'
+
+  # Route critical alerts more frequently
+  routes:
+    - match:
+        severity: critical
+      receiver: 'discord-webhook'
+      repeat_interval: 1h
+      continue: true
+
+    - match:
+        severity: warning
+      receiver: 'discord-webhook'
+      repeat_interval: 4h
+
+# Notification receivers
+receivers:
+  # Discord webhook receiver
+  - name: 'discord-webhook'
+    webhook_configs:
+      - url: '${DISCORD_WEBHOOK_URL}'
+        send_resolved: true
+        http_config:
+          follow_redirects: true
+
+  # Email receiver (optional - requires SMTP configuration)
+  # Uncomment and configure if email alerts are needed
+  # - name: 'email'
+  #   email_configs:
+  #     - to: '${ALERT_EMAIL}'
+  #       from: 'gept-alerts@localhost'
+  #       smarthost: 'smtp.gmail.com:587'
+  #       auth_username: '${SMTP_USER}'
+  #       auth_password: '${SMTP_PASS}'
+  #       require_tls: true
+
+# Inhibition rules to prevent alert storms
+inhibit_rules:
+  # If a critical alert is firing, inhibit related warnings
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    equal: ['alertname', 'service']
+
+  # If collector is completely down, inhibit stale data alerts
+  - source_match:
+      alertname: 'CollectorUnhealthy'
+    target_match_re:
+      alertname: 'Collector.*Stale'
+    equal: ['service']
+
+  # If watchdog recovery failed, inhibit restart loop alerts
+  - source_match:
+      alertname: 'WatchdogRecoveryFailed'
+    target_match:
+      alertname: 'ContainerRestartLoop'
+    equal: ['container']
+
+# Templates for notification formatting (optional)
+templates: []

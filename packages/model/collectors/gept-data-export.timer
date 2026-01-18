@@ -1,0 +1,23 @@
+[Unit]
+Description=Run GePT data export daily at 3pm EST (8pm UTC)
+Documentation=https://github.com/MarcusFranz/gept-foundations
+
+[Timer]
+# 3pm EST = 8pm UTC (winter) / 7pm UTC (summer DST)
+# Using 8pm UTC to ensure completion before 4pm EST target
+OnCalendar=*-*-* 20:00:00 UTC
+
+# Also run on 1st of month for discovery (redundant but explicit)
+# OnCalendar=*-*-01 20:00:00 UTC
+
+# Run missed jobs if system was down
+Persistent=true
+
+# Randomize start time by up to 5 minutes to avoid thundering herd
+RandomizedDelaySec=300
+
+# Accuracy - don't batch with other timers
+AccuracySec=1min
+
+[Install]
+WantedBy=timers.target

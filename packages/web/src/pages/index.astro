@@ -1,0 +1,19 @@
+---
+import Layout from '../layouts/Layout.astro';
+import OrderGrid from '../components/OrderGrid';
+import ErrorBoundary from '../components/ErrorBoundary';
+import OnboardingWrapper from '../components/OnboardingWrapper';
+
+const isSignedIn = !!Astro.locals.user;
+---
+
+<Layout title="Flips">
+  <div class="container page">
+    <OnboardingWrapper client:load>
+      <ErrorBoundary client:load>
+        <OrderGrid client:load isSignedIn={isSignedIn} />
+      </ErrorBoundary>
+    </OnboardingWrapper>
+  </div>
+</Layout>
+

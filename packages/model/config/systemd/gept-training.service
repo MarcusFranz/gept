@@ -1,0 +1,41 @@
+[Unit]
+Description=GePT Continuous Training Scheduler
+Documentation=https://github.com/your-repo/gept
+After=network.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/home/ubuntu/gept
+
+# Environment setup
+EnvironmentFile=/home/ubuntu/gept/.env
+
+# Activate conda and run continuous training
+ExecStart=/bin/bash -c 'source /home/ubuntu/miniconda3/etc/profile.d/conda.sh && conda activate gept && exec python -m src.training.continuous_scheduler --continuous'
+
+# Restart on failure
+Restart=on-failure
+RestartSec=30
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+# Logging
+StandardOutput=append:/home/ubuntu/gept/logs/training.log
+StandardError=append:/home/ubuntu/gept/logs/training.log
+
+# Resource limits
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+
+# Security hardening (commented out for GPU access)
+# ProtectSystem=strict
+# ProtectHome=read-only
+# PrivateTmp=true
+# NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

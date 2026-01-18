@@ -1,0 +1,52 @@
+-- Predictions Table Schema
+-- Contract: Model writes, Engine reads
+--
+-- This is the source of truth for the predictions interface.
+-- Any changes here require coordination between model and engine teams.
+
+CREATE TABLE IF NOT EXISTS predictions (
+    -- Composite primary key
+    time TIMESTAMPTZ NOT NULL,
+    item_id INTEGER NOT NULL,
+    hour_offset INTEGER NOT NULL,           -- 1-48 hours (18 windows)
+    offset_pct DECIMAL(5,4) NOT NULL,       -- 0.0125-0.025 (6 offsets)
+
+    -- Prediction outputs
+    fill_probability DECIMAL(7,6) NOT NULL, -- [0, 1] clipped
+    expected_value DECIMAL(8,6) NOT NULL,   -- EV = prob * (2 * offset - 0.02)
+
+    -- Price targets
+    buy_price DECIMAL(12,2),
+    sell_price DECIMAL(12,2),
+    current_high DECIMAL(12,2),
+    current_low DECIMAL(12,2),
+
+    -- Metadata
+    item_name TEXT,
+    confidence TEXT,                         -- low | medium | high
+    model_version TEXT,
+
+    PRIMARY KEY (time, item_id, hour_offset, offset_pct)
+);
+
+-- Index for freshness queries
+CREATE INDEX IF NOT EXISTS idx_predictions_time
+ON predictions (time DESC);
+
+-- Index for item lookups
+CREATE INDEX IF NOT EXISTS idx_predictions_item
+ON predictions (item_id, time DESC);
+
+-- Index for recommendation queries
+CREATE INDEX IF NOT EXISTS idx_predictions_ev
+ON predictions (time, expected_value DESC)
+WHERE fill_probability BETWEEN 0.03 AND 0.30;
+
+-- TimescaleDB hypertable (if using TimescaleDB)
+-- SELECT create_hypertable('predictions', 'time', if_not_exists => TRUE);
+
+COMMENT ON TABLE predictions IS 'ML model predictions for GE flip recommendations';
+COMMENT ON COLUMN predictions.hour_offset IS 'Time horizon in hours (1-48)';
+COMMENT ON COLUMN predictions.offset_pct IS 'Price offset percentage (0.0125 = 1.25%)';
+COMMENT ON COLUMN predictions.fill_probability IS 'Probability both buy and sell orders fill within time window';
+COMMENT ON COLUMN predictions.expected_value IS 'Expected value accounting for 2% GE tax';

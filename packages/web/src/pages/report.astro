@@ -1,0 +1,33 @@
+---
+import Layout from '../layouts/Layout.astro';
+import TradeReport from '../components/TradeReport';
+---
+
+<Layout title="Report Trade">
+  <div class="container page">
+    <header class="page-header">
+      <h1>Report Trade</h1>
+      <p class="text-secondary">Log your trade outcomes to help improve recommendations</p>
+    </header>
+
+    <div class="report-wrapper card">
+      <TradeReport client:load />
+    </div>
+  </div>
+</Layout>
+
+<style>
+  .page-header {
+    text-align: center;
+    margin-bottom: var(--space-6);
+  }
+
+  .page-header h1 {
+    margin-bottom: var(--space-2);
+  }
+
+  .report-wrapper {
+    max-width: 500px;
+    margin: 0 auto;
+  }
+</style>

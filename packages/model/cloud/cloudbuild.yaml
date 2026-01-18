@@ -1,0 +1,106 @@
+# Cloud Build configuration for GePT model training pipeline
+#
+# Triggers:
+#   - Manual: gcloud builds submit --config cloud/cloudbuild.yaml
+#   - Scheduled: Cloud Scheduler -> Pub/Sub -> Cloud Build
+#
+# Required substitutions:
+#   _GCS_BUCKET: GCS bucket for models (default: osrs-models-mof)
+#   _REGION: Cloud Run region (default: us-central1)
+#   _TIER_MODE: Enable tiered training (default: false)
+
+substitutions:
+  _GCS_BUCKET: 'osrs-models-mof'
+  _REGION: 'us-central1'
+  _JOB_NAME: 'gept-daily-train'
+  _TIER_MODE: 'false'
+  _FORCE_DISCOVERY: 'false'
+
+steps:
+  # Step 1: Build the Docker image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/gept-trainer:$BUILD_ID'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/gept-trainer:latest'
+      - '-f'
+      - 'cloud/Dockerfile'
+      - 'cloud/'
+    id: 'build-image'
+
+  # Step 2: Push to Container Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - 'gcr.io/$PROJECT_ID/gept-trainer:$BUILD_ID'
+    id: 'push-image'
+    waitFor: ['build-image']
+
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - 'gcr.io/$PROJECT_ID/gept-trainer:latest'
+    waitFor: ['build-image']
+
+  # Step 3: Update or create Cloud Run Job
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        # Check if job exists
+        if gcloud run jobs describe ${_JOB_NAME} --region=${_REGION} 2>/dev/null; then
+          echo "Updating existing job..."
+          gcloud run jobs update ${_JOB_NAME} \
+            --image gcr.io/$PROJECT_ID/gept-trainer:$BUILD_ID \
+            --tasks 2380 \
+            --task-timeout 15m \
+            --max-retries 1 \
+            --memory 2Gi \
+            --cpu 1 \
+            --region ${_REGION} \
+            --set-env-vars "GCS_BUCKET=${_GCS_BUCKET},TIER_MODE=${_TIER_MODE},FORCE_DISCOVERY=${_FORCE_DISCOVERY}"
+        else
+          echo "Creating new job..."
+          gcloud run jobs create ${_JOB_NAME} \
+            --image gcr.io/$PROJECT_ID/gept-trainer:$BUILD_ID \
+            --tasks 2380 \
+            --task-timeout 15m \
+            --max-retries 1 \
+            --memory 2Gi \
+            --cpu 1 \
+            --region ${_REGION} \
+            --set-env-vars "GCS_BUCKET=${_GCS_BUCKET},TIER_MODE=${_TIER_MODE},FORCE_DISCOVERY=${_FORCE_DISCOVERY}"
+        fi
+    id: 'deploy-job'
+    waitFor: ['push-image']
+
+  # Step 4: Execute the job (optional - triggered by RUN_ID)
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        if [ -n "$_RUN_ID" ]; then
+          echo "Executing job with RUN_ID: $_RUN_ID"
+          gcloud run jobs execute ${_JOB_NAME} \
+            --region ${_REGION} \
+            --set-env-vars "RUN_ID=$_RUN_ID"
+        else
+          echo "No RUN_ID provided, skipping execution"
+          echo "To execute manually:"
+          echo "  gcloud run jobs execute ${_JOB_NAME} --region=${_REGION} --set-env-vars RUN_ID=\$(date +%Y%m%d_%H%M%S)"
+        fi
+    id: 'execute-job'
+    waitFor: ['deploy-job']
+
+images:
+  - 'gcr.io/$PROJECT_ID/gept-trainer:$BUILD_ID'
+  - 'gcr.io/$PROJECT_ID/gept-trainer:latest'
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+
+timeout: '1800s'  # 30 minutes for build + deploy
