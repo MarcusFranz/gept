@@ -196,7 +196,10 @@ export async function getRecommendations(
   }
 
   const url = `${getApiBase()}/api/v1/recommendations?${params}`;
+  console.log('[api.ts getRecommendations] Calling engine:', url);
+  console.log('[api.ts getRecommendations] Settings received:', settings);
   const apiResponse = await fetchWithRetry<ApiRecommendation[]>(url);
+  console.log('[api.ts getRecommendations] First item:', apiResponse[0]?.item);
   return apiResponse.map(transformRecommendation);
 }
 
