@@ -386,14 +386,7 @@ class PredictionLoader:
                 current_high,
                 current_low,
                 confidence,
-                time as prediction_time,
-                -- Stability fields
-                median_14d,
-                price_vs_median_ratio,
-                return_1h,
-                return_4h,
-                return_24h,
-                volatility_24h
+                time as prediction_time
             FROM predictions
             WHERE {where_clause}
             ORDER BY expected_value DESC
@@ -438,14 +431,7 @@ class PredictionLoader:
                 current_high,
                 current_low,
                 confidence,
-                time as prediction_time,
-                -- Stability fields
-                median_14d,
-                price_vs_median_ratio,
-                return_1h,
-                return_4h,
-                return_24h,
-                volatility_24h
+                time as prediction_time
             FROM predictions
             WHERE time = (SELECT MAX(time) FROM predictions)
               AND item_id = :item_id
@@ -514,7 +500,7 @@ class PredictionLoader:
                 SELECT item_id,
                        COALESCE(SUM(high_price_volume), 0)
                        + COALESCE(SUM(low_price_volume), 0) as total_volume
-                FROM prices_1h
+                FROM price_data_5min
                 WHERE timestamp >= NOW() - INTERVAL '24 hours'
                 GROUP BY item_id
             ),
@@ -532,13 +518,6 @@ class PredictionLoader:
                     p.current_low,
                     p.confidence,
                     p.time as prediction_time,
-                    -- Stability fields
-                    p.median_14d,
-                    p.price_vs_median_ratio,
-                    p.return_1h,
-                    p.return_4h,
-                    p.return_24h,
-                    p.volatility_24h,
                     COALESCE(v.total_volume, 0) as volume_24h,
                     ROW_NUMBER() OVER (
                         PARTITION BY p.item_id ORDER BY p.expected_value DESC
@@ -816,7 +795,7 @@ class PredictionLoader:
             """
             SELECT COALESCE(SUM(high_price_volume), 0)
                    + COALESCE(SUM(low_price_volume), 0) as total_volume
-            FROM prices_1h
+            FROM price_data_5min
             WHERE item_id = :item_id
               AND timestamp >= NOW() - INTERVAL '24 hours'
         """
@@ -884,7 +863,7 @@ class PredictionLoader:
             SELECT item_id,
                    COALESCE(SUM(high_price_volume), 0)
                    + COALESCE(SUM(low_price_volume), 0) as total_volume
-            FROM prices_1h
+            FROM price_data_5min
             WHERE item_id = ANY(:item_ids)
               AND timestamp >= NOW() - INTERVAL '24 hours'
             GROUP BY item_id
@@ -952,7 +931,7 @@ class PredictionLoader:
         query = text(
             """
             SELECT timestamp, avg_high_price, avg_low_price
-            FROM prices_1h
+            FROM price_data_5min
             WHERE item_id = :item_id
               AND timestamp >= NOW() - make_interval(hours => :hours)
             ORDER BY timestamp ASC
@@ -1003,7 +982,7 @@ class PredictionLoader:
         query = text(
             """
             SELECT timestamp, high_price, low_price, avg_high_price, avg_low_price
-            FROM prices_1h
+            FROM price_data_5min
             WHERE item_id = :item_id
               AND timestamp >= NOW() - make_interval(hours => :hours)
             ORDER BY timestamp ASC
@@ -1069,7 +1048,7 @@ class PredictionLoader:
         query = text(
             """
             SELECT avg_high_price, avg_low_price
-            FROM prices_1h
+            FROM price_data_5min
             WHERE item_id = :item_id
             ORDER BY timestamp DESC
             LIMIT 4
@@ -1138,7 +1117,7 @@ class PredictionLoader:
                     ROW_NUMBER() OVER (
                         PARTITION BY item_id ORDER BY timestamp DESC
                     ) as rn
-                FROM prices_1h
+                FROM price_data_5min
                 WHERE item_id = ANY(:item_ids)
                   AND timestamp >= NOW() - INTERVAL '4 hours'
             )
@@ -1515,3 +1494,46 @@ class PredictionLoader:
         except Exception as e:
             logger.error(f"Error fetching latest price for item {item_id}: {e}")
             return None
+
+    def get_predictions_for_items(self, item_ids: list[int]) -> pd.DataFrame:
+        """Get all latest predictions for multiple items.
+
+        Args:
+            item_ids: List of OSRS item IDs
+
+        Returns:
+            DataFrame with all predictions for the items
+            (all hour_offset/offset_pct combinations)
+        """
+        if not item_ids:
+            return pd.DataFrame()
+
+        query = text(
+            """
+            SELECT
+                item_id,
+                item_name,
+                hour_offset,
+                offset_pct,
+                fill_probability,
+                expected_value,
+                buy_price,
+                sell_price,
+                current_high,
+                current_low,
+                confidence,
+                time as prediction_time
+            FROM predictions
+            WHERE time = (SELECT MAX(time) FROM predictions)
+              AND item_id = ANY(:item_ids)
+            ORDER BY item_id, hour_offset, offset_pct
+        """
+        )
+
+        try:
+            with self.engine.connect() as conn:
+                df = pd.read_sql(query, conn, params={"item_ids": item_ids})
+            return df
+        except Exception as e:
+            logger.error(f"Error fetching predictions for items: {e}")
+            return pd.DataFrame()
