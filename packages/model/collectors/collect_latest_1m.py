@@ -17,7 +17,7 @@ import httpx
 import psycopg2
 from psycopg2.extras import execute_values
 from prometheus_client import Counter, Gauge, Histogram, start_http_server
-from pybreaker import CircuitBreaker, CircuitBreakerError
+from pybreaker import CircuitBreaker, CircuitBreakerError, CircuitBreakerListener
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
 from shared.metrics import get_data_quality_metrics
@@ -98,32 +98,29 @@ health_checker = HealthChecker(
 )
 health_checker.set_api_url(API_LATEST)
 
-# Circuit breaker for Wiki API
-def _on_circuit_open(breaker, ex):
-    """Called when circuit breaker opens."""
-    CIRCUIT_OPEN.inc()
-    CIRCUIT_STATE.set(1)
-    logger.warning(f"Circuit breaker opened after {CIRCUIT_FAIL_MAX} failures: {ex}")
+# Circuit breaker listener for Wiki API
+class WikiAPIListener(CircuitBreakerListener):
+    """Listener for circuit breaker state changes."""
 
-def _on_circuit_close(breaker):
-    """Called when circuit breaker closes."""
-    CIRCUIT_STATE.set(0)
-    logger.info("Circuit breaker closed, API calls resumed")
-
-def _on_circuit_half_open(breaker):
-    """Called when circuit breaker enters half-open state."""
-    CIRCUIT_STATE.set(2)
-    logger.info("Circuit breaker half-open, testing API...")
+    def state_change(self, cb, old_state, new_state):
+        """Handle state transitions."""
+        state_name = new_state.name if hasattr(new_state, 'name') else str(new_state)
+        if state_name == 'open':
+            CIRCUIT_OPEN.inc()
+            CIRCUIT_STATE.set(1)
+            logger.warning(f"Circuit breaker opened after {CIRCUIT_FAIL_MAX} failures")
+        elif state_name == 'closed':
+            CIRCUIT_STATE.set(0)
+            logger.info("Circuit breaker closed, API calls resumed")
+        elif state_name == 'half-open':
+            CIRCUIT_STATE.set(2)
+            logger.info("Circuit breaker half-open, testing API...")
 
 wiki_api_breaker = CircuitBreaker(
     fail_max=CIRCUIT_FAIL_MAX,
     reset_timeout=CIRCUIT_RESET_TIMEOUT,
     name="wiki_latest_api",
-    listeners=[
-        (_on_circuit_open, 'open'),
-        (_on_circuit_close, 'close'),
-        (_on_circuit_half_open, 'half_open'),
-    ]
+    listeners=[WikiAPIListener()]
 )
 
 # -----------------------------------------------------------------------------
