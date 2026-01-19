@@ -419,6 +419,8 @@ class MultiTargetBatchPredictor:
                 FROM price_data_5min
                 WHERE item_id = ANY(%s)
                   AND timestamp >= NOW() - make_interval(hours => %s)
+                  AND avg_high_price IS NOT NULL
+                  AND avg_low_price IS NOT NULL
                 ORDER BY item_id, timestamp
             """
 
