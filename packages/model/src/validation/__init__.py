@@ -7,6 +7,7 @@ from .outcome_classifier import (
     PriceWindow,
 )
 from .validation_job import ValidationJob, ValidationConfig, ValidationResult
+from .db_adapter import ValidationDBAdapter
 
 __all__ = [
     "OutcomeClassifier",
@@ -16,4 +17,5 @@ __all__ = [
     "ValidationJob",
     "ValidationConfig",
     "ValidationResult",
+    "ValidationDBAdapter",
 ]
