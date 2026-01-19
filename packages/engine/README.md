@@ -66,7 +66,10 @@ Keep this running in a separate terminal.
 ### Running
 
 ```bash
-# Start the API server
+# From monorepo root (preferred for consistency)
+npm run dev:engine
+
+# Or directly with uvicorn
 uvicorn src.api:app --host 0.0.0.0 --port 8000 --reload
 
 # Or use the main entry point

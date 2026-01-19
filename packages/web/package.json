@@ -1,5 +1,5 @@
 {
-  "name": "gept-web",
+  "name": "@gept/web",
   "type": "module",
   "version": "2.5.0",
   "description": "GePT Web - OSRS Grand Exchange Flipping Recommendations",
