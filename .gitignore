@@ -54,3 +54,4 @@ agents/
 docs/
 infra/runbooks/
 CLAUDE.md
+.worktrees/
