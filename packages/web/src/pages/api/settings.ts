@@ -1,5 +1,6 @@
 import type { APIRoute } from 'astro';
 import { userRepo } from '../../lib/repositories';
+import { cache, KEY } from '../../lib/cache';
 
 export const GET: APIRoute = async ({ locals }) => {
   try {
@@ -95,6 +96,10 @@ export const PUT: APIRoute = async ({ request, locals }) => {
 
     if (Object.keys(updates).length > 0) {
       await userRepo.update(userId, updates);
+
+      // Clear user's recommendation cache so they get fresh data with new settings
+      // Key format: recs::userId:bucket:style:risk:margin (double colon after prefix)
+      cache.delPattern(`${KEY.RECS}:${userId}:*`).catch(() => {});
     }
 
     const user = await userRepo.findById(userId);

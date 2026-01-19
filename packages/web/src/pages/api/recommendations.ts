@@ -67,17 +67,24 @@ export const GET: APIRoute = async ({ locals, url }) => {
     const effectiveRisk = riskOverride || user.risk;
     const effectiveMargin = marginOverride || user.margin;
 
+    // Check if client requested fresh data (bypass cache)
+    const skipCache = url.searchParams.get('fresh') === '1';
+
     // Build cache key based on effective settings
     const capitalBucket = bucketCapital(availableCapital);
     const redisCacheKey = cacheKey(KEY.RECS, userId, capitalBucket, effectiveStyle, effectiveRisk, effectiveMargin);
 
-    // Try Redis cache first (2 minute TTL)
+    // Try Redis cache first (unless fresh=1 requested)
     let recommendations: Awaited<ReturnType<typeof getRecommendations>> | null = null;
+    let cacheHit = false;
 
-    try {
-      recommendations = await cache.get<Awaited<ReturnType<typeof getRecommendations>>>(redisCacheKey);
-    } catch {
-      // Continue without cache on Redis errors
+    if (!skipCache) {
+      try {
+        recommendations = await cache.get<Awaited<ReturnType<typeof getRecommendations>>>(redisCacheKey);
+        if (recommendations) cacheHit = true;
+      } catch {
+        // Continue without cache on Redis errors
+      }
     }
 
     if (!recommendations) {
@@ -90,8 +97,8 @@ export const GET: APIRoute = async ({ locals, url }) => {
         excludedItems: [] // Don't exclude at API level - filter client-side for flexibility
       }, requestedSlots);
 
-      // Cache for 2 minutes (fire and forget)
-      cache.set(redisCacheKey, recommendations, TTL.ITEM_PRICES).catch(() => {});
+      // Cache for 30 seconds (fire and forget)
+      cache.set(redisCacheKey, recommendations, TTL.RECOMMENDATIONS).catch(() => {});
     }
 
     // Filter out excluded items (active trades + skipped)
@@ -102,10 +109,21 @@ export const GET: APIRoute = async ({ locals, url }) => {
 
     return new Response(JSON.stringify({
       success: true,
-      data: recommendations
+      data: recommendations,
+      _debug: {
+        settings: { style: effectiveStyle, risk: effectiveRisk, margin: effectiveMargin },
+        capital: availableCapital,
+        cacheKey: redisCacheKey,
+        cacheHit,
+        skipCache,
+        timestamp: Date.now()
+      }
     }), {
       status: 200,
-      headers: { 'Content-Type': 'application/json' }
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0'
+      }
     });
   } catch (error) {
     console.error('[Recommendations] API Error:', error);
@@ -114,10 +132,13 @@ export const GET: APIRoute = async ({ locals, url }) => {
     return new Response(JSON.stringify({
       success: true,
       data: getMockRecommendations(),
-      _debug: { fallback: true, error: String(error) }
+      _debug: { fallback: true, error: String(error), timestamp: Date.now() }
     }), {
       status: 200,
-      headers: { 'Content-Type': 'application/json' }
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0'
+      }
     });
   }
 };
