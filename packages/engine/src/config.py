@@ -65,6 +65,13 @@ class Config:
     min_volume_for_low_value: int = field(
         default_factory=lambda: int(environ.get("MIN_VOLUME_FOR_LOW_VALUE", "10000"))
     )
+    # Maximum ratio of buy_limit to daily volume (anti-manipulation)
+    # If buy_limit / volume_24h > this ratio, item is filtered out
+    # E.g., 0.25 means if buy_limit is >25% of daily volume, too illiquid/manipulable
+    # Default 0.25 filters items where filling your buy limit would dominate the market
+    max_buy_limit_volume_ratio: float = field(
+        default_factory=lambda: float(environ.get("MAX_BUY_LIMIT_VOLUME_RATIO", "0.25"))
+    )
 
     # Confidence thresholds (AUC values)
     confidence_high_auc: float = field(

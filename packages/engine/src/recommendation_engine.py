@@ -305,6 +305,12 @@ class RecommendationEngine:
         volumes_1h = self.loader.get_batch_volumes_1h(candidate_item_ids)
         trends = self.loader.get_batch_trends(candidate_item_ids)
 
+        # Apply liquidity filter (anti-manipulation: filter items where buy_limit >> volume)
+        predictions_df = self._apply_liquidity_filter(predictions_df, buy_limits, volumes_24h)
+        if predictions_df.empty:
+            logger.info("All predictions filtered by liquidity check")
+            return []
+
         # Build candidate recommendations with flexible sizing
         candidates = []
         for _, row in predictions_df.iterrows():
@@ -500,6 +506,12 @@ class RecommendationEngine:
         volumes_24h = self.loader.get_batch_volumes_24h(candidate_item_ids)
         volumes_1h = self.loader.get_batch_volumes_1h(candidate_item_ids)
         trends = self.loader.get_batch_trends(candidate_item_ids)
+
+        # Apply liquidity filter (anti-manipulation: filter items where buy_limit >> volume)
+        predictions_df = self._apply_liquidity_filter(predictions_df, buy_limits, volumes_24h)
+        if predictions_df.empty:
+            logger.info("All predictions filtered by liquidity check for get_all")
+            return []
 
         # Build candidates
         candidates = []
@@ -1854,6 +1866,64 @@ class RecommendationEngine:
                 r1h_str,
                 r4h_str,
                 r24h_str
+            )
+
+        return predictions[mask].reset_index(drop=True)
+
+    def _apply_liquidity_filter(
+        self,
+        predictions: pd.DataFrame,
+        buy_limits: dict[int, int],
+        volumes_24h: dict[int, int],
+    ) -> pd.DataFrame:
+        """Filter out items where buy_limit is too large relative to daily volume.
+
+        Items where buy_limit / volume_24h > max_ratio are filtered out because:
+        1. Filling your buy limit would dominate the market (move prices)
+        2. Low relative liquidity makes these items easier to manipulate
+        3. Fill times would be unpredictable
+
+        Args:
+            predictions: DataFrame with 'item_id' column
+            buy_limits: Dict mapping item_id -> buy_limit
+            volumes_24h: Dict mapping item_id -> 24h volume
+
+        Returns:
+            Filtered DataFrame with illiquid items removed
+        """
+        max_ratio = self.config.max_buy_limit_volume_ratio
+
+        def passes_liquidity_check(row) -> bool:
+            item_id = int(row["item_id"])
+            buy_limit = buy_limits.get(item_id)
+            volume = volumes_24h.get(item_id)
+
+            # Skip check if data missing
+            if not buy_limit or not volume:
+                return True
+
+            # Skip if volume is 0 (would divide by zero)
+            if volume <= 0:
+                return False
+
+            ratio = buy_limit / volume
+
+            if ratio > max_ratio:
+                return False
+
+            return True
+
+        mask = predictions.apply(passes_liquidity_check, axis=1)
+        rejected = predictions[~mask]
+
+        for _, row in rejected.iterrows():
+            item_id = int(row["item_id"])
+            buy_limit = buy_limits.get(item_id, 0)
+            volume = volumes_24h.get(item_id, 0)
+            ratio = buy_limit / volume if volume > 0 else float("inf")
+            logger.info(
+                f"Liquidity filter rejected {row.get('item_name', 'Unknown')}: "
+                f"buy_limit={buy_limit:,}, volume_24h={volume:,}, ratio={ratio:.1%}"
             )
 
         return predictions[mask].reset_index(drop=True)
