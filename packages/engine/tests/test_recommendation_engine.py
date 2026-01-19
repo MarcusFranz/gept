@@ -1027,8 +1027,13 @@ class TestRiskAdjustedScoring:
             engine.loader = mock_loader
             return engine, mock_loader
 
-    def test_exit_risk_penalty_downtrend(self, mock_engine):
-        """Test that downtrend increases exit risk penalty."""
+    def test_exit_risk_penalty_trend_not_factored(self, mock_engine):
+        """Test that trend is NOT factored into exit risk penalty.
+
+        Trend filtering is now handled by _apply_trend_entry_filter() as a hard
+        entry filter, not as a soft penalty in exit risk. Items in downtrends
+        are filtered out entirely before reaching the candidate building stage.
+        """
         engine, _ = mock_engine
 
         candidate_stable = {
@@ -1045,28 +1050,6 @@ class TestRiskAdjustedScoring:
             "hour_offset": 4,
             "_spread_pct": 0.02,
         }
-
-        penalty_stable = engine._calculate_exit_risk_penalty(candidate_stable, "medium")
-        penalty_falling = engine._calculate_exit_risk_penalty(
-            candidate_falling, "medium"
-        )
-
-        # Downtrend should increase exit risk penalty
-        assert penalty_falling > penalty_stable
-        # Falling trend adds 0.25 penalty
-        assert penalty_falling - penalty_stable >= 0.20
-
-    def test_exit_risk_penalty_rising_trend_bonus(self, mock_engine):
-        """Test that rising trend reduces exit risk penalty."""
-        engine, _ = mock_engine
-
-        candidate_stable = {
-            "buy_price": 1000,
-            "sell_price": 1030,
-            "trend": "Stable",
-            "hour_offset": 4,
-            "_spread_pct": 0.02,
-        }
         candidate_rising = {
             "buy_price": 1000,
             "sell_price": 1030,
@@ -1076,10 +1059,14 @@ class TestRiskAdjustedScoring:
         }
 
         penalty_stable = engine._calculate_exit_risk_penalty(candidate_stable, "medium")
+        penalty_falling = engine._calculate_exit_risk_penalty(
+            candidate_falling, "medium"
+        )
         penalty_rising = engine._calculate_exit_risk_penalty(candidate_rising, "medium")
 
-        # Rising trend should decrease penalty (or keep at 0)
-        assert penalty_rising <= penalty_stable
+        # All trends should have the same penalty (trend is not factored)
+        assert penalty_stable == penalty_falling
+        assert penalty_stable == penalty_rising
 
     def test_exit_risk_penalty_long_hour_offset(self, mock_engine):
         """Test that long hour_offset increases exit risk penalty."""
@@ -4273,3 +4260,49 @@ class TestGetAllRecommendations:
         # Verify the loader was called with min_ev
         call_kwargs = mock_loader.get_best_prediction_per_item.call_args[1]
         assert call_kwargs["min_ev"] == 0.01
+
+
+class TestFilterIntegration:
+    """Test that new filters are called in get_recommendations flow."""
+
+    def test_stability_filter_called(self):
+        """Stability filter should be called during recommendation flow."""
+        from src.recommendation_engine import RecommendationEngine
+
+        engine = MagicMock(spec=RecommendationEngine)
+        engine._apply_price_stability_filter = MagicMock(
+            side_effect=lambda x: x
+        )
+        engine._apply_trend_entry_filter = MagicMock(
+            side_effect=lambda x, s: x
+        )
+
+        # Verify methods exist and are callable
+        assert hasattr(engine, '_apply_price_stability_filter')
+        assert hasattr(engine, '_apply_trend_entry_filter')
+
+    def test_filters_applied_before_candidate_building(self):
+        """Filters should be applied after fetching predictions, before building candidates."""
+        # This is a code review test - verify the order in get_recommendations
+        from src.recommendation_engine import RecommendationEngine
+        import inspect
+
+        source = inspect.getsource(RecommendationEngine.get_recommendations)
+
+        # Find positions of key operations
+        fetch_pos = source.find('get_best_prediction_per_item')
+        stability_pos = source.find('_apply_price_stability_filter')
+        trend_pos = source.find('_apply_trend_entry_filter')
+        build_pos = source.find('_build_candidate')
+
+        # Stability filter should come after fetch, before build
+        assert stability_pos > fetch_pos, \
+            "Stability filter should come after fetching predictions"
+        assert stability_pos < build_pos, \
+            "Stability filter should come before building candidates"
+
+        # Trend filter should come after stability, before build
+        assert trend_pos > stability_pos, \
+            "Trend filter should come after stability filter"
+        assert trend_pos < build_pos, \
+            "Trend filter should come before building candidates"

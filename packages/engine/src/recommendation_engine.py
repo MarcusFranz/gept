@@ -11,6 +11,8 @@ import random
 from datetime import datetime, timezone
 from typing import Literal, Optional
 
+import pandas as pd
+
 from .config import Config
 from .crowding import create_crowding_tracker
 from .prediction_loader import PredictionLoader
@@ -258,6 +260,18 @@ class RecommendationEngine:
 
         # Exclude tracked items (hour filtering is now done at DB level)
         predictions_df = predictions_df[~predictions_df["item_id"].isin(excluded_items)]
+
+        # Apply anti-manipulation filter
+        predictions_df = self._apply_price_stability_filter(predictions_df)
+        if predictions_df.empty:
+            logger.info("All predictions filtered by stability check")
+            return []
+
+        # Apply anti-adverse selection filter
+        predictions_df = self._apply_trend_entry_filter(predictions_df, style=style)
+        if predictions_df.empty:
+            logger.info("All predictions filtered by trend check")
+            return []
 
         # Get prediction age for confidence adjustment
         pred_age = self.loader.get_prediction_age_seconds()
@@ -791,7 +805,6 @@ class RecommendationEngine:
 
         Factors:
         - Required move relative to spread/volatility
-        - Price trend (downtrend = harder to exit)
         - Time horizon (longer = more uncertainty)
 
         Args:
@@ -814,14 +827,11 @@ class RecommendationEngine:
         if required_move_pct > spread_pct * 2:
             penalty += min(0.3, (required_move_pct - spread_pct * 2) * 5)
 
-        # Factor 2: Downtrend penalty
-        trend = candidate.get("trend", "Stable")
-        if trend == "Falling":
-            penalty += 0.25  # 25% base penalty for downtrend
-        elif trend == "Rising":
-            penalty -= 0.10  # Small bonus for uptrend
+        # REMOVED: Trend is now an entry filter (_apply_trend_entry_filter),
+        # not an exit penalty. Items in downtrends are filtered out before
+        # reaching this point.
 
-        # Factor 3: Long horizon penalty
+        # Factor 2: Long horizon penalty
         hour_offset = candidate.get("hour_offset", 4)
         if hour_offset >= 24:
             penalty += 0.15  # 15% penalty for very long holds
@@ -1618,6 +1628,163 @@ class RecommendationEngine:
             )
 
         return (is_suspicious, min(risk_score, 1.0), reasons)
+
+    def _apply_price_stability_filter(self, predictions: pd.DataFrame) -> pd.DataFrame:
+        """Filter out items with suspicious price/volume patterns (anti-manipulation).
+
+        Uses value-tiered thresholds: expensive items can have larger deviations
+        because they're harder to manipulate.
+
+        Args:
+            predictions: DataFrame with columns including 'current_high',
+                        'price_vs_median_ratio', 'volume_24h'
+
+        Returns:
+            Filtered DataFrame with suspicious items removed
+        """
+        # Skip if stability fields not available (backwards compatibility)
+        if 'price_vs_median_ratio' not in predictions.columns:
+            logger.warning("price_vs_median_ratio not available, skipping stability filter")
+            return predictions
+
+        def passes_stability_check(row) -> bool:
+            ratio = row.get('price_vs_median_ratio')
+            volume = row.get('volume_24h', 0)
+            item_value = row.get('current_high', 0)
+
+            # Skip check if ratio is None/NaN
+            if pd.isna(ratio) or ratio is None:
+                return True
+
+            # Value-tiered thresholds
+            if item_value > 100_000_000:  # >100M (Torva, Tbow, etc.)
+                max_deviation = 0.15
+                min_volume = 100
+            elif item_value > 10_000_000:  # >10M
+                max_deviation = 0.12
+                min_volume = 500
+            elif item_value > 1_000_000:  # >1M
+                max_deviation = 0.10
+                min_volume = 2_000
+            else:  # Cheap items (manipulation targets)
+                max_deviation = 0.08
+                min_volume = 5_000
+
+            # If price elevated AND volume low → suspicious
+            if ratio > (1 + max_deviation) and volume < min_volume:
+                return False
+
+            return True
+
+        # Apply filter
+        mask = predictions.apply(passes_stability_check, axis=1)
+        rejected = predictions[~mask]
+
+        # Log rejections for debugging
+        for _, row in rejected.iterrows():
+            ratio = row.get('price_vs_median_ratio')
+            volume = row.get('volume_24h')
+            value = row.get('current_high')
+            ratio_str = f"{ratio:.1%}" if ratio is not None else "N/A"
+            vol_str = str(volume) if volume is not None else "N/A"
+            value_str = f"{value:,.0f}" if value is not None else "N/A"
+            logger.info(
+                f"Stability filter rejected {row.get('item_name', 'Unknown')}: "
+                f"ratio={ratio_str}, vol={vol_str}, value={value_str}"
+            )
+
+        return predictions[mask].reset_index(drop=True)
+
+    def _apply_trend_entry_filter(
+        self, predictions: pd.DataFrame, style: str
+    ) -> pd.DataFrame:
+        """Filter out items in downtrends based on trading style (anti-adverse selection).
+
+        Active traders need quick bounces - reject any downward momentum.
+        Passive traders bet on mean reversion - only reject crashes.
+
+        Args:
+            predictions: DataFrame with columns including 'return_1h', 'return_4h',
+                        'return_24h', 'hour_offset'
+            style: Trading style ('active', 'hybrid', 'passive')
+
+        Returns:
+            Filtered DataFrame with falling items removed
+        """
+        # Skip if return fields not available (backwards compatibility)
+        if 'return_4h' not in predictions.columns:
+            logger.warning("return_4h not available, skipping trend entry filter")
+            return predictions
+
+        def passes_trend_check(row) -> bool:
+            return_1h = row.get('return_1h')
+            return_4h = row.get('return_4h')
+            return_24h = row.get('return_24h')
+            hour_offset = row.get('hour_offset', 4)
+
+            # Skip check if returns are None/NaN
+            if pd.isna(return_4h) or return_4h is None:
+                return True
+
+            # Determine effective style based on hour_offset
+            if hour_offset <= 4:
+                effective_style = 'active'
+            elif hour_offset <= 12:
+                effective_style = 'hybrid'
+            else:
+                effective_style = 'passive'
+
+            # Override with user's style if more conservative
+            if style == 'active':
+                effective_style = 'active'
+            elif style == 'hybrid' and effective_style == 'passive':
+                effective_style = 'hybrid'
+
+            # Apply style-specific thresholds
+            if effective_style == 'active':
+                # Strict: short-term momentum matters
+                r1h = return_1h if not pd.isna(return_1h) else 0
+                if return_4h < -0.02 and r1h < -0.01:
+                    return False
+
+            elif effective_style == 'hybrid':
+                # Moderate: allow small dips, block sustained falls
+                if return_4h < -0.04:
+                    return False
+
+            else:  # passive
+                # Relaxed: only block major crashes
+                r24h = return_24h if not pd.isna(return_24h) else 0
+                r1h = return_1h if not pd.isna(return_1h) else 0
+
+                if r24h <= -0.08:  # Down 8%+ over 24h
+                    return False
+                if return_4h < -0.06 and r1h < -0.02:  # Active freefall
+                    return False
+
+            return True
+
+        # Apply filter
+        mask = predictions.apply(passes_trend_check, axis=1)
+        rejected = predictions[~mask]
+
+        # Log rejections for debugging (with safe formatting)
+        for _, row in rejected.iterrows():
+            r1h = row.get('return_1h')
+            r4h = row.get('return_4h')
+            r24h = row.get('return_24h')
+            r1h_str = "N/A" if r1h is None or pd.isna(r1h) else f"{r1h:.1%}"
+            r4h_str = "N/A" if r4h is None or pd.isna(r4h) else f"{r4h:.1%}"
+            r24h_str = "N/A" if r24h is None or pd.isna(r24h) else f"{r24h:.1%}"
+            logger.info(
+                "Trend filter rejected %s: 1h=%s, 4h=%s, 24h=%s",
+                row.get('item_name', 'Unknown'),
+                r1h_str,
+                r4h_str,
+                r24h_str
+            )
+
+        return predictions[mask].reset_index(drop=True)
 
     def _determine_volume_tier(self, spread_pct: float) -> str:
         """Determine volume tier from spread percentage.
