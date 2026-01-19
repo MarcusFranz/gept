@@ -4,6 +4,9 @@ import { getRecommendations } from '../../lib/api';
 import { cache, cacheKey, bucketCapital, TTL, KEY } from '../../lib/cache';
 
 export const GET: APIRoute = async ({ locals, url }) => {
+  console.log('[Recommendations API] Full URL:', url.toString());
+  console.log('[Recommendations API] Search params:', Object.fromEntries(url.searchParams));
+
   try {
     // Get authenticated user from session
     if (!locals.user) {
