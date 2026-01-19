@@ -92,6 +92,8 @@ export default function OrderGrid(props: OrderGridProps) {
   };
 
   // Confirm and apply pending changes
+  // - Default settings changes: Just save for future cards, DON'T refresh recommendations
+  // - Capital changes: Save AND refresh recommendations with new capital
   const confirmSettingsChanges = async () => {
     const capital = pendingCapital();
     const settings = pendingSettings();
@@ -122,37 +124,43 @@ export default function OrderGrid(props: OrderGridProps) {
     setPendingCapital(null);
     setPendingSettings(null);
 
-    // Refresh recommendations with new settings
-    setBrowseIndex(0);
-    setSkippedHistory([]);
+    // Only refresh recommendations if capital changed
+    // Default settings changes only apply to future cards (via slot settings inheritance)
+    if (capital !== null) {
+      setBrowseIndex(0);
+      setSkippedHistory([]);
 
-    const currentSettings = globalDefaults();
-    const params = new URLSearchParams({
-      capital: userCapital().toString(),
-      style: currentSettings.style,
-      risk: currentSettings.risk,
-      margin: currentSettings.margin
-    });
+      // Use each slot's OWN settings for fetching, not global defaults
+      // Capital affects what items are affordable, but style/risk/margin are per-slot
+      const currentSettings = globalDefaults();
+      const params = new URLSearchParams({
+        capital: userCapital().toString(),
+        style: currentSettings.style,
+        risk: currentSettings.risk,
+        margin: currentSettings.margin,
+        fresh: '1' // Bypass cache after settings change
+      });
 
-    try {
-      const response = await fetch(`/api/recommendations?${params}`);
-      const data = await response.json();
-      if (data.success && data.data) {
-        setRecommendations(data.data);
-        setSlots(prev => {
-          let usedFirst = false;
-          return prev.map(slot => {
-            if (slot.isOrdered) return slot;
-            if (!usedFirst && data.data.length > 0) {
-              usedFirst = true;
-              setBrowseIndex(1);
-              return { ...slot, recommendation: data.data[0], isCustomItem: false, originalRecommendation: null };
-            }
-            return { ...slot, recommendation: null, isCustomItem: false, originalRecommendation: null };
+      try {
+        const response = await fetch(`/api/recommendations?${params}`);
+        const data = await response.json();
+        if (data.success && data.data) {
+          setRecommendations(data.data);
+          setSlots(prev => {
+            let usedFirst = false;
+            return prev.map(slot => {
+              if (slot.isOrdered) return slot;
+              if (!usedFirst && data.data.length > 0) {
+                usedFirst = true;
+                setBrowseIndex(1);
+                return { ...slot, recommendation: data.data[0], isCustomItem: false, originalRecommendation: null };
+              }
+              return { ...slot, recommendation: null, isCustomItem: false, originalRecommendation: null };
+            });
           });
-        });
-      }
-    } catch {}
+        }
+      } catch {}
+    }
 
     // Close the panel
     setShowStatsPanel(false);
@@ -1043,6 +1051,8 @@ export default function OrderGrid(props: OrderGridProps) {
     if (excludeIds.length > 0) {
       params.append('exclude', excludeIds.join(','));
     }
+    // Bypass cache after per-card settings change
+    params.append('fresh', '1');
 
     try {
       const response = await fetch(`/api/recommendations?${params}`);

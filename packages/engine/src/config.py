@@ -67,10 +67,10 @@ class Config:
     )
     # Maximum ratio of buy_limit to daily volume (anti-manipulation)
     # If buy_limit / volume_24h > this ratio, item is filtered out
-    # E.g., 0.25 means if buy_limit is >25% of daily volume, too illiquid/manipulable
-    # Default 0.25 filters items where filling your buy limit would dominate the market
+    # E.g., 0.05 means if buy_limit is >5% of daily volume, too illiquid/manipulable
+    # Default 0.05 filters items where filling your buy limit would significantly impact the market
     max_buy_limit_volume_ratio: float = field(
-        default_factory=lambda: float(environ.get("MAX_BUY_LIMIT_VOLUME_RATIO", "0.25"))
+        default_factory=lambda: float(environ.get("MAX_BUY_LIMIT_VOLUME_RATIO", "0.05"))
     )
 
     # Confidence thresholds (AUC values)
