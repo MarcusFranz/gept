@@ -3,10 +3,15 @@ Description=GePT 1-minute price collector
 After=network.target postgresql.service
 
 [Service]
-Type=oneshot
+Type=simple
 User=ubuntu
 WorkingDirectory=/home/ubuntu/gept/current/packages/model
 Environment="PATH=/home/ubuntu/gept/venv/bin:/usr/bin"
+Environment="PYTHONPATH=/home/ubuntu/gept/current/packages/model/collectors"
 EnvironmentFile=/home/ubuntu/gept/.env
 ExecStart=/home/ubuntu/gept/venv/bin/python collectors/collect_latest_1m.py
-TimeoutStartSec=60
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
