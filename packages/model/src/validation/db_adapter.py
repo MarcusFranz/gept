@@ -59,7 +59,7 @@ class ValidationDBAdapter:
                 p.fill_probability,
                 p.buy_price,
                 p.sell_price,
-                p.model_version
+                p.model_id as model_version
             FROM predictions p
             LEFT JOIN prediction_outcomes po ON (
                 po.prediction_time = p.time
