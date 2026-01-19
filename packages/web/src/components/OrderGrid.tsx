@@ -1008,13 +1008,19 @@ export default function OrderGrid(props: OrderGridProps) {
   };
 
   const updateSlotSettings = <K extends keyof SlotSettings>(slotIndex: number, key: K, value: SlotSettings[K]) => {
-    setSlots(prev => prev.map((slot, i) => {
-      if (i !== slotIndex) return slot;
-      return {
-        ...slot,
-        settings: { ...slot.settings, [key]: value }
-      };
-    }));
+    console.log('[updateSlotSettings] Updating slot', slotIndex, key, '=', value);
+    setSlots(prev => {
+      const newSlots = prev.map((slot, i) => {
+        if (i !== slotIndex) return slot;
+        const newSettings = { ...slot.settings, [key]: value };
+        console.log('[updateSlotSettings] New settings for slot', i, ':', newSettings);
+        return {
+          ...slot,
+          settings: newSettings
+        };
+      });
+      return newSlots;
+    });
   };
 
   const toggleSettings = (slotIndex: number) => {
