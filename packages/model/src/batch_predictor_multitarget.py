@@ -50,6 +50,71 @@ from inference_config import clip_probability, get_confidence_tier, DEFAULT_AUC
 from calibration import CalibrationManager
 
 
+def compute_stability_fields(price_history: pd.DataFrame) -> dict:
+    """Compute price stability and momentum fields from price history.
+
+    Args:
+        price_history: DataFrame with columns ['avg_high_price', 'avg_low_price']
+                      indexed by timestamp, sorted ascending.
+
+    Returns:
+        Dict with keys: median_14d, price_vs_median_ratio, return_1h,
+                       return_4h, return_24h, volatility_24h
+    """
+    result = {
+        'median_14d': None,
+        'price_vs_median_ratio': None,
+        'return_1h': None,
+        'return_4h': None,
+        'return_24h': None,
+        'volatility_24h': None,
+    }
+
+    if price_history.empty or len(price_history) < 2:
+        return result
+
+    # Compute midpoint prices
+    if 'avg_high_price' in price_history.columns and 'avg_low_price' in price_history.columns:
+        mids = (price_history['avg_high_price'] + price_history['avg_low_price']) / 2
+    else:
+        return result
+
+    # Drop NaN values for calculations
+    mids = mids.dropna()
+    if len(mids) < 2:
+        return result
+
+    current_mid = mids.iloc[-1]
+
+    # Median 14d: requires at least 7 days of data (168 hours)
+    if len(mids) >= 168:
+        # Use last 14 days (336 hours) or all available
+        lookback = min(len(mids), 336)
+        result['median_14d'] = float(mids.iloc[-lookback:].median())
+        if result['median_14d'] > 0:
+            result['price_vs_median_ratio'] = float(current_mid / result['median_14d'])
+
+    # Returns: compute from available data
+    def safe_return(periods: int) -> float | None:
+        if len(mids) > periods:
+            old_price = mids.iloc[-(periods + 1)]
+            if old_price > 0:
+                return float((current_mid - old_price) / old_price)
+        return None
+
+    result['return_1h'] = safe_return(1)  # 1 hour ago (assuming hourly data)
+    result['return_4h'] = safe_return(4)
+    result['return_24h'] = safe_return(24)
+
+    # Volatility 24h: std of hourly returns over last 24 hours
+    if len(mids) >= 25:
+        returns = mids.pct_change().dropna()
+        if len(returns) >= 24:
+            result['volatility_24h'] = float(returns.iloc[-24:].std())
+
+    return result
+
+
 def get_model_trained_at(run_id: str) -> Optional[datetime]:
     """Parse model training timestamp from run_id (YYYYMMDD_HHMMSS format)."""
     try:
@@ -576,6 +641,10 @@ class MultiTargetBatchPredictor:
         try:
             cur = conn.cursor()
 
+            def format_float(val):
+                """Format float value for COPY, handling None."""
+                return str(val) if val is not None else '\\N'
+
             buffer = io.StringIO()
             for p in predictions:
                 row = [
@@ -592,7 +661,14 @@ class MultiTargetBatchPredictor:
                     str(p['current_high']) if p['current_high'] else '\\N',
                     str(p['current_low']) if p['current_low'] else '\\N',
                     p['confidence'] or '\\N',
-                    str(p['model_id']) if p.get('model_id') else '\\N'
+                    str(p['model_id']) if p.get('model_id') else '\\N',
+                    # Stability fields
+                    format_float(p.get('median_14d')),
+                    format_float(p.get('price_vs_median_ratio')),
+                    format_float(p.get('return_1h')),
+                    format_float(p.get('return_4h')),
+                    format_float(p.get('return_24h')),
+                    format_float(p.get('volatility_24h')),
                 ]
                 buffer.write('\t'.join(row) + '\n')
 
@@ -603,7 +679,8 @@ class MultiTargetBatchPredictor:
                                    'target_hour', 'offset_pct', 'fill_probability',
                                    'expected_value', 'buy_price', 'sell_price',
                                    'current_high', 'current_low', 'confidence',
-                                   'model_id'))
+                                   'model_id', 'median_14d', 'price_vs_median_ratio',
+                                   'return_1h', 'return_4h', 'return_24h', 'volatility_24h'))
 
             conn.commit()
             cur.close()
@@ -624,7 +701,10 @@ class MultiTargetBatchPredictor:
                  p['target_hour'], p['offset_pct'], p['fill_probability'],
                  p['expected_value'], p['buy_price'], p['sell_price'],
                  p['current_high'], p['current_low'], p['confidence'],
-                 p.get('model_id'))
+                 p.get('model_id'),
+                 p.get('median_14d'), p.get('price_vs_median_ratio'),
+                 p.get('return_1h'), p.get('return_4h'), p.get('return_24h'),
+                 p.get('volatility_24h'))
                 for p in predictions
             ]
 
@@ -632,7 +712,8 @@ class MultiTargetBatchPredictor:
                 INSERT INTO {table_name} (time, item_id, item_name, hour_offset,
                     target_hour, offset_pct, fill_probability, expected_value,
                     buy_price, sell_price, current_high, current_low, confidence,
-                    model_id)
+                    model_id, median_14d, price_vs_median_ratio,
+                    return_1h, return_4h, return_24h, volatility_24h)
                 VALUES %s
             """, values)
 
@@ -715,6 +796,15 @@ class MultiTargetBatchPredictor:
             feature_time = time.time() - feature_start
             logger.info(f"Computed features for {len(features_cache)} items in {feature_time:.1f}s")
 
+            # Compute stability fields for each item
+            logger.info("Computing stability fields...")
+            stability_start = time.time()
+            stability_cache = {}
+            for item_id, df in price_data.items():
+                stability_cache[item_id] = compute_stability_fields(df)
+            stability_time = time.time() - stability_start
+            logger.info(f"Computed stability fields for {len(stability_cache)} items in {stability_time:.2f}s")
+
             # Sort by volatility (high volatility items first)
             volatilities = {
                 item['item_id']: self._compute_volatility(item['item_id'], price_data)
@@ -760,6 +850,17 @@ class MultiTargetBatchPredictor:
                     preds, clipped, missing, invalid = self.predict_item(
                         item_id, features_cache[item_id], prediction_time, hour_start, hour_end
                     )
+
+                    # Add stability fields to each prediction
+                    stability = stability_cache.get(item_id, {})
+                    for pred in preds:
+                        pred['median_14d'] = stability.get('median_14d')
+                        pred['price_vs_median_ratio'] = stability.get('price_vs_median_ratio')
+                        pred['return_1h'] = stability.get('return_1h')
+                        pred['return_4h'] = stability.get('return_4h')
+                        pred['return_24h'] = stability.get('return_24h')
+                        pred['volatility_24h'] = stability.get('volatility_24h')
+
                     tier_predictions.extend(preds)
                     tier_clipped += clipped
                     tier_missing += missing
@@ -799,6 +900,7 @@ class MultiTargetBatchPredictor:
             stats['items'] = len(sorted_items)
             stats['load_time'] = load_time
             stats['feature_time'] = feature_time
+            stats['stability_time'] = stability_time
             stats['total_time'] = time.time() - start
 
             # Record successful completion
