@@ -386,7 +386,14 @@ class PredictionLoader:
                 current_high,
                 current_low,
                 confidence,
-                time as prediction_time
+                time as prediction_time,
+                -- Stability fields
+                median_14d,
+                price_vs_median_ratio,
+                return_1h,
+                return_4h,
+                return_24h,
+                volatility_24h
             FROM predictions
             WHERE {where_clause}
             ORDER BY expected_value DESC
@@ -431,7 +438,14 @@ class PredictionLoader:
                 current_high,
                 current_low,
                 confidence,
-                time as prediction_time
+                time as prediction_time,
+                -- Stability fields
+                median_14d,
+                price_vs_median_ratio,
+                return_1h,
+                return_4h,
+                return_24h,
+                volatility_24h
             FROM predictions
             WHERE time = (SELECT MAX(time) FROM predictions)
               AND item_id = :item_id
@@ -518,6 +532,13 @@ class PredictionLoader:
                     p.current_low,
                     p.confidence,
                     p.time as prediction_time,
+                    -- Stability fields
+                    p.median_14d,
+                    p.price_vs_median_ratio,
+                    p.return_1h,
+                    p.return_4h,
+                    p.return_24h,
+                    p.volatility_24h,
                     COALESCE(v.total_volume, 0) as volume_24h,
                     ROW_NUMBER() OVER (
                         PARTITION BY p.item_id ORDER BY p.expected_value DESC
@@ -559,8 +580,8 @@ class PredictionLoader:
             with self.engine.connect() as conn:
                 df = pd.read_sql(query, conn, params=params)
 
-            # Drop internal columns
-            for col in ["rn", "volume_24h"]:
+            # Drop internal columns (keep volume_24h for stability filter)
+            for col in ["rn"]:
                 if col in df.columns:
                     df = df.drop(col, axis=1)
 

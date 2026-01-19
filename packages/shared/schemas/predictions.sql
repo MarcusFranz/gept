@@ -21,6 +21,16 @@ CREATE TABLE IF NOT EXISTS predictions (
     current_high DECIMAL(12,2),
     current_low DECIMAL(12,2),
 
+    -- Price stability fields (for anti-manipulation filtering)
+    median_14d DECIMAL(12,2),              -- 14-day median price
+    price_vs_median_ratio DECIMAL(6,4),    -- current_mid / median_14d
+
+    -- Momentum fields (for anti-adverse-selection filtering)
+    return_1h DECIMAL(6,4),                -- 1-hour price return
+    return_4h DECIMAL(6,4),                -- 4-hour price return
+    return_24h DECIMAL(6,4),               -- 24-hour price return
+    volatility_24h DECIMAL(6,4),           -- 24-hour rolling volatility
+
     -- Metadata
     item_name TEXT,
     confidence TEXT,                         -- low | medium | high
