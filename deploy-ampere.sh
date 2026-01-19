@@ -230,7 +230,7 @@ sudo systemctl enable gept-engine.service 2>/dev/null || true
 sudo systemctl restart gept-engine.service
 
 # Enable and start timers
-for timer in gept-inference gept-collect-5min gept-collect-1min gept-collect-hourly gept-validation; do
+for timer in gept-inference gept-collect-5min gept-collect-1min gept-collect-hourly gept-validation gept-ml-validation; do
     if [ -f /etc/systemd/system/${timer}.timer ]; then
         sudo systemctl enable ${timer}.timer 2>/dev/null || true
         sudo systemctl start ${timer}.timer 2>/dev/null || true

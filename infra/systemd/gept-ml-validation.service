@@ -1,0 +1,16 @@
+[Unit]
+Description=GePT ML Ranker Validation - Compares ML vs Heuristic ranking performance
+After=network.target postgresql.service
+
+[Service]
+Type=oneshot
+User=ubuntu
+WorkingDirectory=/home/ubuntu/gept/current/packages/engine
+Environment="PATH=/home/ubuntu/gept/venv/bin:/usr/bin"
+Environment="PYTHONPATH=/home/ubuntu/gept/current/packages/engine/src"
+EnvironmentFile=/home/ubuntu/gept/.env
+ExecStartPre=/bin/mkdir -p /home/ubuntu/gept/logs/validation
+ExecStart=/home/ubuntu/gept/venv/bin/python scripts/validate_ml_ranker.py --days 1 --output /home/ubuntu/gept/logs/validation/ml_ranker_report.json
+StandardOutput=append:/home/ubuntu/gept/logs/validation/ml_validation.log
+StandardError=append:/home/ubuntu/gept/logs/validation/ml_validation.log
+TimeoutStartSec=600
