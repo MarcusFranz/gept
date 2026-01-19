@@ -333,8 +333,17 @@ export default function OrderGrid(props: OrderGridProps) {
         params.append('exclude', activeItemIds.join(','));
       }
 
+      console.log('[fetchRecommendations] Fetching with params:', Object.fromEntries(params));
+
       const response = await fetch(`/api/recommendations?${params}`);
       const data = await response.json();
+
+      console.log('[fetchRecommendations] Response:', {
+        success: data.success,
+        itemCount: data.data?.length,
+        firstItem: data.data?.[0]?.item,
+        debug: data._debug
+      });
 
       if (!data.success) {
         throw new Error(data.error || 'Failed to fetch recommendations');
@@ -1054,9 +1063,19 @@ export default function OrderGrid(props: OrderGridProps) {
     // Bypass cache after per-card settings change
     params.append('fresh', '1');
 
+    console.log('[confirmSlotSettings] Fetching with params:', Object.fromEntries(params));
+    console.log('[confirmSlotSettings] Slot settings:', slot.settings);
+
     try {
       const response = await fetch(`/api/recommendations?${params}`);
       const data = await response.json();
+
+      console.log('[confirmSlotSettings] Response:', {
+        success: data.success,
+        itemCount: data.data?.length,
+        firstItem: data.data?.[0]?.item,
+        debug: data._debug
+      });
 
       if (data.success && data.data?.length > 0) {
         setSlots(prev => prev.map((s, i) => {
