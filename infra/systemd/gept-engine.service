@@ -1,0 +1,18 @@
+[Unit]
+Description=GePT Recommendation Engine API
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/gept/current/packages/engine
+Environment="PATH=/home/ubuntu/gept/venv/bin:/usr/bin"
+Environment="PYTHONUNBUFFERED=1"
+EnvironmentFile=/home/ubuntu/gept/.env
+ExecStart=/home/ubuntu/gept/venv/bin/uvicorn src.api:app --host 0.0.0.0 --port 8000 --workers 2
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
