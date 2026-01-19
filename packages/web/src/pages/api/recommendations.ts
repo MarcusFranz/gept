@@ -67,6 +67,13 @@ export const GET: APIRoute = async ({ locals, url }) => {
     const effectiveRisk = riskOverride || user.risk;
     const effectiveMargin = marginOverride || user.margin;
 
+    console.log('[Recommendations API] Settings:', {
+      overrides: { style: styleOverride, risk: riskOverride, margin: marginOverride },
+      userDefaults: { style: user.style, risk: user.risk, margin: user.margin },
+      effective: { style: effectiveStyle, risk: effectiveRisk, margin: effectiveMargin },
+      capital: availableCapital
+    });
+
     // Check if client requested fresh data (bypass cache)
     const skipCache = url.searchParams.get('fresh') === '1';
 

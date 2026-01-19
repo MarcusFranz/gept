@@ -1032,8 +1032,12 @@ export default function OrderGrid(props: OrderGridProps) {
 
   // Confirm slot settings and fetch new recommendation with those settings
   const confirmSlotSettings = async (slotIndex: number) => {
+    console.log('[confirmSlotSettings] CALLED for slot:', slotIndex);
     const slot = slots()[slotIndex];
-    if (!slot) return;
+    if (!slot) {
+      console.log('[confirmSlotSettings] No slot found at index:', slotIndex);
+      return;
+    }
 
     // Close settings panel and clear original
     setSlots(prev => prev.map((s, i) => {
