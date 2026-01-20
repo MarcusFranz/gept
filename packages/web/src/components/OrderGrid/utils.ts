@@ -72,6 +72,8 @@ export function saveDefaultSettings(settings: SlotSettings): void {
 
 // Create empty slots array
 export function createEmptySlots(): OrderState[] {
+  // Use user's saved default settings, not hardcoded defaults
+  const savedDefaults = loadDefaultSettings();
   return Array(MAX_SLOTS).fill(null).map(() => ({
     isOrdered: false,
     phase: 'buying' as const,
@@ -79,7 +81,7 @@ export function createEmptySlots(): OrderState[] {
     filled: 0,
     sold: 0,
     recommendation: null,
-    settings: { ...defaultSlotSettings },
+    settings: { ...savedDefaults },
     originalSettings: null,
     showSettings: false,
     pendingUpdate: null,
@@ -101,6 +103,9 @@ export function loadSavedSlots(): OrderState[] {
     const parsed = JSON.parse(saved);
     if (!Array.isArray(parsed)) return createEmptySlots();
 
+    // Use user's saved default settings for slots without settings
+    const savedDefaults = loadDefaultSettings();
+
     return Array(MAX_SLOTS).fill(null).map((_, i) => {
       const slot = parsed[i] as Partial<OrderState> | undefined;
       const isOrdered = slot?.isOrdered ?? false;
@@ -112,7 +117,7 @@ export function loadSavedSlots(): OrderState[] {
         filled: slot?.filled ?? 0,
         sold: slot?.sold ?? 0,
         recommendation,
-        settings: slot?.settings ?? { ...defaultSlotSettings },
+        settings: slot?.settings ?? { ...savedDefaults },
         originalSettings: null,
         showSettings: false,
         pendingUpdate: null,
