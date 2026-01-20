@@ -333,17 +333,8 @@ export default function OrderGrid(props: OrderGridProps) {
         params.append('exclude', activeItemIds.join(','));
       }
 
-      console.log('[fetchRecommendations] Fetching with params:', Object.fromEntries(params));
-
       const response = await fetch(`/api/recommendations?${params}`);
       const data = await response.json();
-
-      console.log('[fetchRecommendations] Response:', {
-        success: data.success,
-        itemCount: data.data?.length,
-        firstItem: data.data?.[0]?.item,
-        debug: data._debug
-      });
 
       if (!data.success) {
         throw new Error(data.error || 'Failed to fetch recommendations');
@@ -1008,19 +999,13 @@ export default function OrderGrid(props: OrderGridProps) {
   };
 
   const updateSlotSettings = <K extends keyof SlotSettings>(slotIndex: number, key: K, value: SlotSettings[K]) => {
-    console.log('[updateSlotSettings] Updating slot', slotIndex, key, '=', value);
-    setSlots(prev => {
-      const newSlots = prev.map((slot, i) => {
-        if (i !== slotIndex) return slot;
-        const newSettings = { ...slot.settings, [key]: value };
-        console.log('[updateSlotSettings] New settings for slot', i, ':', newSettings);
-        return {
-          ...slot,
-          settings: newSettings
-        };
-      });
-      return newSlots;
-    });
+    setSlots(prev => prev.map((slot, i) => {
+      if (i !== slotIndex) return slot;
+      return {
+        ...slot,
+        settings: { ...slot.settings, [key]: value }
+      };
+    }));
   };
 
   const toggleSettings = (slotIndex: number) => {
@@ -1038,12 +1023,8 @@ export default function OrderGrid(props: OrderGridProps) {
 
   // Confirm slot settings and fetch new recommendation with those settings
   const confirmSlotSettings = async (slotIndex: number) => {
-    console.log('[confirmSlotSettings] CALLED for slot:', slotIndex);
     const slot = slots()[slotIndex];
-    if (!slot) {
-      console.log('[confirmSlotSettings] No slot found at index:', slotIndex);
-      return;
-    }
+    if (!slot) return;
 
     // Close settings panel and clear original
     setSlots(prev => prev.map((s, i) => {
@@ -1073,19 +1054,9 @@ export default function OrderGrid(props: OrderGridProps) {
     // Bypass cache after per-card settings change
     params.append('fresh', '1');
 
-    console.log('[confirmSlotSettings] Fetching with params:', Object.fromEntries(params));
-    console.log('[confirmSlotSettings] Slot settings:', slot.settings);
-
     try {
       const response = await fetch(`/api/recommendations?${params}`);
       const data = await response.json();
-
-      console.log('[confirmSlotSettings] Response:', {
-        success: data.success,
-        itemCount: data.data?.length,
-        firstItem: data.data?.[0]?.item,
-        debug: data._debug
-      });
 
       if (data.success && data.data?.length > 0) {
         setSlots(prev => prev.map((s, i) => {
