@@ -3,9 +3,11 @@ import { userRepo, activeTradesRepo } from '../../lib/repositories';
 import { getRecommendations } from '../../lib/api';
 import { cache, cacheKey, bucketCapital, TTL, KEY } from '../../lib/cache';
 
-export const GET: APIRoute = async ({ locals, url }) => {
-  console.log('[Recommendations API] Full URL:', url.toString());
-  console.log('[Recommendations API] Search params:', Object.fromEntries(url.searchParams));
+export const GET: APIRoute = async ({ locals, request }) => {
+  // Use request.url to get params - Astro's url object sometimes loses query params on Vercel
+  const url = new URL(request.url);
+  console.log('[Recommendations API] request.url:', request.url);
+  console.log('[Recommendations API] searchParams:', Object.fromEntries(url.searchParams));
 
   try {
     // Get authenticated user from session
@@ -24,7 +26,7 @@ export const GET: APIRoute = async ({ locals, url }) => {
     // Get or create user record with trading settings
     const user = await userRepo.findOrCreate(userId, locals.user.email);
 
-    // Parse query params
+    // Parse query params from request.url (not Astro's url which can lose params on Vercel)
     const slotsParam = url.searchParams.get('slots');
     const excludeParam = url.searchParams.get('exclude');
     // Override settings from query params (for immediate refresh after settings change)
