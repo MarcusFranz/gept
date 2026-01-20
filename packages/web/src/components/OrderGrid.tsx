@@ -801,6 +801,15 @@ export default function OrderGrid(props: OrderGridProps) {
     const slotIndex = searchSlot();
     if (slotIndex === null) return;
 
+    // Check if item is already in an ordered slot (prevent duplicates)
+    const existingSlot = slots().find(
+      (s, i) => i !== slotIndex && s.isOrdered && s.recommendation?.itemId === item.id
+    );
+    if (existingSlot) {
+      addToast(`${item.name} is already in another slot`, 'error');
+      return;
+    }
+
     // Fetch item details and create a custom recommendation
     try {
       const res = await fetch(`/api/items/${item.id}`);
