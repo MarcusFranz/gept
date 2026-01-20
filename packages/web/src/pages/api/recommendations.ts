@@ -7,9 +7,14 @@ export const GET: APIRoute = async ({ locals, request }) => {
   // Use request.url to get params - Astro's url object can lose query params with ISR
   const url = new URL(request.url);
 
+  // Debug logging
+  console.log('[Recommendations API] Request URL:', url.toString());
+  console.log('[Recommendations API] Search params:', Object.fromEntries(url.searchParams.entries()));
+
   try {
     // Get authenticated user from session
     if (!locals.user) {
+      console.log('[Recommendations API] User not authenticated');
       return new Response(JSON.stringify({
         success: false,
         error: 'Unauthorized'
@@ -90,6 +95,7 @@ export const GET: APIRoute = async ({ locals, request }) => {
 
     if (!recommendations) {
       // Fetch from prediction API
+      console.log('[Recommendations API] Fetching from engine:', { capital: availableCapital, style: effectiveStyle, risk: effectiveRisk, margin: effectiveMargin, slots: requestedSlots });
       recommendations = await getRecommendations(userId, {
         capital: availableCapital,
         style: effectiveStyle,
@@ -97,17 +103,23 @@ export const GET: APIRoute = async ({ locals, request }) => {
         margin: effectiveMargin,
         excludedItems: [] // Don't exclude at API level - filter client-side for flexibility
       }, requestedSlots);
+      console.log('[Recommendations API] Engine returned:', recommendations?.length, 'recommendations');
 
       // Cache for 30 seconds (fire and forget)
       cache.set(redisCacheKey, recommendations, TTL.RECOMMENDATIONS).catch(() => {});
+    } else {
+      console.log('[Recommendations API] Using cached data:', recommendations?.length, 'recommendations');
     }
 
     // Filter out excluded items (active trades + skipped)
     if (excludedItems.length > 0) {
       const excludeSet = new Set(excludedItems);
+      const beforeFilter = recommendations.length;
       recommendations = recommendations.filter(r => !excludeSet.has(r.itemId));
+      console.log('[Recommendations API] Filtered', beforeFilter, '->', recommendations.length, 'after excluding', excludedItems.length, 'items');
     }
 
+    console.log('[Recommendations API] Returning', recommendations.length, 'recommendations');
     return new Response(JSON.stringify({
       success: true,
       data: recommendations
