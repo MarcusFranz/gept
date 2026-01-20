@@ -489,10 +489,21 @@ class PredictionLoader:
         if max_offset_pct is not None:
             offset_filter += " AND p.offset_pct <= :max_offset_pct"
 
-        # Build volume filter
+        # Build volume filter with price-tiered thresholds
+        # High-value items naturally have lower volume, so we apply carve-outs:
+        # - >100M items: min 100 volume (Tbow, Scythe, Torva, etc.)
+        # - >10M items: min 500 volume
+        # - >1M items: min volume capped at 2000
+        # - Other items: use configured min_volume_24h
         volume_filter = ""
         if min_volume_24h is not None and min_volume_24h > 0:
-            volume_filter = " AND COALESCE(v.total_volume, 0) >= :min_volume_24h"
+            volume_filter = """
+                AND COALESCE(v.total_volume, 0) >= CASE
+                    WHEN COALESCE(p.buy_price, 0) > 100000000 THEN 100
+                    WHEN COALESCE(p.buy_price, 0) > 10000000 THEN 500
+                    WHEN COALESCE(p.buy_price, 0) > 1000000 THEN LEAST(:min_volume_24h, 2000)
+                    ELSE :min_volume_24h
+                END"""
 
         query = text(
             f"""
