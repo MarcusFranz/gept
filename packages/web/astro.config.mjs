@@ -11,11 +11,11 @@ export default defineConfig({
     webAnalytics: { enabled: true },
     maxDuration: 30,
     imageService: true, // Enable Vercel Image Optimization
-    isr: {
-      // Enable ISR for pages that can be cached
-      expiration: 60, // Revalidate every 60 seconds
-      bypassToken: process.env.ISR_BYPASS_TOKEN // Optional bypass token
-    }
+    // ISR disabled - was causing API routes to cache and ignore query params
+    // isr: {
+    //   expiration: 60,
+    //   bypassToken: process.env.ISR_BYPASS_TOKEN
+    // }
   }),
   image: {
     // Configure image optimization
