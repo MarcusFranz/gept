@@ -41,7 +41,9 @@ interface OrderGridProps {
 }
 
 export default function OrderGrid(props: OrderGridProps) {
+  console.log('[OrderGrid] Component initializing...');
   const [slots, setSlots] = createSignal<OrderState[]>(loadSavedSlots());
+  console.log('[OrderGrid] Slots initialized:', slots().length);
   const [recommendations, setRecommendations] = createSignal<Recommendation[]>([]);
   const [loading, setLoading] = createSignal(true);
   const [error, setError] = createSignal<string | null>(null);
@@ -309,12 +311,14 @@ export default function OrderGrid(props: OrderGridProps) {
   };
 
   const fetchRecommendations = async () => {
+    console.log('[OrderGrid] fetchRecommendations called');
     setLoading(true);
     setError(null);
 
     try {
       // Use untrack to prevent this from creating reactive dependencies
       const currentSlots = untrack(() => slots());
+      console.log('[OrderGrid] Current slots count:', currentSlots.length);
       const activeItemIds = currentSlots
         .filter(s => s.isOrdered && s.recommendation)
         .map(s => s.recommendation!.itemId);
@@ -394,6 +398,7 @@ export default function OrderGrid(props: OrderGridProps) {
   };
 
   createEffect(() => {
+    console.log('[OrderGrid] createEffect: calling fetchRecommendations');
     fetchRecommendations();
   });
 
