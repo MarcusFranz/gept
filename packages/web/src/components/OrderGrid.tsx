@@ -346,6 +346,9 @@ export default function OrderGrid(props: OrderGridProps) {
       // Build set of active item IDs for filtering
       const activeItemIdSet = new Set(activeItemIds);
 
+      // Get current global defaults for new slots (untracked to avoid reactivity)
+      const currentDefaults = untrack(() => globalDefaults());
+
       // Preserve recommendations only for ORDERED slots, replace all others with fresh API data
       let recsUsedFromFetch = 0;
       setSlots(prev => {
@@ -353,7 +356,7 @@ export default function OrderGrid(props: OrderGridProps) {
         return prev.map((slot) => {
           // Keep existing recommendation only if slot is actively ordered
           if (slot.isOrdered && slot.recommendation) {
-            return { ...slot, settings: slot.settings || { ...defaultSlotSettings } };
+            return { ...slot, settings: slot.settings || { ...currentDefaults } };
           }
           // Find next rec that's not in active trades
           let rec = null;
@@ -370,7 +373,7 @@ export default function OrderGrid(props: OrderGridProps) {
             ...slot,
             recommendation: rec,
             isCustomItem: false, // Reset custom item flag for fresh recs
-            settings: slot.settings || { ...defaultSlotSettings }
+            settings: slot.settings || { ...currentDefaults }
           };
         });
       });
