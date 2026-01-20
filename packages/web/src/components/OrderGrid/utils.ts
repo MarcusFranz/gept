@@ -106,25 +106,39 @@ export function loadSavedSlots(): OrderState[] {
     // Use user's saved default settings for slots without settings
     const savedDefaults = loadDefaultSettings();
 
+    // Track seen item IDs to prevent duplicates (which can break the app)
+    const seenItemIds = new Set<number>();
+
     return Array(MAX_SLOTS).fill(null).map((_, i) => {
       const slot = parsed[i] as Partial<OrderState> | undefined;
       const isOrdered = slot?.isOrdered ?? false;
       const recommendation = isOrdered ? (slot?.recommendation ?? null) : null;
+
+      // Check for duplicate items - only allow first occurrence
+      const itemId = recommendation?.itemId;
+      const isDuplicate = itemId !== undefined && seenItemIds.has(itemId);
+      if (itemId !== undefined && !isDuplicate) {
+        seenItemIds.add(itemId);
+      }
+
+      // Clear duplicate slots to prevent app breakage
+      const validOrder = isOrdered && recommendation !== null && !isDuplicate;
+
       return {
-        isOrdered: isOrdered && recommendation !== null,
-        phase: slot?.phase ?? 'buying',
-        quantity: slot?.quantity ?? 0,
-        filled: slot?.filled ?? 0,
-        sold: slot?.sold ?? 0,
-        recommendation,
+        isOrdered: validOrder,
+        phase: validOrder ? (slot?.phase ?? 'buying') : 'buying',
+        quantity: validOrder ? (slot?.quantity ?? 0) : 0,
+        filled: validOrder ? (slot?.filled ?? 0) : 0,
+        sold: validOrder ? (slot?.sold ?? 0) : 0,
+        recommendation: validOrder ? recommendation : null,
         settings: slot?.settings ?? { ...savedDefaults },
         originalSettings: null,
         showSettings: false,
         pendingUpdate: null,
         acceptedUpdate: null,
         lastCheckedAt: null,
-        isCustomItem: isOrdered ? (slot?.isCustomItem ?? false) : false,
-        originalRecommendation: isOrdered ? (slot?.originalRecommendation ?? null) : null
+        isCustomItem: validOrder ? (slot?.isCustomItem ?? false) : false,
+        originalRecommendation: validOrder ? (slot?.originalRecommendation ?? null) : null
       };
     });
   } catch {

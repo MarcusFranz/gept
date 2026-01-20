@@ -41,9 +41,7 @@ interface OrderGridProps {
 }
 
 export default function OrderGrid(props: OrderGridProps) {
-  console.log('[OrderGrid] Component initializing...');
   const [slots, setSlots] = createSignal<OrderState[]>(loadSavedSlots());
-  console.log('[OrderGrid] Slots initialized:', slots().length);
   const [recommendations, setRecommendations] = createSignal<Recommendation[]>([]);
   const [loading, setLoading] = createSignal(true);
   const [error, setError] = createSignal<string | null>(null);
@@ -311,14 +309,12 @@ export default function OrderGrid(props: OrderGridProps) {
   };
 
   const fetchRecommendations = async () => {
-    console.log('[OrderGrid] fetchRecommendations called');
     setLoading(true);
     setError(null);
 
     try {
       // Use untrack to prevent this from creating reactive dependencies
       const currentSlots = untrack(() => slots());
-      console.log('[OrderGrid] Current slots count:', currentSlots.length);
       const activeItemIds = currentSlots
         .filter(s => s.isOrdered && s.recommendation)
         .map(s => s.recommendation!.itemId);
@@ -340,20 +336,15 @@ export default function OrderGrid(props: OrderGridProps) {
       const response = await fetch(`/api/recommendations?${params}`);
       const data = await response.json();
 
-      // Debug logging
-      console.log('[OrderGrid] API response:', { success: data.success, recsCount: data.data?.length, error: data.error });
-
       if (!data.success) {
         throw new Error(data.error || 'Failed to fetch recommendations');
       }
 
       const recs = data.data || [];
-      console.log('[OrderGrid] Recs received:', recs.length, 'items');
       setRecommendations(recs);
 
       // Build set of active item IDs for filtering
       const activeItemIdSet = new Set(activeItemIds);
-      console.log('[OrderGrid] Active item IDs to exclude:', activeItemIds);
 
       // Get current global defaults for new slots (untracked to avoid reactivity)
       const currentDefaults = untrack(() => globalDefaults());
@@ -388,9 +379,7 @@ export default function OrderGrid(props: OrderGridProps) {
       });
       // Set recIndex to point to the next available recommendation
       setRecIndex(recsUsedFromFetch);
-      console.log('[OrderGrid] Slots updated with', recsUsedFromFetch, 'recommendations from API');
     } catch (err) {
-      console.error('[OrderGrid] Error fetching recommendations:', err);
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
       setLoading(false);
@@ -398,7 +387,6 @@ export default function OrderGrid(props: OrderGridProps) {
   };
 
   createEffect(() => {
-    console.log('[OrderGrid] createEffect: calling fetchRecommendations');
     fetchRecommendations();
   });
 
