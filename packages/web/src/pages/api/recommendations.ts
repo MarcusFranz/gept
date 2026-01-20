@@ -4,10 +4,8 @@ import { getRecommendations } from '../../lib/api';
 import { cache, cacheKey, bucketCapital, TTL, KEY } from '../../lib/cache';
 
 export const GET: APIRoute = async ({ locals, request }) => {
-  // Use request.url to get params - Astro's url object sometimes loses query params on Vercel
+  // Use request.url to get params - Astro's url object can lose query params with ISR
   const url = new URL(request.url);
-  console.log('[Recommendations API] request.url:', request.url);
-  console.log('[Recommendations API] searchParams:', Object.fromEntries(url.searchParams));
 
   try {
     // Get authenticated user from session
@@ -72,13 +70,6 @@ export const GET: APIRoute = async ({ locals, request }) => {
     const effectiveRisk = riskOverride || user.risk;
     const effectiveMargin = marginOverride || user.margin;
 
-    console.log('[Recommendations API] Settings:', {
-      overrides: { style: styleOverride, risk: riskOverride, margin: marginOverride },
-      userDefaults: { style: user.style, risk: user.risk, margin: user.margin },
-      effective: { style: effectiveStyle, risk: effectiveRisk, margin: effectiveMargin },
-      capital: availableCapital
-    });
-
     // Check if client requested fresh data (bypass cache)
     const skipCache = url.searchParams.get('fresh') === '1';
 
@@ -88,12 +79,10 @@ export const GET: APIRoute = async ({ locals, request }) => {
 
     // Try Redis cache first (unless fresh=1 requested)
     let recommendations: Awaited<ReturnType<typeof getRecommendations>> | null = null;
-    let cacheHit = false;
 
     if (!skipCache) {
       try {
         recommendations = await cache.get<Awaited<ReturnType<typeof getRecommendations>>>(redisCacheKey);
-        if (recommendations) cacheHit = true;
       } catch {
         // Continue without cache on Redis errors
       }
@@ -121,15 +110,7 @@ export const GET: APIRoute = async ({ locals, request }) => {
 
     return new Response(JSON.stringify({
       success: true,
-      data: recommendations,
-      _debug: {
-        settings: { style: effectiveStyle, risk: effectiveRisk, margin: effectiveMargin },
-        capital: availableCapital,
-        cacheKey: redisCacheKey,
-        cacheHit,
-        skipCache,
-        timestamp: Date.now()
-      }
+      data: recommendations
     }), {
       status: 200,
       headers: {
@@ -143,8 +124,7 @@ export const GET: APIRoute = async ({ locals, request }) => {
     // Return mock data for development/demo
     return new Response(JSON.stringify({
       success: true,
-      data: getMockRecommendations(),
-      _debug: { fallback: true, error: String(error), timestamp: Date.now() }
+      data: getMockRecommendations()
     }), {
       status: 200,
       headers: {
