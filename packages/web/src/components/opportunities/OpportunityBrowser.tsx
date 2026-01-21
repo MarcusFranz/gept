@@ -82,15 +82,11 @@ export function OpportunityBrowser(props: OpportunityBrowserProps) {
     }
   };
 
-  // Initial fetch
-  createEffect(() => {
-    fetchOpportunities();
-  });
-
-  // Re-fetch when filters change (with debounce effect)
+  // Fetch when filters change (including initial load from localStorage)
+  // The defer: false ensures initial fetch happens immediately
   createEffect(on(filters, () => {
     fetchOpportunities();
-  }, { defer: true }));
+  }));
 
   // Add to trades
   const handleAddToTrades = async (opp: Opportunity) => {
