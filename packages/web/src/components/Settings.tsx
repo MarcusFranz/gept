@@ -1,14 +1,8 @@
 import { createSignal, createEffect, Show, For } from 'solid-js';
 import { capitalPresets, formatGold, type AppSettings, defaultAppSettings } from '../lib/types';
-import Tooltip, { InfoIcon } from './Tooltip';
 
 interface UserSettings {
   capital: number;
-  style: 'passive' | 'hybrid' | 'active';
-  risk: 'low' | 'medium' | 'high';
-  margin: 'conservative' | 'moderate' | 'aggressive';
-  slots: number;
-  min_roi: number;
   tier: 'free' | 'premium';
 }
 
@@ -223,124 +217,6 @@ export default function Settings() {
             </p>
           </div>
 
-          {/* Style */}
-          <div class="form-group slider-group">
-            <label class="label label-with-tooltip">
-              Trading Style
-              <Tooltip text="How actively you want to monitor and adjust your trades" position="right">
-                <InfoIcon />
-              </Tooltip>
-            </label>
-            <div class="slider-container">
-              <input
-                type="range"
-                class="slider styled-slider"
-                min="0"
-                max="2"
-                value={['passive', 'hybrid', 'active'].indexOf(settings()!.style)}
-                onInput={(e) => {
-                  const styles = ['passive', 'hybrid', 'active'] as const;
-                  updateSetting('style', styles[parseInt(e.currentTarget.value)]);
-                }}
-              />
-              <div class="slider-labels">
-                <span class={settings()!.style === 'passive' ? 'active' : ''}>Passive</span>
-                <span class={settings()!.style === 'hybrid' ? 'active' : ''}>Hybrid</span>
-                <span class={settings()!.style === 'active' ? 'active' : ''}>Active</span>
-              </div>
-            </div>
-            <p class="slider-desc text-sm text-muted">
-              {settings()!.style === 'passive' && 'Less frequent, longer trades with higher margins'}
-              {settings()!.style === 'hybrid' && 'Balanced approach between speed and profit'}
-              {settings()!.style === 'active' && 'Frequent, shorter trades with faster turnover'}
-            </p>
-          </div>
-
-          {/* Risk */}
-          <div class="form-group slider-group">
-            <label class="label label-with-tooltip">
-              Risk Tolerance
-              <Tooltip text="Higher risk means larger potential profits but also more volatility" position="right">
-                <InfoIcon />
-              </Tooltip>
-            </label>
-            <div class="slider-container">
-              <input
-                type="range"
-                class="slider styled-slider"
-                min="0"
-                max="2"
-                value={['low', 'medium', 'high'].indexOf(settings()!.risk)}
-                onInput={(e) => {
-                  const risks = ['low', 'medium', 'high'] as const;
-                  updateSetting('risk', risks[parseInt(e.currentTarget.value)]);
-                }}
-              />
-              <div class="slider-labels">
-                <span class={settings()!.risk === 'low' ? 'active' : ''}>Low</span>
-                <span class={settings()!.risk === 'medium' ? 'active' : ''}>Medium</span>
-                <span class={settings()!.risk === 'high' ? 'active' : ''}>High</span>
-              </div>
-            </div>
-            <p class="slider-desc text-sm text-muted">
-              {settings()!.risk === 'low' && 'Conservative trades with stable, predictable returns'}
-              {settings()!.risk === 'medium' && 'Balanced risk/reward with moderate volatility'}
-              {settings()!.risk === 'high' && 'Higher profit potential with increased volatility'}
-            </p>
-          </div>
-
-          {/* Margin */}
-          <div class="form-group slider-group">
-            <label class="label label-with-tooltip">
-              Margin Preference
-              <Tooltip text="Controls the spread between buy and sell prices in recommendations" position="right">
-                <InfoIcon />
-              </Tooltip>
-            </label>
-            <div class="slider-container">
-              <input
-                type="range"
-                class="slider styled-slider"
-                min="0"
-                max="2"
-                value={['conservative', 'moderate', 'aggressive'].indexOf(settings()!.margin)}
-                onInput={(e) => {
-                  const margins = ['conservative', 'moderate', 'aggressive'] as const;
-                  updateSetting('margin', margins[parseInt(e.currentTarget.value)]);
-                }}
-              />
-              <div class="slider-labels">
-                <span class={settings()!.margin === 'conservative' ? 'active' : ''}>Conservative</span>
-                <span class={settings()!.margin === 'moderate' ? 'active' : ''}>Moderate</span>
-                <span class={settings()!.margin === 'aggressive' ? 'active' : ''}>Aggressive</span>
-              </div>
-            </div>
-            <p class="slider-desc text-sm text-muted">
-              {settings()!.margin === 'conservative' && 'Tighter spreads for faster fills'}
-              {settings()!.margin === 'moderate' && 'Standard margins for balanced trading'}
-              {settings()!.margin === 'aggressive' && 'Wider spreads for higher profit per flip'}
-            </p>
-          </div>
-
-          {/* Trade Slots */}
-          <div class="form-group">
-            <label class="label label-with-tooltip">
-              Trade Slots (Max: 8)
-              <Tooltip text="Number of simultaneous trades to track, matching your GE slots" position="right">
-                <InfoIcon />
-              </Tooltip>
-            </label>
-            <input
-              type="range"
-              class="slider"
-              min="1"
-              max="8"
-              value={settings()!.slots}
-              onInput={(e) => updateSetting('slots', parseInt(e.currentTarget.value))}
-            />
-            <p class="text-center font-mono">{settings()!.slots} slots</p>
-          </div>
-
           <button
             class="btn btn-primary w-full"
             onClick={saveAccountSettings}
@@ -533,85 +409,6 @@ export default function Settings() {
           color: var(--text-muted);
         }
 
-        .slider {
-          width: 100%;
-          height: 8px;
-          border-radius: var(--radius-full);
-          background: var(--bg-tertiary);
-          outline: none;
-          cursor: pointer;
-          -webkit-appearance: none;
-        }
-
-        .slider::-webkit-slider-thumb {
-          -webkit-appearance: none;
-          width: 20px;
-          height: 20px;
-          border-radius: 50%;
-          background: var(--accent);
-          cursor: pointer;
-        }
-
-        .slider::-moz-range-thumb {
-          width: 20px;
-          height: 20px;
-          border-radius: 50%;
-          background: var(--accent);
-          cursor: pointer;
-          border: none;
-        }
-
-        .slider-group {
-          background-color: var(--bg-secondary);
-          border: 1px solid var(--border);
-          border-radius: var(--radius-lg);
-          padding: var(--space-4);
-        }
-
-        .slider-container {
-          margin-top: var(--space-2);
-        }
-
-        .styled-slider {
-          height: 6px;
-          background: linear-gradient(to right, var(--bg-tertiary), var(--accent-light));
-        }
-
-        .styled-slider::-webkit-slider-thumb {
-          width: 24px;
-          height: 24px;
-          box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-        }
-
-        .styled-slider::-moz-range-thumb {
-          width: 24px;
-          height: 24px;
-          box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-        }
-
-        .slider-labels {
-          display: flex;
-          justify-content: space-between;
-          margin-top: var(--space-2);
-          font-size: var(--font-size-sm);
-          color: var(--text-muted);
-        }
-
-        .slider-labels span {
-          transition: color var(--transition-fast);
-        }
-
-        .slider-labels span.active {
-          color: var(--accent);
-          font-weight: 600;
-        }
-
-        .slider-desc {
-          margin-top: var(--space-2);
-          text-align: center;
-          min-height: 40px;
-        }
-
         .toggle-label {
           display: flex;
           align-items: center;
@@ -623,12 +420,6 @@ export default function Settings() {
           width: 18px;
           height: 18px;
           cursor: pointer;
-        }
-
-        .label-with-tooltip {
-          display: flex;
-          align-items: center;
-          gap: var(--space-2);
         }
 
         @media (max-width: 480px) {
