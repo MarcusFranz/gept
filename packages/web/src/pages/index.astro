@@ -1,19 +1,28 @@
 ---
+// packages/web/src/pages/index.astro
 import Layout from '../layouts/Layout.astro';
-import OrderGrid from '../components/OrderGrid';
-import ErrorBoundary from '../components/ErrorBoundary';
-import OnboardingWrapper from '../components/OnboardingWrapper';
+import { HomePage } from '../components/HomePage';
+import { activeTradesRepo, userRepo } from '../lib/repositories';
 
-const isSignedIn = !!Astro.locals.user;
+// Check auth
+if (!Astro.locals.user) {
+  return Astro.redirect('/login');
+}
+
+const user = Astro.locals.user;
+
+// Fetch user data
+const userData = await userRepo.findOrCreate(user.id, user.email);
+const trades = await activeTradesRepo.findByUserId(user.id);
+const tiedCapital = await activeTradesRepo.getTiedCapital(user.id);
 ---
 
-<Layout title="Flips">
-  <div class="container page">
-    <OnboardingWrapper client:load>
-      <ErrorBoundary client:load>
-        <OrderGrid client:load isSignedIn={isSignedIn} />
-      </ErrorBoundary>
-    </OnboardingWrapper>
-  </div>
+<Layout title="GePT - My Trades">
+  <HomePage
+    client:load
+    user={{ id: user.id, email: user.email }}
+    initialTrades={trades}
+    userCapital={userData.capital}
+    tiedCapital={tiedCapital}
+  />
 </Layout>
-
