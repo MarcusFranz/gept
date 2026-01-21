@@ -17,57 +17,73 @@ export function TradeList(props: TradeListProps) {
     props.initialTrades.map(toTradeViewModel)
   );
   const [expandedId, setExpandedId] = createSignal<string | null>(null);
+  const [error, setError] = createSignal<string | null>(null);
 
   // Refresh trades from server
   const refreshTrades = async () => {
     try {
       const res = await fetch('/api/trades/active');
+      if (!res.ok) throw new Error('Failed to load trades');
       const data = await res.json();
       if (data.success) {
         setTrades(data.data.map(toTradeViewModel));
       }
-    } catch (error) {
-      console.error('Failed to refresh trades:', error);
+      setError(null);
+    } catch (err) {
+      console.error('Failed to refresh trades:', err);
+      setError('Failed to load trades. Please try again.');
     }
   };
 
   // Handle check-in for a trade
   const handleCheckIn = async (tradeId: string, progress: number): Promise<{ guidance?: Guidance }> => {
-    const res = await fetch(`/api/trades/active/${tradeId}/check-in`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ progress })
-    });
-    const data = await res.json();
+    try {
+      const res = await fetch(`/api/trades/active/${tradeId}/check-in`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ progress })
+      });
+      if (!res.ok) throw new Error('Failed to save progress');
+      const data = await res.json();
 
-    if (data.success) {
-      // Update local state
-      setTrades(prev => prev.map(t =>
-        t.id === tradeId
-          ? { ...t, progress, lastCheckIn: new Date() }
-          : t
-      ));
+      if (data.success) {
+        setTrades(prev => prev.map(t =>
+          t.id === tradeId
+            ? { ...t, progress, lastCheckIn: new Date() }
+            : t
+        ));
+        setError(null);
+      }
+
+      return { guidance: data.guidance };
+    } catch (err) {
+      console.error('Check-in failed:', err);
+      setError('Failed to save progress. Please try again.');
+      return {};
     }
-
-    return { guidance: data.guidance };
   };
 
   // Handle advancing to next phase
   const handleAdvance = async (tradeId: string) => {
-    const res = await fetch(`/api/trades/active/${tradeId}/advance`, {
-      method: 'POST'
-    });
-    const data = await res.json();
+    try {
+      const res = await fetch(`/api/trades/active/${tradeId}/advance`, {
+        method: 'POST'
+      });
+      if (!res.ok) throw new Error('Failed to advance trade');
+      const data = await res.json();
 
-    if (data.success) {
-      if (data.message === 'Trade completed') {
-        // Remove from list
-        setTrades(prev => prev.filter(t => t.id !== tradeId));
-        setExpandedId(null);
-      } else {
-        // Refresh to get updated phase
-        await refreshTrades();
+      if (data.success) {
+        if (data.message === 'Trade completed') {
+          setTrades(prev => prev.filter(t => t.id !== tradeId));
+          setExpandedId(null);
+        } else {
+          await refreshTrades();
+        }
+        setError(null);
       }
+    } catch (err) {
+      console.error('Advance failed:', err);
+      setError('Failed to advance trade. Please try again.');
     }
   };
 
@@ -75,13 +91,18 @@ export function TradeList(props: TradeListProps) {
   const handleCancel = async (tradeId: string) => {
     if (!confirm('Are you sure you want to cancel this trade?')) return;
 
-    const res = await fetch(`/api/trades/active/${tradeId}`, {
-      method: 'DELETE'
-    });
+    try {
+      const res = await fetch(`/api/trades/active/${tradeId}`, {
+        method: 'DELETE'
+      });
+      if (!res.ok) throw new Error('Failed to cancel trade');
 
-    if (res.ok) {
       setTrades(prev => prev.filter(t => t.id !== tradeId));
       setExpandedId(null);
+      setError(null);
+    } catch (err) {
+      console.error('Cancel failed:', err);
+      setError('Failed to cancel trade. Please try again.');
     }
   };
 
@@ -100,6 +121,13 @@ export function TradeList(props: TradeListProps) {
           Available: {formatGold(props.availableCapital)} / {formatGold(props.totalCapital)}
         </span>
       </header>
+
+      <Show when={error()}>
+        <div class="trade-list-error">
+          {error()}
+          <button onClick={() => setError(null)}>×</button>
+        </div>
+      </Show>
 
       <Show
         when={trades().length > 0}
@@ -189,6 +217,27 @@ export function TradeList(props: TradeListProps) {
           display: flex;
           flex-direction: column;
           gap: 0.75rem;
+        }
+
+        .trade-list-error {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 0.75rem 1rem;
+          background: var(--error-bg, #3d2020);
+          color: var(--error, #ef4444);
+          border-radius: 6px;
+          margin-bottom: 1rem;
+          font-size: 0.875rem;
+        }
+
+        .trade-list-error button {
+          background: none;
+          border: none;
+          color: inherit;
+          cursor: pointer;
+          font-size: 1.25rem;
+          padding: 0 0.25rem;
         }
       `}</style>
     </div>
