@@ -2135,6 +2135,8 @@ class RecommendationEngine:
         candidate_limit = 500  # Get a large pool of candidates
 
         # Fetch predictions from database
+        # NOTE: Volume filter disabled temporarily due to slow 24h volume query
+        # TODO: Add index or use pre-aggregated volume table
         predictions_df = self.loader.get_best_prediction_per_item(
             min_fill_prob=min_fill_prob,
             min_ev=min_ev,
@@ -2143,7 +2145,7 @@ class RecommendationEngine:
             min_offset_pct=0.0125,
             max_offset_pct=0.0250,
             limit=candidate_limit,
-            min_volume_24h=self.config.min_volume_24h,
+            min_volume_24h=None,  # Disabled - causes timeout
         )
 
         if predictions_df.empty:
@@ -2153,17 +2155,19 @@ class RecommendationEngine:
         # Batch fetch all per-item data upfront (eliminates N+1 queries)
         candidate_item_ids = predictions_df["item_id"].unique().tolist()
         buy_limits = self.loader.get_batch_buy_limits(candidate_item_ids)
-        volumes_24h = self.loader.get_batch_volumes_24h(candidate_item_ids)
-        trends = self.loader.get_batch_trends(candidate_item_ids)
+        # NOTE: Volume and trends queries disabled temporarily due to slow price_data_5min scans
+        # TODO: Add composite index on (item_id, timestamp) or use pre-aggregated tables
+        volumes_24h = {}  # Empty dict - volume info unavailable
+        trends = {}  # Empty dict - trend info unavailable
         # Note: categories not currently in items table, will be None
 
-        # Apply liquidity filter (anti-manipulation: filter items where buy_limit >> volume)
-        predictions_df = self._apply_liquidity_filter(
-            predictions_df, buy_limits, volumes_24h
-        )
-        if predictions_df.empty:
-            logger.info("All predictions filtered by liquidity check for opportunities")
-            return []
+        # NOTE: Liquidity filter disabled temporarily (requires volume data)
+        # predictions_df = self._apply_liquidity_filter(
+        #     predictions_df, buy_limits, volumes_24h
+        # )
+        # if predictions_df.empty:
+        #     logger.info("All predictions filtered by liquidity check for opportunities")
+        #     return []
 
         # Use a large default capital for quantity calculations
         default_capital = 1_000_000_000  # 1B gp
