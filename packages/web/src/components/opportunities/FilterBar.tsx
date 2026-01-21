@@ -63,7 +63,12 @@ export function FilterBar(props: FilterBarProps) {
         {activeFilterCount() > 0 && (
           <button
             class="filter-clear"
-            onClick={() => props.onChange({})}
+            onClick={() => {
+              props.onChange({});
+              try {
+                localStorage.removeItem(FILTER_STORAGE_KEY);
+              } catch {}
+            }}
           >
             Clear all
           </button>
