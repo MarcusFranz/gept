@@ -62,19 +62,23 @@ export function TradeDetail(props: TradeDetailProps) {
   const handleGuidanceAccept = async () => {
     setLoading(true);
     try {
-      // TODO: Implement relist/exit/sell_now actions
+      // Guidance actions (relist/exit/sell_now) will call additional API endpoints
+      // when implemented. For now, accepting guidance just dismisses the prompt.
+      // The parent component will handle the actual action in a future phase.
       setGuidance(undefined);
     } finally {
       setLoading(false);
     }
   };
 
-  const actualBuy = props.trade.actualBuyPrice || props.trade.buyPrice;
-  const actualSell = props.trade.actualSellPrice || props.trade.sellPrice;
+  // Use getter functions for reactive prop access
+  const actualBuy = () => props.trade.actualBuyPrice || props.trade.buyPrice;
+  const actualSell = () => props.trade.actualSellPrice || props.trade.sellPrice;
+  const timeInTradeMinutes = () => Math.round((Date.now() - props.trade.createdAt.getTime()) / (1000 * 60));
 
   return (
     <div class="trade-detail">
-      <button class="trade-detail-close" onClick={() => props.onClose()}>×</button>
+      <button class="trade-detail-close" onClick={() => props.onClose()} aria-label="Close trade detail">×</button>
 
       <div class="trade-detail-header">
         <h3 class="trade-detail-title">{props.trade.itemName}</h3>
@@ -84,9 +88,9 @@ export function TradeDetail(props: TradeDetailProps) {
       </div>
 
       <div class="trade-detail-prices">
-        <span>Buy: {formatGold(actualBuy)}</span>
+        <span>Buy: {formatGold(actualBuy())}</span>
         <span class="trade-detail-arrow">→</span>
-        <span>Sell: {formatGold(actualSell)}</span>
+        <span>Sell: {formatGold(actualSell())}</span>
       </div>
 
       <div class="trade-detail-profit">
@@ -127,7 +131,7 @@ export function TradeDetail(props: TradeDetailProps) {
         <div class="trade-detail-stat">
           <span class="stat-label">Time in trade</span>
           <span class="stat-value">
-            {Math.round((Date.now() - props.trade.createdAt.getTime()) / (1000 * 60))} min
+            {timeInTradeMinutes()} min
           </span>
         </div>
         <div class="trade-detail-stat">
