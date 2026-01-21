@@ -177,11 +177,16 @@ export const activeTradesRepo = {
     return Number(result[0]?.count || 0);
   },
 
-  async create(trade: Omit<ActiveTrade, 'id' | 'created_at'>): Promise<ActiveTrade> {
+  async create(trade: Omit<ActiveTrade, 'id' | 'created_at' | 'phase' | 'progress' | 'last_check_in' | 'next_check_in' | 'actual_buy_price' | 'actual_sell_price'> & { expected_hours?: number }): Promise<ActiveTrade> {
     const id = generateId();
+    // Calculate first check-in at 25% of expected time (or 1 hour if not specified)
+    const expectedHours = trade.expected_hours || 4;
+    const firstCheckInMs = expectedHours * 0.25 * 60 * 60 * 1000;
+    const nextCheckIn = new Date(Date.now() + firstCheckInMs);
+
     await sql`
-      INSERT INTO active_trades (id, user_id, item_id, item_name, buy_price, sell_price, quantity, rec_id, model_id)
-      VALUES (${id}, ${trade.user_id}, ${trade.item_id}, ${trade.item_name}, ${trade.buy_price}, ${trade.sell_price}, ${trade.quantity}, ${trade.rec_id || null}, ${trade.model_id || null})
+      INSERT INTO active_trades (id, user_id, item_id, item_name, buy_price, sell_price, quantity, rec_id, model_id, phase, progress, next_check_in, expected_hours)
+      VALUES (${id}, ${trade.user_id}, ${trade.item_id}, ${trade.item_name}, ${trade.buy_price}, ${trade.sell_price}, ${trade.quantity}, ${trade.rec_id || null}, ${trade.model_id || null}, 'buying', 0, ${nextCheckIn.toISOString()}, ${expectedHours})
     `;
     return (await this.findById(id))!;
   },
@@ -194,6 +199,44 @@ export const activeTradesRepo = {
   async delete(id: string): Promise<boolean> {
     await sql`DELETE FROM active_trades WHERE id = ${id}`;
     return true;
+  },
+
+  async updatePhase(id: string, phase: 'buying' | 'selling'): Promise<boolean> {
+    await sql`
+      UPDATE active_trades
+      SET phase = ${phase}, progress = 0, last_check_in = NOW()
+      WHERE id = ${id}
+    `;
+    return true;
+  },
+
+  async updateProgress(id: string, progress: number, nextCheckIn: Date): Promise<ActiveTrade | undefined> {
+    await sql`
+      UPDATE active_trades
+      SET progress = ${progress}, last_check_in = NOW(), next_check_in = ${nextCheckIn.toISOString()}
+      WHERE id = ${id}
+    `;
+    return this.findById(id);
+  },
+
+  async updatePrice(id: string, priceType: 'buy' | 'sell', price: number): Promise<boolean> {
+    if (priceType === 'buy') {
+      await sql`UPDATE active_trades SET actual_buy_price = ${price} WHERE id = ${id}`;
+    } else {
+      await sql`UPDATE active_trades SET actual_sell_price = ${price} WHERE id = ${id}`;
+    }
+    return true;
+  },
+
+  async findNeedingCheckIn(userId: string): Promise<ActiveTrade[]> {
+    const result = await sql<ActiveTrade>`
+      SELECT * FROM active_trades
+      WHERE user_id = ${userId}
+        AND next_check_in IS NOT NULL
+        AND next_check_in <= NOW()
+      ORDER BY next_check_in ASC
+    `;
+    return result;
   },
 
   async getTiedCapital(userId: string): Promise<number> {
