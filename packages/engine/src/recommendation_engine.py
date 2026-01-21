@@ -2117,6 +2117,135 @@ class RecommendationEngine:
 
         return chips[:4]  # Max 4 chips
 
+    def get_all_opportunities(self) -> list[dict]:
+        """Get all valid trading opportunities for browsing.
+
+        Unlike get_recommendations(), this method:
+        - Uses default thresholds (not user-specific)
+        - Returns all valid opportunities (no crowding filter)
+        - Includes fields for opportunity browsing UI
+
+        Returns:
+            List of opportunity dicts with item details, prices, profits, etc.
+        """
+        # Use generous default thresholds for browsing
+        min_fill_prob = 0.5  # Require reasonable fill probability
+        min_ev = 0.003  # Low EV threshold for broad results
+        max_hour = 48  # Include all time horizons
+        candidate_limit = 500  # Get a large pool of candidates
+
+        # Fetch predictions from database
+        predictions_df = self.loader.get_best_prediction_per_item(
+            min_fill_prob=min_fill_prob,
+            min_ev=min_ev,
+            min_hour_offset=1,
+            max_hour_offset=max_hour,
+            min_offset_pct=0.0125,
+            max_offset_pct=0.0250,
+            limit=candidate_limit,
+            min_volume_24h=self.config.min_volume_24h,
+        )
+
+        if predictions_df.empty:
+            logger.warning("No predictions found for opportunities browsing")
+            return []
+
+        # Get prediction age for confidence adjustment
+        pred_age = self.loader.get_prediction_age_seconds()
+
+        # Batch fetch all per-item data upfront (eliminates N+1 queries)
+        candidate_item_ids = predictions_df["item_id"].unique().tolist()
+        buy_limits = self.loader.get_batch_buy_limits(candidate_item_ids)
+        volumes_24h = self.loader.get_batch_volumes_24h(candidate_item_ids)
+        volumes_1h = self.loader.get_batch_volumes_1h(candidate_item_ids)
+        trends = self.loader.get_batch_trends(candidate_item_ids)
+        # Note: categories not currently in items table, will be None
+
+        # Apply liquidity filter (anti-manipulation: filter items where buy_limit >> volume)
+        predictions_df = self._apply_liquidity_filter(
+            predictions_df, buy_limits, volumes_24h
+        )
+        if predictions_df.empty:
+            logger.info("All predictions filtered by liquidity check for opportunities")
+            return []
+
+        # Use a large default capital for quantity calculations
+        default_capital = 1_000_000_000  # 1B gp
+
+        # Build opportunity list
+        opportunities = []
+        for _, row in predictions_df.iterrows():
+            item_id = int(row["item_id"])
+            buy_price = int(row["buy_price"])
+            sell_price = int(row["sell_price"])
+            fill_prob = float(row["fill_probability"])
+            ev = float(row["expected_value"])
+            hour_offset = int(row["hour_offset"])
+            confidence = row.get("confidence", "medium")
+            item_name = row.get("item_name", f"Item {item_id}")
+
+            # Get buy limit and calculate quantity
+            buy_limit = buy_limits.get(item_id, 10000)
+            max_quantity = min(buy_limit, default_capital // buy_price) if buy_price > 0 else 0
+            if max_quantity < 1:
+                continue
+
+            # Calculate profit (after 1% GE tax)
+            profit_per_unit = sell_price - buy_price - calculate_tax(sell_price)
+            if profit_per_unit <= 0:
+                continue
+
+            capital_required = buy_price * max_quantity
+            expected_profit = int(profit_per_unit * max_quantity * fill_prob)
+
+            # Get additional data
+            volume_24h = volumes_24h.get(item_id)
+            trend = trends.get(item_id, "Stable")
+            category = None  # Not currently in items table
+
+            # Build opportunity dict (includes fields needed for generate_why_chips)
+            opp = {
+                "item_id": item_id,
+                "item_name": item_name,
+                "icon_url": f"https://secure.runescape.com/m=itemdb_oldschool/obj_big.gif?id={item_id}",
+                "buy_price": buy_price,
+                "sell_price": sell_price,
+                "quantity": max_quantity,
+                "capital_required": capital_required,
+                "expected_profit": expected_profit,
+                "expected_hours": hour_offset,
+                "confidence": confidence,
+                "fill_probability": round(fill_prob, 4),
+                "expected_value": round(ev, 6),
+                "volume_24h": volume_24h,
+                "trend": trend,
+                "category": category,
+                # Fields for generate_why_chips
+                "hour_offset": hour_offset,
+                "volume_tier": self._volume_to_tier(volume_24h) if volume_24h else None,
+                "_spread_pct": (sell_price - buy_price) / buy_price if buy_price > 0 else 0,
+            }
+
+            opportunities.append(opp)
+
+        # Sort by expected profit descending
+        opportunities.sort(key=lambda x: x["expected_profit"], reverse=True)
+
+        logger.info(f"Generated {len(opportunities)} opportunities for browsing")
+        return opportunities
+
+    def _volume_to_tier(self, volume_24h: Optional[int]) -> Optional[str]:
+        """Convert 24h volume to tier string for why chips."""
+        if volume_24h is None:
+            return None
+        if volume_24h > 100000:
+            return "Very High"
+        if volume_24h > 50000:
+            return "High"
+        if volume_24h > 10000:
+            return "Medium"
+        return "Low"
+
     def get_recommendation_by_id(self, rec_id: str) -> Optional[dict]:
         """Get recommendation by its ID.
 

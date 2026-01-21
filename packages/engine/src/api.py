@@ -882,6 +882,64 @@ class TradeUpdatesResponse(BaseModel):
     )
 
 
+# Opportunity browsing models (for Opportunity Browser UI)
+class OpportunityFilters(BaseModel):
+    """Filters for browsing opportunities."""
+
+    min_profit: Optional[int] = Field(
+        default=None, description="Minimum expected profit in gp"
+    )
+    max_profit: Optional[int] = Field(
+        default=None, description="Maximum expected profit in gp"
+    )
+    min_hours: Optional[float] = Field(
+        default=None, description="Minimum expected hours"
+    )
+    max_hours: Optional[float] = Field(
+        default=None, description="Maximum expected hours"
+    )
+    confidence: Optional[list[Literal["low", "medium", "high"]]] = Field(
+        default=None, description="Confidence levels to include"
+    )
+    max_capital: Optional[int] = Field(
+        default=None, description="Maximum capital required"
+    )
+    categories: Optional[list[str]] = Field(
+        default=None, description="Item categories to include"
+    )
+    limit: int = Field(default=50, ge=1, le=200, description="Max results to return")
+    offset: int = Field(default=0, ge=0, description="Pagination offset")
+
+
+class OpportunityResponse(BaseModel):
+    """A browsable opportunity with full details."""
+
+    id: str
+    item_id: int
+    item_name: str
+    icon_url: Optional[str] = None
+    buy_price: int
+    sell_price: int
+    quantity: int
+    capital_required: int
+    expected_profit: int
+    expected_hours: float
+    confidence: str
+    fill_probability: float
+    volume_24h: Optional[int] = None
+    trend: Optional[str] = None
+    why_chips: list[WhyChip]
+    category: Optional[str] = None
+
+
+class OpportunitiesListResponse(BaseModel):
+    """Paginated list of opportunities."""
+
+    items: list[OpportunityResponse]
+    total: int
+    has_more: bool
+
+
 def _get_uptime_seconds() -> int:
     """Get uptime in seconds since startup."""
     if _startup_time is None:
@@ -1371,6 +1429,117 @@ async def get_recommendations_get(
         return recommendations
     except Exception as e:
         logger.error(f"Error getting recommendations: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/v1/opportunities", response_model=OpportunitiesListResponse)
+@limiter.limit(config.rate_limit_recommendations)
+async def browse_opportunities(
+    request: Request,
+    filters: OpportunityFilters,
+    _api_key: Optional[str] = Depends(verify_api_key),
+) -> OpportunitiesListResponse:
+    """Browse all available trading opportunities with filters.
+
+    Unlike /recommendations, this endpoint:
+    - Returns more items (up to 200)
+    - Supports rich filtering
+    - Doesn't require user settings context
+    - Includes why_chips for each item
+    """
+    if engine is None:
+        raise HTTPException(status_code=503, detail="Engine not ready")
+
+    start_time = time.monotonic()
+    try:
+        # Get all current predictions above minimum thresholds
+        all_opportunities = engine.get_all_opportunities()
+
+        # Apply filters
+        filtered = []
+        for opp in all_opportunities:
+            # Profit filter
+            if filters.min_profit and opp["expected_profit"] < filters.min_profit:
+                continue
+            if filters.max_profit and opp["expected_profit"] > filters.max_profit:
+                continue
+
+            # Time filter
+            if filters.min_hours and opp["expected_hours"] < filters.min_hours:
+                continue
+            if filters.max_hours and opp["expected_hours"] > filters.max_hours:
+                continue
+
+            # Confidence filter
+            if filters.confidence and opp["confidence"] not in filters.confidence:
+                continue
+
+            # Capital filter
+            if filters.max_capital and opp["capital_required"] > filters.max_capital:
+                continue
+
+            # Category filter
+            if filters.categories and opp.get("category") not in filters.categories:
+                continue
+
+            filtered.append(opp)
+
+        # Sort by expected profit (can add sort param later)
+        filtered.sort(key=lambda x: x["expected_profit"], reverse=True)
+
+        total = len(filtered)
+
+        # Paginate
+        paginated = filtered[filters.offset : filters.offset + filters.limit]
+
+        # Build response with why_chips
+        items = []
+        for opp in paginated:
+            chips = engine.generate_why_chips(opp)
+            items.append(
+                OpportunityResponse(
+                    id=f"opp-{opp['item_id']}",
+                    item_id=opp["item_id"],
+                    item_name=opp["item_name"],
+                    icon_url=opp.get("icon_url"),
+                    buy_price=opp["buy_price"],
+                    sell_price=opp["sell_price"],
+                    quantity=opp["quantity"],
+                    capital_required=opp["capital_required"],
+                    expected_profit=opp["expected_profit"],
+                    expected_hours=opp["expected_hours"],
+                    confidence=opp["confidence"],
+                    fill_probability=opp["fill_probability"],
+                    volume_24h=opp.get("volume_24h"),
+                    trend=opp.get("trend"),
+                    why_chips=[WhyChip(**c) for c in chips],
+                    category=opp.get("category"),
+                )
+            )
+
+        duration_ms = (time.monotonic() - start_time) * 1000
+        logger.info(
+            "opportunities_served",
+            total_count=total,
+            returned_count=len(items),
+            offset=filters.offset,
+            limit=filters.limit,
+            duration_ms=round(duration_ms, 2),
+        )
+
+        return OpportunitiesListResponse(
+            items=items,
+            total=total,
+            has_more=filters.offset + len(items) < total,
+        )
+    except Exception as e:
+        duration_ms = (time.monotonic() - start_time) * 1000
+        logger.error(
+            "opportunities_error",
+            error=str(e),
+            duration_ms=round(duration_ms, 2),
+            exc_info=True,
+        )
         raise HTTPException(status_code=500, detail=str(e))
 
 
