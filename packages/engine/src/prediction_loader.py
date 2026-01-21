@@ -505,50 +505,90 @@ class PredictionLoader:
                     ELSE :min_volume_24h
                 END"""
 
-        query = text(
-            f"""
-            WITH volume_24h AS (
-                SELECT item_id,
-                       COALESCE(SUM(high_price_volume), 0)
-                       + COALESCE(SUM(low_price_volume), 0) as total_volume
-                FROM price_data_5min
-                WHERE timestamp >= NOW() - INTERVAL '24 hours'
-                GROUP BY item_id
-            ),
-            ranked AS (
-                SELECT
-                    p.item_id,
-                    p.item_name,
-                    p.hour_offset,
-                    p.offset_pct,
-                    p.fill_probability,
-                    p.expected_value,
-                    p.buy_price,
-                    p.sell_price,
-                    p.current_high,
-                    p.current_low,
-                    p.confidence,
-                    p.time as prediction_time,
-                    COALESCE(v.total_volume, 0) as volume_24h,
-                    ROW_NUMBER() OVER (
-                        PARTITION BY p.item_id ORDER BY p.expected_value DESC
-                    ) as rn
-                FROM predictions p
-                LEFT JOIN volume_24h v ON v.item_id = p.item_id
-                WHERE p.time = (SELECT MAX(time) FROM predictions)
-                  AND p.fill_probability >= :min_fill_prob
-                  AND p.expected_value >= :min_ev
-                  {hour_filter}
-                  {offset_filter}
-                  {volume_filter}
+        # Conditionally build query - skip volume CTE if not needed (slow 24h aggregation)
+        needs_volume = min_volume_24h is not None and min_volume_24h > 0
+
+        if needs_volume:
+            query = text(
+                f"""
+                WITH volume_24h AS (
+                    SELECT item_id,
+                           COALESCE(SUM(high_price_volume), 0)
+                           + COALESCE(SUM(low_price_volume), 0) as total_volume
+                    FROM price_data_5min
+                    WHERE timestamp >= NOW() - INTERVAL '24 hours'
+                    GROUP BY item_id
+                ),
+                ranked AS (
+                    SELECT
+                        p.item_id,
+                        p.item_name,
+                        p.hour_offset,
+                        p.offset_pct,
+                        p.fill_probability,
+                        p.expected_value,
+                        p.buy_price,
+                        p.sell_price,
+                        p.current_high,
+                        p.current_low,
+                        p.confidence,
+                        p.time as prediction_time,
+                        COALESCE(v.total_volume, 0) as volume_24h,
+                        ROW_NUMBER() OVER (
+                            PARTITION BY p.item_id ORDER BY p.expected_value DESC
+                        ) as rn
+                    FROM predictions p
+                    LEFT JOIN volume_24h v ON v.item_id = p.item_id
+                    WHERE p.time = (SELECT MAX(time) FROM predictions)
+                      AND p.fill_probability >= :min_fill_prob
+                      AND p.expected_value >= :min_ev
+                      {hour_filter}
+                      {offset_filter}
+                      {volume_filter}
+                )
+                SELECT *
+                FROM ranked
+                WHERE rn = 1
+                ORDER BY expected_value DESC
+                LIMIT :limit
+            """
             )
-            SELECT *
-            FROM ranked
-            WHERE rn = 1
-            ORDER BY expected_value DESC
-            LIMIT :limit
-        """
-        )
+        else:
+            # Fast path: skip volume calculation entirely
+            query = text(
+                f"""
+                WITH ranked AS (
+                    SELECT
+                        p.item_id,
+                        p.item_name,
+                        p.hour_offset,
+                        p.offset_pct,
+                        p.fill_probability,
+                        p.expected_value,
+                        p.buy_price,
+                        p.sell_price,
+                        p.current_high,
+                        p.current_low,
+                        p.confidence,
+                        p.time as prediction_time,
+                        0 as volume_24h,
+                        ROW_NUMBER() OVER (
+                            PARTITION BY p.item_id ORDER BY p.expected_value DESC
+                        ) as rn
+                    FROM predictions p
+                    WHERE p.time = (SELECT MAX(time) FROM predictions)
+                      AND p.fill_probability >= :min_fill_prob
+                      AND p.expected_value >= :min_ev
+                      {hour_filter}
+                      {offset_filter}
+                )
+                SELECT *
+                FROM ranked
+                WHERE rn = 1
+                ORDER BY expected_value DESC
+                LIMIT :limit
+            """
+            )
 
         params = {
             "min_fill_prob": min_fill_prob,
