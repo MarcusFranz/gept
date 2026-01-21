@@ -85,6 +85,33 @@ export interface WhyChip {
   type: 'positive' | 'neutral' | 'negative';
 }
 
+/** Opportunity from the opportunities browser endpoint */
+export interface Opportunity {
+  id: string;
+  itemId: number;
+  item: string;
+  iconUrl?: string;
+  buyPrice: number;
+  sellPrice: number;
+  quantity: number;
+  capitalRequired: number;
+  expectedProfit: number;
+  expectedHours: number;
+  confidence: string;
+  fillProbability: number;
+  volume24h?: number;
+  trend?: string;
+  whyChips: WhyChip[];
+  category?: string;
+}
+
+/** Response from the opportunities endpoint */
+export interface OpportunitiesResponse {
+  items: Opportunity[];
+  total: number;
+  hasMore: boolean;
+}
+
 /** Extended recommendation with why chips */
 export interface OpportunityViewModel extends Recommendation {
   whyChips: WhyChip[];
