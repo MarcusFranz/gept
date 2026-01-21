@@ -1,4 +1,4 @@
-import { createSignal, createEffect, Show, For } from 'solid-js';
+import { createSignal, onMount, Show, For } from 'solid-js';
 import { capitalPresets, formatGold, type AppSettings, defaultAppSettings } from '../lib/types';
 
 interface UserSettings {
@@ -30,6 +30,10 @@ export default function Settings() {
     setLoading(true);
     try {
       const response = await fetch('/api/settings');
+      if (!response.ok) {
+        setError('Failed to load settings');
+        return;
+      }
       const data = await response.json();
       if (data.success) {
         setSettings(data.data.user);
@@ -58,7 +62,7 @@ export default function Settings() {
     }
   };
 
-  createEffect(() => {
+  onMount(() => {
     fetchSettings();
     loadAppSettings();
   });
@@ -75,6 +79,10 @@ export default function Settings() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(settings())
       });
+      if (!response.ok) {
+        setError('Failed to save settings');
+        return;
+      }
       const data = await response.json();
       if (data.success) {
         setSuccess('Settings saved successfully!');
@@ -123,16 +131,20 @@ export default function Settings() {
     <div class="settings">
       <h2>Settings</h2>
 
-      <div class="tabs">
+      <div class="tabs" role="tablist">
         <button
           class={`tab ${activeTab() === 'account' ? 'active' : ''}`}
           onClick={() => setActiveTab('account')}
+          role="tab"
+          aria-selected={activeTab() === 'account'}
         >
           Account Settings
         </button>
         <button
           class={`tab ${activeTab() === 'app' ? 'active' : ''}`}
           onClick={() => setActiveTab('app')}
+          role="tab"
+          aria-selected={activeTab() === 'app'}
         >
           App Settings
         </button>
@@ -199,8 +211,10 @@ export default function Settings() {
               </button>
             </div>
             <Show when={customCapital()}>
+              <label for="custom-capital" class="sr-only">Custom capital amount</label>
               <input
                 type="number"
+                id="custom-capital"
                 class="input mt-2"
                 min="0"
                 max="2147483647"
