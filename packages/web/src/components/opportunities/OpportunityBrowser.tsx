@@ -50,11 +50,10 @@ export function OpportunityBrowser(props: OpportunityBrowserProps) {
         body: JSON.stringify({
           profitMin: f.profitMin,
           profitMax: f.profitMax,
-          timeMin: f.timeMin,
           timeMax: f.timeMax,
           confidence: f.confidence,
           capitalMax: f.capitalMax || props.availableCapital,
-          categories: f.categories,
+          category: f.category,
           limit: 30,
           offset: append ? opportunities().length : 0
         })
