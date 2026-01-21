@@ -50,7 +50,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 
     const userId = locals.user.id;
     const body = await request.json();
-    const { itemId, itemName, buyPrice, sellPrice, quantity, recId, modelId } = body;
+    const { itemId, itemName, buyPrice, sellPrice, quantity, recId, modelId, expectedHours } = body;
 
     // Validate required fields
     if (!itemId || !itemName || !buyPrice || !sellPrice || !quantity) {
@@ -114,6 +114,17 @@ export const POST: APIRoute = async ({ request, locals }) => {
       });
     }
 
+    // Optional: expected hours from recommendation
+    if (expectedHours !== undefined && (typeof expectedHours !== 'number' || expectedHours <= 0 || expectedHours > 168)) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Invalid expected hours'
+      }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
     // Check trade limit
     const currentCount = await activeTradesRepo.count(userId);
     if (currentCount >= 8) {
@@ -135,7 +146,8 @@ export const POST: APIRoute = async ({ request, locals }) => {
       sell_price: sellPrice,
       quantity,
       rec_id: recId || null,
-      model_id: modelId || null
+      model_id: modelId || null,
+      expected_hours: expectedHours || undefined
     });
 
     // Dispatch webhook to ML engine (fire-and-forget)
