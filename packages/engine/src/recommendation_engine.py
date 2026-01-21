@@ -2150,14 +2150,10 @@ class RecommendationEngine:
             logger.warning("No predictions found for opportunities browsing")
             return []
 
-        # Get prediction age for confidence adjustment
-        pred_age = self.loader.get_prediction_age_seconds()
-
         # Batch fetch all per-item data upfront (eliminates N+1 queries)
         candidate_item_ids = predictions_df["item_id"].unique().tolist()
         buy_limits = self.loader.get_batch_buy_limits(candidate_item_ids)
         volumes_24h = self.loader.get_batch_volumes_24h(candidate_item_ids)
-        volumes_1h = self.loader.get_batch_volumes_1h(candidate_item_ids)
         trends = self.loader.get_batch_trends(candidate_item_ids)
         # Note: categories not currently in items table, will be None
 

@@ -1458,16 +1458,16 @@ async def browse_opportunities(
         # Apply filters
         filtered = []
         for opp in all_opportunities:
-            # Profit filter
-            if filters.min_profit and opp["expected_profit"] < filters.min_profit:
+            # Profit filter (use explicit None checks to allow 0 as valid filter value)
+            if filters.min_profit is not None and opp["expected_profit"] < filters.min_profit:
                 continue
-            if filters.max_profit and opp["expected_profit"] > filters.max_profit:
+            if filters.max_profit is not None and opp["expected_profit"] > filters.max_profit:
                 continue
 
             # Time filter
-            if filters.min_hours and opp["expected_hours"] < filters.min_hours:
+            if filters.min_hours is not None and opp["expected_hours"] < filters.min_hours:
                 continue
-            if filters.max_hours and opp["expected_hours"] > filters.max_hours:
+            if filters.max_hours is not None and opp["expected_hours"] > filters.max_hours:
                 continue
 
             # Confidence filter
@@ -1475,7 +1475,7 @@ async def browse_opportunities(
                 continue
 
             # Capital filter
-            if filters.max_capital and opp["capital_required"] > filters.max_capital:
+            if filters.max_capital is not None and opp["capital_required"] > filters.max_capital:
                 continue
 
             # Category filter
