@@ -53,6 +53,14 @@ export interface ActiveTrade {
   rec_id: string | null;
   model_id: string | null;
   created_at: Date;
+  // Phase tracking fields for trade-centric UI
+  phase: 'buying' | 'selling';
+  progress: number;
+  last_check_in: Date | null;
+  next_check_in: Date | null;
+  actual_buy_price: number | null;
+  actual_sell_price: number | null;
+  expected_hours: number | null;
 }
 
 export interface TradeHistory {
