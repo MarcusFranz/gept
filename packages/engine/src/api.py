@@ -376,6 +376,14 @@ class PriceHistoryResponse(BaseModel):
     change24h: float  # Percentage change over 24h
 
 
+class WhyChip(BaseModel):
+    """Feature explanation chip for recommendations."""
+
+    icon: str = Field(description="Emoji icon")
+    label: str = Field(description="Short label")
+    type: Literal["positive", "neutral", "negative"]
+
+
 # Pydantic models for request/response
 class RecommendationResponse(BaseModel):
     """Discord bot recommendation response."""
@@ -408,6 +416,7 @@ class RecommendationResponse(BaseModel):
     isRecommended: Optional[bool] = (
         None  # Whether item meets criteria (always True for portfolio recs)
     )
+    whyChips: Optional[list[WhyChip]] = None  # Feature explanations for UI
 
 
 class HealthResponse(BaseModel):

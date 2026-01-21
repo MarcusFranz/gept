@@ -612,6 +612,7 @@ class RecommendationEngine:
                 "_score": round(composite_score, 6),
                 "reason": self._build_reason(cand),
                 "isRecommended": True,
+                "whyChips": self.generate_why_chips(cand),
             }
 
             # Add optional volume24h field if available
@@ -1293,6 +1294,7 @@ class RecommendationEngine:
                 # Rationale fields for "Why this item?" UX
                 "reason": self._build_reason(cand),
                 "isRecommended": True,
+                "whyChips": self.generate_why_chips(cand),
             }
 
             # Add optional volume24h field if available
@@ -2051,6 +2053,70 @@ class RecommendationEngine:
 
         return f"{trend} trend, {volume_desc} volume, {hour_offset}h window"
 
+    def generate_why_chips(self, candidate: dict) -> list[dict]:
+        """Generate why chips from candidate features.
+
+        Why chips are small visual indicators that explain to users why a
+        recommendation is good (e.g., "High confidence", "Fast fill").
+
+        Args:
+            candidate: Candidate dict with prediction and feature data
+
+        Returns:
+            List of chip dicts with icon, label, and type (max 4 chips)
+        """
+        chips = []
+
+        # Confidence
+        conf = candidate.get("confidence", "low")
+        if conf == "high":
+            chips.append({"icon": "🎯", "label": "High confidence", "type": "positive"})
+        elif conf == "medium":
+            chips.append({"icon": "🎯", "label": "Med confidence", "type": "neutral"})
+
+        # Volume (use volume_24h if available, otherwise fall back to volume_tier)
+        vol_24h = candidate.get("volume_24h", 0)
+        if vol_24h and vol_24h > 100000:
+            chips.append({"icon": "🔥", "label": "High volume", "type": "positive"})
+        elif vol_24h and vol_24h > 10000:
+            chips.append({"icon": "📊", "label": "Good volume", "type": "neutral"})
+        else:
+            # Fall back to volume tier
+            volume_tier = candidate.get("volume_tier", "")
+            if volume_tier in ("Very High", "High"):
+                chips.append({"icon": "🔥", "label": "High volume", "type": "positive"})
+            elif volume_tier == "Medium":
+                chips.append({"icon": "📊", "label": "Good volume", "type": "neutral"})
+
+        # Fill probability
+        fill_prob = candidate.get("fill_probability", 0)
+        if fill_prob >= 0.9:
+            chips.append({"icon": "⚡", "label": "Fast fill", "type": "positive"})
+
+        # Trend
+        trend = candidate.get("trend", "Stable")
+        if trend == "Rising":
+            chips.append({"icon": "📈", "label": "Trending up", "type": "positive"})
+        elif trend == "Falling":
+            chips.append({"icon": "📉", "label": "Trending down", "type": "negative"})
+
+        # Time (hour_offset)
+        hours = candidate.get("hour_offset", 4)
+        if hours <= 2:
+            chips.append({"icon": "⏱", "label": "Quick flip", "type": "positive"})
+        elif hours >= 6:
+            chips.append({"icon": "🕐", "label": "Longer hold", "type": "neutral"})
+
+        # Spread (use _spread_pct if available)
+        spread_pct = candidate.get("_spread_pct", 0)
+        if spread_pct and spread_pct > 0.02:  # > 2% spread
+            spread_display = int(spread_pct * 100)
+            chips.append(
+                {"icon": "📈", "label": f"Spread +{spread_display}%", "type": "positive"}
+            )
+
+        return chips[:4]  # Max 4 chips
+
     def get_recommendation_by_id(self, rec_id: str) -> Optional[dict]:
         """Get recommendation by its ID.
 
@@ -2289,6 +2355,7 @@ class RecommendationEngine:
             "fillProbability": round(fill_prob, 4),
             "fillConfidence": self._determine_fill_confidence(fill_prob, None),
             "_expectedValue": round(candidate["expected_value"], 6),
+            "whyChips": self.generate_why_chips(candidate),
         }
 
         # Add optional volume24h field if available
