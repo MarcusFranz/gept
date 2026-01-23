@@ -116,12 +116,22 @@ def get_cosine_schedule_with_warmup(
     return torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda)
 
 
+def get_device() -> torch.device:
+    """Get the best available device (MPS > CUDA > CPU)."""
+    if torch.backends.mps.is_available():
+        return torch.device('mps')
+    elif torch.cuda.is_available():
+        return torch.device('cuda')
+    else:
+        return torch.device('cpu')
+
+
 def train_epoch(
     model: nn.Module,
     dataloader: DataLoader,
     optimizer: torch.optim.Optimizer,
     scheduler: torch.optim.lr_scheduler.LambdaLR,
-    scaler: torch.cuda.amp.GradScaler,
+    scaler: Optional[torch.amp.GradScaler],
     device: torch.device,
     quantiles: tuple,
     use_amp: bool = True,
@@ -131,6 +141,12 @@ def train_epoch(
     model.train()
     total_loss = 0.0
     n_batches = 0
+
+    # Determine device type for autocast
+    device_type = 'cuda' if device.type == 'cuda' else 'cpu'
+    # MPS doesn't support autocast well, use CPU autocast or disable
+    if device.type == 'mps':
+        use_amp = False
 
     for batch_idx, batch in enumerate(dataloader):
         # Move to device
@@ -142,15 +158,20 @@ def train_epoch(
 
         optimizer.zero_grad(set_to_none=True)
 
-        with torch.cuda.amp.autocast(enabled=use_amp):
+        with torch.amp.autocast(device_type=device_type, enabled=use_amp):
             outputs = model(recent, medium, long_seq, item_ids)
             loss = combined_quantile_loss(outputs, targets, quantiles)
 
-        scaler.scale(loss).backward()
-        scaler.unscale_(optimizer)
-        torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
-        scaler.step(optimizer)
-        scaler.update()
+        if scaler is not None:
+            scaler.scale(loss).backward()
+            scaler.unscale_(optimizer)
+            torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+            scaler.step(optimizer)
+            scaler.update()
+        else:
+            loss.backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+            optimizer.step()
         scheduler.step()
 
         total_loss += loss.item()
@@ -176,6 +197,12 @@ def validate(
     total_loss = 0.0
     n_batches = 0
 
+    # Determine device type for autocast
+    device_type = 'cuda' if device.type == 'cuda' else 'cpu'
+    # MPS doesn't support autocast well
+    if device.type == 'mps':
+        use_amp = False
+
     for batch in dataloader:
         recent = batch['recent'].to(device, non_blocking=True)
         medium = batch['medium'].to(device, non_blocking=True)
@@ -183,7 +210,7 @@ def validate(
         item_ids = batch['item_id'].to(device, non_blocking=True)
         targets = batch['targets'].to(device, non_blocking=True)
 
-        with torch.cuda.amp.autocast(enabled=use_amp):
+        with torch.amp.autocast(device_type=device_type, enabled=use_amp):
             outputs = model(recent, medium, long_seq, item_ids)
             loss = combined_quantile_loss(outputs, targets, quantiles)
 
@@ -197,20 +224,22 @@ def save_checkpoint(
     model: nn.Module,
     optimizer: torch.optim.Optimizer,
     scheduler: torch.optim.lr_scheduler.LambdaLR,
-    scaler: torch.cuda.amp.GradScaler,
+    scaler: Optional[torch.amp.GradScaler],
     epoch: int,
     val_loss: float,
     path: Path
 ) -> None:
     """Save training checkpoint."""
-    torch.save({
+    checkpoint = {
         'epoch': epoch,
         'model_state_dict': model.state_dict(),
         'optimizer_state_dict': optimizer.state_dict(),
         'scheduler_state_dict': scheduler.state_dict(),
-        'scaler_state_dict': scaler.state_dict(),
         'val_loss': val_loss,
-    }, path)
+    }
+    if scaler is not None:
+        checkpoint['scaler_state_dict'] = scaler.state_dict()
+    torch.save(checkpoint, path)
 
 
 def load_checkpoint(
@@ -218,17 +247,17 @@ def load_checkpoint(
     model: nn.Module,
     optimizer: Optional[torch.optim.Optimizer] = None,
     scheduler: Optional[torch.optim.lr_scheduler.LambdaLR] = None,
-    scaler: Optional[torch.cuda.amp.GradScaler] = None
+    scaler: Optional[torch.amp.GradScaler] = None
 ) -> Dict:
     """Load training checkpoint."""
-    checkpoint = torch.load(path, map_location='cpu')
+    checkpoint = torch.load(path, map_location='cpu', weights_only=False)
     model.load_state_dict(checkpoint['model_state_dict'])
 
     if optimizer is not None:
         optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
     if scheduler is not None:
         scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
-    if scaler is not None:
+    if scaler is not None and 'scaler_state_dict' in checkpoint:
         scaler.load_state_dict(checkpoint['scaler_state_dict'])
 
     return checkpoint
@@ -256,22 +285,27 @@ def main():
     logger.info(f"Features: {features_dir}")
     logger.info(f"Model output: {model_dir}")
 
-    # Check GPU
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    # Check GPU (MPS > CUDA > CPU)
+    device = get_device()
     logger.info(f"Device: {device}")
     if device.type == 'cuda':
         logger.info(f"GPU: {torch.cuda.get_device_name()}")
+    elif device.type == 'mps':
+        logger.info("Using Apple Metal (MPS) acceleration")
 
     # Create datasets
     train_dataset = ChunkDataset(features_dir / "train")
     val_dataset = ChunkDataset(features_dir / "val")
+
+    # pin_memory only works with CUDA
+    pin_memory = device.type == 'cuda'
 
     train_loader = DataLoader(
         train_dataset,
         batch_size=config.training.batch_size,
         shuffle=True,
         num_workers=config.training.num_workers,
-        pin_memory=True,
+        pin_memory=pin_memory,
         drop_last=True
     )
     val_loader = DataLoader(
@@ -279,7 +313,7 @@ def main():
         batch_size=config.training.batch_size,
         shuffle=False,
         num_workers=config.training.num_workers,
-        pin_memory=True
+        pin_memory=pin_memory
     )
 
     # Create model
@@ -321,7 +355,10 @@ def main():
         total_steps=total_steps
     )
 
-    scaler = torch.cuda.amp.GradScaler()
+    # Only use GradScaler with CUDA (not supported on MPS)
+    scaler = torch.amp.GradScaler() if device.type == 'cuda' else None
+    if scaler is None:
+        logger.info("GradScaler disabled (not using CUDA)")
 
     # Resume from checkpoint
     start_epoch = 0

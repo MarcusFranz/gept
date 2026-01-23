@@ -14,7 +14,7 @@ import argparse
 import json
 import logging
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
@@ -125,9 +125,9 @@ def load_item_data(parquet_dir: Path, item_id: int) -> Tuple[pd.DataFrame, pd.Da
 def save_progress(output_dir: Path, last_item_id: int, samples_processed: int) -> None:
     """Save checkpoint for resume capability."""
     progress = {
-        'last_completed_item': last_item_id,
-        'samples_processed': samples_processed,
-        'timestamp': datetime.utcnow().isoformat()
+        'last_completed_item': int(last_item_id),  # Convert numpy int64 to Python int
+        'samples_processed': int(samples_processed),
+        'timestamp': datetime.now(timezone.utc).isoformat()
     }
     with open(output_dir / 'progress.json', 'w') as f:
         json.dump(progress, f, indent=2)
