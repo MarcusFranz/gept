@@ -12,7 +12,7 @@ scale-invariant across items with vastly different price ranges.
 """
 
 import logging
-from typing import Dict, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -261,6 +261,44 @@ def compute_targets(
         targets.append([max_high_pct, min_low_pct])
 
     return np.array(targets, dtype=np.float32)
+
+
+def compute_volume_targets(
+    data: Dict[str, np.ndarray],
+    current_idx: int,
+    horizons: Tuple[int, ...],
+    bars_per_hour: int = 12,
+) -> np.ndarray:
+    """
+    Compute volume targets for each horizon.
+
+    Args:
+        data: Dict with 'high_price_volume' and 'low_price_volume' arrays
+        current_idx: Current bar index (target window starts at current_idx + 1)
+        horizons: List of horizon hours [1, 2, 4, 8, 12, 24, 48]
+        bars_per_hour: Number of bars per hour (12 for 5-min data)
+
+    Returns:
+        Array of shape (n_horizons, 2) with [buy_volume, sell_volume] per horizon
+    """
+    n_horizons = len(horizons)
+    targets = np.zeros((n_horizons, 2), dtype=np.float64)
+
+    high_vol = data['high_price_volume']
+    low_vol = data['low_price_volume']
+
+    for h_idx, horizon_hours in enumerate(horizons):
+        horizon_bars = horizon_hours * bars_per_hour
+        start = current_idx + 1
+        end = start + horizon_bars
+
+        if end > len(high_vol):
+            raise AssertionError(f"Target window exceeds data: {end} > {len(high_vol)}")
+
+        targets[h_idx, 0] = np.sum(low_vol[start:end].astype(np.float64))   # buy
+        targets[h_idx, 1] = np.sum(high_vol[start:end].astype(np.float64))  # sell
+
+    return targets
 
 
 def compute_sample_features(
