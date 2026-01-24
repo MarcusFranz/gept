@@ -237,12 +237,24 @@ def main():
 
     logger.info(f'Train: {len(train_dataset):,}, Val: {len(val_dataset):,}')
 
-    # Create Optuna study
+    # Create Optuna study with SQLite WAL mode for better concurrency
+    db_path = f'/workspace/optuna_{args.study_name}.db'
+    storage = optuna.storages.RDBStorage(
+        url=f'sqlite:///{db_path}',
+        engine_kwargs={'connect_args': {'timeout': 30}},  # 30s timeout for locks
+    )
+
+    # Enable WAL mode for concurrent access
+    import sqlite3
+    conn = sqlite3.connect(db_path)
+    conn.execute('PRAGMA journal_mode=WAL')
+    conn.close()
+
     study = optuna.create_study(
         study_name=args.study_name,
         direction='minimize',
         pruner=optuna.pruners.MedianPruner(n_startup_trials=5, n_warmup_steps=5),
-        storage=f'sqlite:////workspace/optuna_{args.study_name}.db',
+        storage=storage,
         load_if_exists=True,
     )
 
