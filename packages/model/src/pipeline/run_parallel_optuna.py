@@ -13,6 +13,14 @@ Usage:
         --trials_per_gpu 4 \
         --study_name patchtst_tuning
 
+Volume-aware tuning (adds volume prediction head):
+    python -m src.pipeline.run_parallel_optuna \
+        --config configs/rtx3090_1000items.yaml \
+        --n_gpus 8 \
+        --trials_per_gpu 4 \
+        --study_name patchtst_volume_tuning \
+        --enable-volume
+
 This will run 8 workers (one per GPU), each doing 4 trials = 32 total trials.
 """
 
@@ -32,7 +40,7 @@ logging.basicConfig(
 
 
 def run_worker(gpu_id: int, config_path: str, n_trials: int, study_name: str,
-               output_queue: Queue):
+               enable_volume: bool, output_queue: Queue):
     """Run a single Optuna worker on a specific GPU."""
 
     env = os.environ.copy()
@@ -40,14 +48,18 @@ def run_worker(gpu_id: int, config_path: str, n_trials: int, study_name: str,
 
     log_file = f'/workspace/optuna_gpu{gpu_id}.log'
 
+    # Select module based on volume flag
+    module = 'src.pipeline.optuna_tune_volume' if enable_volume else 'src.pipeline.optuna_tune'
+
     cmd = [
-        sys.executable, '-m', 'src.pipeline.optuna_tune',
+        sys.executable, '-m', module,
         '--config', config_path,
         '--n_trials', str(n_trials),
         '--study_name', study_name,
     ]
 
-    print(f"[GPU {gpu_id}] Starting worker: {' '.join(cmd)}")
+    mode_str = " [VOLUME]" if enable_volume else ""
+    print(f"[GPU {gpu_id}]{mode_str} Starting worker: {' '.join(cmd)}")
 
     with open(log_file, 'w') as f:
         process = subprocess.Popen(
@@ -71,6 +83,8 @@ def main():
                         help='Trials per GPU worker')
     parser.add_argument('--study_name', default='patchtst_tuning',
                         help='Optuna study name')
+    parser.add_argument('--enable-volume', action='store_true',
+                        help='Enable volume prediction head (uses optuna_tune_volume)')
     args = parser.parse_args()
 
     # Verify GPUs available
@@ -80,6 +94,7 @@ def main():
         print(f"Warning: Requested {args.n_gpus} GPUs but only {available_gpus} available")
         args.n_gpus = available_gpus
 
+    volume_str = "YES (two-stage calibration)" if args.enable_volume else "NO"
     print(f"""
 ╔══════════════════════════════════════════════════════════════╗
 ║  PARALLEL OPTUNA TUNING                                      ║
@@ -89,6 +104,7 @@ def main():
 ║  Total trials:  {args.n_gpus * args.trials_per_gpu:3d}                                         ║
 ║  Study:         {args.study_name:<43} ║
 ║  Config:        {args.config:<43} ║
+║  Volume Head:   {volume_str:<43} ║
 ╚══════════════════════════════════════════════════════════════╝
 """)
 
@@ -101,7 +117,7 @@ def main():
         p = Process(
             target=run_worker,
             args=(gpu_id, args.config, args.trials_per_gpu, args.study_name,
-                  result_queue)
+                  args.enable_volume, result_queue)
         )
         p.start()
         processes.append(p)
