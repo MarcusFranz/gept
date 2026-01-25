@@ -56,6 +56,10 @@ class ModelConfig:
     quantiles: Tuple[float, ...] = (0.1, 0.3, 0.5, 0.7, 0.9)
     n_items: int = 500
     item_embed_dim: int = 32
+    # Volume head settings
+    enable_volume_head: bool = True
+    volume_quantiles: Tuple[float, ...] = (0.1, 0.5, 0.9)
+    volume_hidden_dim: int = 64
 
 
 @dataclass

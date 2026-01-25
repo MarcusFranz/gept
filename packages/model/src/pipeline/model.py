@@ -158,6 +158,55 @@ class QuantileHead(nn.Module):
         return torch.stack(outputs, dim=1)
 
 
+class VolumeHead(nn.Module):
+    """
+    Prediction head for volume quantiles.
+
+    Predicts buy/sell volume quantiles (p10, p50, p90) at each horizon.
+    Output shape: (batch, n_horizons, 2, n_quantiles) where dim 2 is [buy, sell].
+    """
+
+    def __init__(
+        self,
+        d_model: int = 384,
+        hidden_dim: int = 64,
+        n_horizons: int = 7,
+        n_quantiles: int = 3,
+        dropout: float = 0.1
+    ):
+        super().__init__()
+        self.n_horizons = n_horizons
+        self.n_quantiles = n_quantiles
+
+        # Single MLP that outputs all horizons × buy/sell × quantiles
+        self.mlp = nn.Sequential(
+            nn.Linear(d_model, hidden_dim),
+            nn.GELU(),
+            nn.Dropout(dropout),
+            nn.Linear(hidden_dim, n_horizons * 2 * n_quantiles),
+        )
+        self._init_weights()
+
+    def _init_weights(self):
+        """Initialize with smaller weights for stable training."""
+        for m in self.modules():
+            if isinstance(m, nn.Linear):
+                nn.init.xavier_uniform_(m.weight, gain=0.5)
+                if m.bias is not None:
+                    nn.init.zeros_(m.bias)
+
+    def forward(self, pooled: torch.Tensor) -> torch.Tensor:
+        """
+        Args:
+            pooled: Pooled transformer output of shape (batch, d_model)
+
+        Returns:
+            Volume predictions of shape (batch, n_horizons, 2, n_quantiles)
+        """
+        x = self.mlp(pooled)
+        return x.view(-1, self.n_horizons, 2, self.n_quantiles)
+
+
 class PatchTSTModel(nn.Module):
     """
     Multi-resolution Patch Time Series Transformer.
@@ -219,6 +268,17 @@ class PatchTSTModel(nn.Module):
         self.high_head = QuantileHead(c.d_model, c.n_horizons, c.n_quantiles)
         self.low_head = QuantileHead(c.d_model, c.n_horizons, c.n_quantiles)
 
+        # Optional volume head
+        self.volume_head = None
+        if c.enable_volume_head:
+            self.volume_head = VolumeHead(
+                d_model=c.d_model,
+                hidden_dim=c.volume_hidden_dim,
+                n_horizons=c.n_horizons,
+                n_quantiles=len(c.volume_quantiles),
+                dropout=c.dropout
+            )
+
         self._init_weights()
 
     def _init_weights(self):
@@ -279,10 +339,16 @@ class PatchTSTModel(nn.Module):
         high_q = self.high_head(x)
         low_q = self.low_head(x)
 
-        return {
+        outputs = {
             'high_quantiles': high_q,
             'low_quantiles': low_q
         }
+
+        # Optional volume prediction
+        if self.volume_head is not None:
+            outputs['volume_pred'] = self.volume_head(x)
+
+        return outputs
 
 
 def quantile_loss(
