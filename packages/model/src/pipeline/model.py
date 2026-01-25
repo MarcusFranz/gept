@@ -410,3 +410,60 @@ def combined_quantile_loss(
     low_loss = quantile_loss(outputs['low_quantiles'], low_target, quantiles)
 
     return high_loss + low_loss
+
+
+def combined_loss_with_volume(
+    outputs: Dict[str, torch.Tensor],
+    price_targets: torch.Tensor,
+    volume_targets: Optional[torch.Tensor],
+    config: 'ModelConfig',
+    volume_weight: float = 0.2
+) -> Tuple[torch.Tensor, Dict[str, float]]:
+    """
+    Combined loss for price and volume prediction.
+
+    Computes quantile loss for both price predictions and volume predictions,
+    with volume loss weighted by volume_weight.
+
+    Args:
+        outputs: Model outputs with 'high_quantiles', 'low_quantiles', and optionally 'volume_pred'
+        price_targets: Price targets of shape (batch, n_horizons, 2) with (max_high_pct, min_low_pct)
+        volume_targets: Volume targets of shape (batch, n_horizons, 2) with (buy_vol, sell_vol), or None
+        config: ModelConfig with quantile settings
+        volume_weight: Weight for volume loss (default 0.2)
+
+    Returns:
+        Tuple of (total_loss, loss_dict) where loss_dict contains
+        'price_loss', 'volume_loss', and 'total_loss'
+    """
+    # Price loss (high + low quantile loss)
+    price_quantiles = config.quantiles
+    high_target = price_targets[..., 0]
+    low_target = price_targets[..., 1]
+
+    high_loss = quantile_loss(outputs['high_quantiles'], high_target, price_quantiles)
+    low_loss = quantile_loss(outputs['low_quantiles'], low_target, price_quantiles)
+    price_loss = high_loss + low_loss
+
+    loss_dict = {'price_loss': price_loss.detach().item()}
+    total = price_loss
+
+    # Volume loss (if enabled and available)
+    if config.enable_volume_head and 'volume_pred' in outputs and volume_targets is not None:
+        vol_pred = outputs['volume_pred']  # (batch, n_horizons, 2, n_vol_quantiles)
+        vol_quantiles = config.volume_quantiles
+
+        # Buy side: vol_pred[..., 0, :] vs volume_targets[..., 0]
+        # Sell side: vol_pred[..., 1, :] vs volume_targets[..., 1]
+        buy_vol_loss = quantile_loss(vol_pred[..., 0, :], volume_targets[..., 0], vol_quantiles)
+        sell_vol_loss = quantile_loss(vol_pred[..., 1, :], volume_targets[..., 1], vol_quantiles)
+        vol_loss = buy_vol_loss + sell_vol_loss
+
+        total = total + volume_weight * vol_loss
+        loss_dict['volume_loss'] = vol_loss.detach().item()
+    else:
+        loss_dict['volume_loss'] = 0.0
+
+    loss_dict['total_loss'] = total.detach().item()
+
+    return total, loss_dict
