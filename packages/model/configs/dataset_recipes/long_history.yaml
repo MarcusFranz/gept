@@ -1,0 +1,36 @@
+name: long_history
+description: '2+ years of data: long-term patterns and trend learning'
+version: '1.0'
+granularity: 5min
+source_table: null
+item_filter:
+  min_tier: 1
+  max_tier: 2
+  min_completeness: 0.8
+  min_avg_volume: null
+  max_avg_volume: null
+  categories: null
+  include_item_ids: null
+  exclude_item_ids: null
+  min_rows: 100000
+  min_history_days: 730
+time_filter:
+  date_start: null
+  date_end: null
+  lookback_days: 730
+  include_months: null
+  include_days_of_week: null
+  include_hours: null
+split_config:
+  train_ratio: 0.7
+  val_ratio: 0.15
+  test_ratio: 0.15
+  split_by_time: true
+  shuffle_items: false
+feature_set: baseline
+custom_features: null
+exclude_features: null
+target_offsets: null
+target_windows_hours: null
+output_format: parquet
+compression: snappy

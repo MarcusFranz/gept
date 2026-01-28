@@ -1,0 +1,90 @@
+version: '3.8'
+
+services:
+  # Dataset builder (CPU only, connects to PostgreSQL)
+  dataset-builder:
+    build:
+      context: .
+      dockerfile: Dockerfile.dataset
+    container_name: gept-dataset-builder
+    env_file:
+      - .env  # Load environment variables from .env file
+    volumes:
+      - ./datasets:/workspace/datasets        # Persist built datasets
+      - ./configs:/workspace/configs          # Recipe configurations
+    environment:
+      - PYTHONUNBUFFERED=1
+    networks:
+      - gept-network
+    # Override command to build specific recipe
+    # command: python scripts/build_dataset.py --recipe baseline
+
+  # Training container (GPU required)
+  train:
+    build:
+      context: .
+      dockerfile: Dockerfile.train
+    container_name: gept-trainer
+    runtime: nvidia  # Requires nvidia-docker
+    env_file:
+      - .env  # Load environment variables from .env file
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - PYTHONUNBUFFERED=1
+      - CUDA_VISIBLE_DEVICES=0
+    volumes:
+      - ./datasets:/workspace/datasets:ro      # Read datasets (built by dataset-builder)
+      - ./models:/workspace/models             # Persist trained models
+      - ./logs:/workspace/logs                 # Persist logs
+      - ./outputs:/workspace/outputs           # Experiment outputs
+    ports:
+      - "6006:6006"  # TensorBoard
+    networks:
+      - gept-network
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    # Override command to run specific training script
+    # command: python -m src.train --dataset baseline_1.0 --epochs 100
+
+  # TensorBoard (optional, for monitoring)
+  tensorboard:
+    image: tensorflow/tensorflow:latest
+    container_name: gept-tensorboard
+    volumes:
+      - ./logs:/logs:ro
+    ports:
+      - "6007:6006"
+    command: tensorboard --logdir=/logs --host=0.0.0.0
+    networks:
+      - gept-network
+
+  # Remote Dataset Builder (runs on Hydra, builds on Ampere)
+  remote-builder:
+    build:
+      context: .
+      dockerfile: Dockerfile.orchestrator
+    container_name: gept-remote-builder
+    volumes:
+      - ./datasets:/workspace/datasets        # Output datasets
+      - ./configs:/workspace/configs          # Recipe configurations
+      - ~/.ssh/oracle_key.pem:/root/.ssh/oracle_key.pem:ro  # SSH key
+    environment:
+      - RECIPE_NAME=${RECIPE_NAME:-baseline}
+    networks:
+      - gept-network
+    command: /workspace/scripts/remote_build.sh ${RECIPE_NAME:-baseline}
+
+networks:
+  gept-network:
+    driver: bridge
+
+volumes:
+  datasets:
+  models:
+  logs:
+  outputs:
