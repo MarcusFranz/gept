@@ -1,5 +1,4 @@
 // packages/web/src/components/opportunities/FilterBar.tsx
-import { createSignal } from 'solid-js';
 import type { OpportunityFilters } from '../../lib/trade-types';
 import { FILTER_STORAGE_KEY } from '../../lib/trade-types';
 
@@ -10,21 +9,6 @@ interface FilterBarProps {
 }
 
 export function FilterBar(props: FilterBarProps) {
-  const [expanded, setExpanded] = createSignal(false);
-
-  const timeOptions = [
-    { label: 'Any', value: undefined },
-    { label: '< 2 hrs', value: 2 },
-    { label: '< 4 hrs', value: 4 },
-    { label: '< 8 hrs', value: 8 },
-  ];
-
-  const confidenceOptions = [
-    { label: 'All', value: 'all' as const },
-    { label: 'High', value: 'high' as const },
-    { label: 'Medium+', value: 'medium' as const },
-  ];
-
   const updateFilter = <K extends keyof OpportunityFilters>(
     key: K,
     value: OpportunityFilters[K]
@@ -38,161 +22,87 @@ export function FilterBar(props: FilterBarProps) {
     } catch {}
   };
 
-  const activeFilterCount = () => {
-    let count = 0;
-    if (props.filters.profitMin) count++;
-    if (props.filters.profitMax) count++;
-    if (props.filters.timeMax) count++;
-    if (props.filters.confidence && props.filters.confidence !== 'all') count++;
-    if (props.filters.capitalMax) count++;
-    if (props.filters.category) count++;
-    return count;
+  const formatGold = (amount: number) => {
+    if (amount >= 1_000_000) {
+      return (amount / 1_000_000).toFixed(1) + 'M';
+    } else if (amount >= 1_000) {
+      return Math.round(amount / 1_000) + 'K';
+    }
+    return amount.toLocaleString();
   };
 
   return (
     <div class="filter-bar">
-      <div class="filter-bar-header">
-        <button
-          class="filter-toggle"
-          onClick={() => setExpanded(!expanded())}
-        >
-          Filters {activeFilterCount() > 0 && `(${activeFilterCount()})`}
-          <span class="filter-toggle-icon">{expanded() ? '▲' : '▼'}</span>
-        </button>
-
-        {activeFilterCount() > 0 && (
+      <div class="filter-bar-content">
+        <label class="filter-label">Max Capital</label>
+        <input
+          type="number"
+          class="filter-input"
+          placeholder={`e.g. ${formatGold(props.availableCapital)}`}
+          value={props.filters.capitalMax || ''}
+          onInput={(e) => updateFilter('capitalMax', e.currentTarget.value ? Number(e.currentTarget.value) : undefined)}
+        />
+        {props.filters.capitalMax && (
           <button
             class="filter-clear"
             onClick={() => {
-              props.onChange({});
-              try {
-                localStorage.removeItem(FILTER_STORAGE_KEY);
-              } catch {}
+              updateFilter('capitalMax', undefined);
             }}
           >
-            Clear all
+            ×
           </button>
         )}
       </div>
 
-      {expanded() && (
-        <div class="filter-bar-content">
-          <div class="filter-group">
-            <label>Min Profit</label>
-            <input
-              type="number"
-              placeholder="e.g. 50000"
-              value={props.filters.profitMin || ''}
-              onInput={(e) => updateFilter('profitMin', e.currentTarget.value ? Number(e.currentTarget.value) : undefined)}
-            />
-          </div>
-
-          <div class="filter-group">
-            <label>Max Time</label>
-            <select
-              value={props.filters.timeMax || ''}
-              onChange={(e) => updateFilter('timeMax', e.currentTarget.value ? Number(e.currentTarget.value) : undefined)}
-            >
-              {timeOptions.map(opt => (
-                <option value={opt.value || ''}>{opt.label}</option>
-              ))}
-            </select>
-          </div>
-
-          <div class="filter-group">
-            <label>Confidence</label>
-            <select
-              value={props.filters.confidence || 'all'}
-              onChange={(e) => updateFilter('confidence', e.currentTarget.value as OpportunityFilters['confidence'])}
-            >
-              {confidenceOptions.map(opt => (
-                <option value={opt.value}>{opt.label}</option>
-              ))}
-            </select>
-          </div>
-
-          <div class="filter-group">
-            <label>Max Capital (gp)</label>
-            <input
-              type="number"
-              placeholder="e.g. 10000000"
-              value={props.filters.capitalMax || ''}
-              onInput={(e) => updateFilter('capitalMax', e.currentTarget.value ? Number(e.currentTarget.value) : undefined)}
-            />
-          </div>
-        </div>
-      )}
-
       <style>{`
         .filter-bar {
-          background: var(--bg-secondary);
-          border: 1px solid var(--border);
-          border-radius: var(--radius-lg);
           margin-bottom: 1rem;
         }
 
-        .filter-bar-header {
+        .filter-bar-content {
           display: flex;
-          justify-content: space-between;
           align-items: center;
-          padding: 0.75rem 1rem;
+          gap: 0.75rem;
         }
 
-        .filter-toggle {
-          background: none;
-          border: none;
+        .filter-label {
+          font-size: var(--font-size-sm);
+          color: var(--text-secondary);
+          white-space: nowrap;
+        }
+
+        .filter-input {
+          flex: 1;
+          max-width: 200px;
+          padding: 0.5rem 0.75rem;
+          background: var(--bg-secondary);
+          border: 1px solid var(--border);
+          border-radius: var(--radius-md);
           color: var(--text-primary);
-          font-weight: 600;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
+          font-size: var(--font-size-sm);
         }
 
-        .filter-toggle-icon {
-          font-size: var(--font-size-xs);
+        .filter-input:focus {
+          outline: none;
+          border-color: var(--accent);
+        }
+
+        .filter-input::placeholder {
           color: var(--text-muted);
         }
 
         .filter-clear {
           background: none;
           border: none;
-          color: var(--accent);
+          color: var(--text-muted);
           cursor: pointer;
-          font-size: var(--font-size-sm);
+          font-size: 1.25rem;
+          padding: 0.25rem;
+          line-height: 1;
         }
 
-        .filter-bar-content {
-          padding: 0 1rem 1rem;
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-          gap: 1rem;
-        }
-
-        .filter-group {
-          display: flex;
-          flex-direction: column;
-          gap: 0.25rem;
-        }
-
-        .filter-group label {
-          font-size: var(--font-size-xs);
-          color: var(--text-secondary);
-        }
-
-        .filter-group input[type="number"],
-        .filter-group select {
-          padding: 0.5rem;
-          background: var(--bg-tertiary);
-          border: 1px solid var(--border);
-          border-radius: var(--radius-md);
+        .filter-clear:hover {
           color: var(--text-primary);
-        }
-
-        .filter-group input[type="number"]:focus,
-        .filter-group select:focus {
-          outline: none;
-          border-color: var(--accent);
         }
       `}</style>
     </div>
