@@ -65,21 +65,21 @@ export function TradeCard(props: TradeCardProps) {
 
       <style>{`
         .trade-card {
-          background: var(--surface-2, #1a1a2e);
-          border: 1px solid var(--border, #333);
-          border-radius: 8px;
+          background: var(--bg-secondary);
+          border: 1px solid var(--border);
+          border-radius: var(--radius-lg);
           padding: 0.875rem;
           cursor: pointer;
-          transition: border-color 0.15s, transform 0.15s;
+          transition: border-color var(--transition-fast);
         }
 
         .trade-card:hover {
-          border-color: var(--accent, #4f46e5);
+          border-color: var(--accent);
         }
 
         .trade-card-expanded {
-          border-color: var(--accent, #4f46e5);
-          background: var(--surface-3, #252540);
+          border-color: var(--accent);
+          background: var(--bg-tertiary);
         }
 
         .trade-card-header {
@@ -91,24 +91,24 @@ export function TradeCard(props: TradeCardProps) {
 
         .trade-card-name {
           font-weight: 600;
-          color: var(--text-primary, #fff);
+          color: var(--text-primary);
         }
 
         .trade-card-phase {
-          font-size: 0.75rem;
+          font-size: var(--font-size-xs);
           font-weight: 700;
           padding: 0.125rem 0.5rem;
-          border-radius: 4px;
+          border-radius: var(--radius-sm);
         }
 
         .phase-buying {
-          background: var(--info-bg, #1e3a5f);
-          color: var(--info, #60a5fa);
+          background: var(--gold-light);
+          color: var(--gold);
         }
 
         .phase-selling {
-          background: var(--success-bg, #1a3d2e);
-          color: var(--success, #22c55e);
+          background: var(--success-light);
+          color: var(--success);
         }
 
         .trade-card-progress {
@@ -121,21 +121,21 @@ export function TradeCard(props: TradeCardProps) {
         .trade-card-bar {
           flex: 1;
           height: 6px;
-          background: var(--surface-4, #333);
-          border-radius: 3px;
+          background: var(--bg-tertiary);
+          border-radius: var(--radius-sm);
           overflow: hidden;
         }
 
         .trade-card-bar-fill {
           height: 100%;
-          background: var(--accent, #4f46e5);
+          background: var(--accent);
           transition: width 0.3s ease;
         }
 
         .trade-card-profit {
           font-weight: 600;
-          color: var(--success, #22c55e);
-          font-size: 0.875rem;
+          color: var(--success);
+          font-size: var(--font-size-sm);
           white-space: nowrap;
         }
 
@@ -146,30 +146,30 @@ export function TradeCard(props: TradeCardProps) {
         }
 
         .trade-card-time {
-          font-size: 0.75rem;
-          color: var(--text-tertiary, #666);
+          font-size: var(--font-size-xs);
+          color: var(--text-muted);
         }
 
         .status-badge {
-          font-size: 0.75rem;
+          font-size: var(--font-size-xs);
           font-weight: 600;
           padding: 0.125rem 0.5rem;
-          border-radius: 4px;
+          border-radius: var(--radius-sm);
         }
 
         .status-check-in {
-          background: var(--warning-bg, #3d3520);
-          color: var(--warning, #eab308);
+          background: var(--warning-light);
+          color: var(--warning);
         }
 
         .status-attention {
-          background: var(--error-bg, #3d2020);
-          color: var(--error, #ef4444);
+          background: var(--danger-light);
+          color: var(--danger);
         }
 
         .status-ready {
-          background: var(--success-bg, #1a3d2e);
-          color: var(--success, #22c55e);
+          background: var(--success-light);
+          color: var(--success);
         }
       `}</style>
     </div>

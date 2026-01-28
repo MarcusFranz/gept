@@ -87,9 +87,9 @@ export function GuidancePrompt(props: GuidancePromptProps) {
 
       <style>{`
         .guidance-prompt {
-          background: var(--warning-bg, #2d2a1f);
-          border: 1px solid var(--warning-border, #b59f3b);
-          border-radius: 8px;
+          background: var(--warning-light);
+          border: 1px solid var(--warning);
+          border-radius: var(--radius-lg);
           padding: 1rem;
           margin: 1rem 0;
         }
@@ -107,28 +107,28 @@ export function GuidancePrompt(props: GuidancePromptProps) {
 
         .guidance-title {
           font-weight: 600;
-          color: var(--warning-text, #e5c767);
+          color: var(--warning);
         }
 
         .guidance-recommendation {
           margin: 0.5rem 0;
-          color: var(--text-primary, #fff);
+          color: var(--text-primary);
         }
 
         .guidance-delta {
-          color: var(--text-secondary, #aaa);
-          font-size: 0.875rem;
+          color: var(--text-secondary);
+          font-size: var(--font-size-sm);
         }
 
         .guidance-speedup {
-          color: var(--success, #22c55e);
-          font-size: 0.875rem;
+          color: var(--success);
+          font-size: var(--font-size-sm);
         }
 
         .guidance-reason {
           margin: 0.5rem 0;
-          color: var(--text-secondary, #aaa);
-          font-size: 0.875rem;
+          color: var(--text-secondary);
+          font-size: var(--font-size-sm);
         }
 
         .guidance-actions {
@@ -141,10 +141,10 @@ export function GuidancePrompt(props: GuidancePromptProps) {
           flex: 1;
           padding: 0.625rem 1rem;
           border: none;
-          border-radius: 6px;
+          border-radius: var(--radius-md);
           font-weight: 600;
           cursor: pointer;
-          transition: background 0.15s;
+          transition: background var(--transition-fast);
         }
 
         .guidance-btn:disabled {
@@ -153,21 +153,21 @@ export function GuidancePrompt(props: GuidancePromptProps) {
         }
 
         .guidance-btn-primary {
-          background: var(--warning, #eab308);
-          color: black;
+          background: var(--warning);
+          color: var(--btn-text-dark);
         }
 
         .guidance-btn-primary:hover:not(:disabled) {
-          background: var(--warning-hover, #ca9a06);
+          filter: brightness(0.9);
         }
 
         .guidance-btn-secondary {
-          background: var(--surface-3, #333);
-          color: var(--text-primary, #fff);
+          background: var(--bg-tertiary);
+          color: var(--text-primary);
         }
 
         .guidance-btn-secondary:hover:not(:disabled) {
-          background: var(--surface-4, #444);
+          background: var(--bg-hover);
         }
       `}</style>
     </div>

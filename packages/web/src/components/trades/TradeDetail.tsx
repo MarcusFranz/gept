@@ -161,9 +161,9 @@ export function TradeDetail(props: TradeDetailProps) {
 
       <style>{`
         .trade-detail {
-          background: var(--surface-2, #1a1a2e);
-          border: 1px solid var(--accent, #4f46e5);
-          border-radius: 8px;
+          background: var(--bg-secondary);
+          border: 1px solid var(--accent);
+          border-radius: var(--radius-lg);
           padding: 1rem;
           position: relative;
         }
@@ -174,7 +174,7 @@ export function TradeDetail(props: TradeDetailProps) {
           right: 0.5rem;
           background: none;
           border: none;
-          color: var(--text-tertiary, #666);
+          color: var(--text-muted);
           font-size: 1.5rem;
           cursor: pointer;
           padding: 0.25rem 0.5rem;
@@ -182,7 +182,7 @@ export function TradeDetail(props: TradeDetailProps) {
         }
 
         .trade-detail-close:hover {
-          color: var(--text-primary, #fff);
+          color: var(--text-primary);
         }
 
         .trade-detail-header {
@@ -194,24 +194,24 @@ export function TradeDetail(props: TradeDetailProps) {
 
         .trade-detail-title {
           margin: 0;
-          font-size: 1.125rem;
+          font-size: var(--font-size-lg);
         }
 
         .trade-detail-phase {
-          font-size: 0.75rem;
+          font-size: var(--font-size-xs);
           font-weight: 700;
           padding: 0.25rem 0.75rem;
-          border-radius: 4px;
+          border-radius: var(--radius-sm);
         }
 
         .phase-buying {
-          background: var(--info-bg, #1e3a5f);
-          color: var(--info, #60a5fa);
+          background: var(--gold-light);
+          color: var(--gold);
         }
 
         .phase-selling {
-          background: var(--success-bg, #1a3d2e);
-          color: var(--success, #22c55e);
+          background: var(--success-light);
+          color: var(--success);
         }
 
         .trade-detail-prices-exact {
@@ -221,8 +221,8 @@ export function TradeDetail(props: TradeDetailProps) {
           gap: 0.5rem;
           margin: 0.75rem 0;
           padding: 0.75rem;
-          background: var(--surface-3, #252540);
-          border-radius: 6px;
+          background: var(--bg-tertiary);
+          border-radius: var(--radius-md);
         }
 
         .price-box {
@@ -233,61 +233,61 @@ export function TradeDetail(props: TradeDetailProps) {
         }
 
         .price-label {
-          font-size: 0.7rem;
+          font-size: var(--font-size-xs);
           text-transform: uppercase;
-          color: var(--text-tertiary, #666);
+          color: var(--text-muted);
           margin-bottom: 0.25rem;
         }
 
         .price-value {
-          font-size: 0.95rem;
+          font-size: var(--font-size-sm);
           font-weight: 600;
-          font-family: monospace;
+          font-family: var(--font-mono);
         }
 
         .buy-price .price-value {
-          color: var(--warning, #f59e0b);
+          color: var(--gold);
         }
 
         .sell-price .price-value {
-          color: var(--success, #22c55e);
+          color: var(--success);
         }
 
         .price-arrow {
-          color: var(--text-tertiary, #666);
+          color: var(--text-muted);
           font-size: 1rem;
         }
 
         .trade-detail-profit {
           margin-top: 0.25rem;
-          color: var(--text-secondary, #aaa);
-          font-size: 0.875rem;
+          color: var(--text-secondary);
+          font-size: var(--font-size-sm);
         }
 
         .trade-detail-profit strong {
-          color: var(--success, #22c55e);
+          color: var(--success);
         }
 
         .trade-detail-divider {
           border: none;
-          border-top: 1px solid var(--border, #333);
+          border-top: 1px solid var(--border);
           margin: 1rem 0;
         }
 
         .trade-detail-submit {
           width: 100%;
           padding: 0.625rem;
-          background: var(--accent, #4f46e5);
-          color: white;
+          background: var(--accent);
+          color: var(--btn-text-dark);
           border: none;
-          border-radius: 6px;
+          border-radius: var(--radius-md);
           font-weight: 600;
           cursor: pointer;
           margin-top: 0.5rem;
         }
 
         .trade-detail-submit:hover:not(:disabled) {
-          background: var(--accent-hover, #4338ca);
+          background: var(--accent-hover);
         }
 
         .trade-detail-submit:disabled {
@@ -307,28 +307,28 @@ export function TradeDetail(props: TradeDetailProps) {
         }
 
         .stat-label {
-          font-size: 0.75rem;
-          color: var(--text-tertiary, #666);
+          font-size: var(--font-size-xs);
+          color: var(--text-muted);
         }
 
         .stat-value {
           font-weight: 600;
-          color: var(--text-primary, #fff);
+          color: var(--text-primary);
         }
 
         .trade-detail-cancel {
           width: 100%;
           padding: 0.5rem;
           background: transparent;
-          color: var(--error, #ef4444);
-          border: 1px solid var(--error, #ef4444);
-          border-radius: 6px;
+          color: var(--danger);
+          border: 1px solid var(--danger);
+          border-radius: var(--radius-md);
           cursor: pointer;
           margin-top: 1rem;
         }
 
         .trade-detail-cancel:hover:not(:disabled) {
-          background: var(--error-bg, #3d2020);
+          background: var(--danger-light);
         }
 
         .trade-detail-cancel:disabled {
