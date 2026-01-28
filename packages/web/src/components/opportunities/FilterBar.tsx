@@ -8,6 +8,16 @@ interface FilterBarProps {
   availableCapital: number;
 }
 
+const timeOptions = [
+  { label: 'Any time', value: undefined },
+  { label: '< 1 hr', value: 1 },
+  { label: '< 2 hrs', value: 2 },
+  { label: '< 4 hrs', value: 4 },
+  { label: '< 8 hrs', value: 8 },
+  { label: '< 12 hrs', value: 12 },
+  { label: '< 24 hrs', value: 24 },
+];
+
 export function FilterBar(props: FilterBarProps) {
   const updateFilter = <K extends keyof OpportunityFilters>(
     key: K,
@@ -34,22 +44,41 @@ export function FilterBar(props: FilterBarProps) {
   return (
     <div class="filter-bar">
       <div class="filter-bar-content">
-        <label class="filter-label">Max Capital</label>
-        <input
-          type="number"
-          class="filter-input"
-          placeholder={`e.g. ${formatGold(props.availableCapital)}`}
-          value={props.filters.capitalMax || ''}
-          onInput={(e) => updateFilter('capitalMax', e.currentTarget.value ? Number(e.currentTarget.value) : undefined)}
-        />
-        {props.filters.capitalMax && (
+        <div class="filter-group">
+          <label class="filter-label">Max Capital</label>
+          <input
+            type="number"
+            class="filter-input"
+            placeholder={`e.g. ${formatGold(props.availableCapital)}`}
+            value={props.filters.capitalMax || ''}
+            onInput={(e) => updateFilter('capitalMax', e.currentTarget.value ? Number(e.currentTarget.value) : undefined)}
+          />
+        </div>
+
+        <div class="filter-group">
+          <label class="filter-label">Max Time</label>
+          <select
+            class="filter-select"
+            value={props.filters.timeMax || ''}
+            onChange={(e) => updateFilter('timeMax', e.currentTarget.value ? Number(e.currentTarget.value) : undefined)}
+          >
+            {timeOptions.map(opt => (
+              <option value={opt.value || ''}>{opt.label}</option>
+            ))}
+          </select>
+        </div>
+
+        {(props.filters.capitalMax || props.filters.timeMax) && (
           <button
-            class="filter-clear"
+            class="filter-clear-all"
             onClick={() => {
-              updateFilter('capitalMax', undefined);
+              props.onChange({});
+              try {
+                localStorage.removeItem(FILTER_STORAGE_KEY);
+              } catch {}
             }}
           >
-            ×
+            Clear
           </button>
         )}
       </div>
@@ -61,28 +90,35 @@ export function FilterBar(props: FilterBarProps) {
 
         .filter-bar-content {
           display: flex;
-          align-items: center;
-          gap: 0.75rem;
+          align-items: flex-end;
+          gap: 1rem;
+          flex-wrap: wrap;
+        }
+
+        .filter-group {
+          display: flex;
+          flex-direction: column;
+          gap: 0.25rem;
         }
 
         .filter-label {
-          font-size: var(--font-size-sm);
+          font-size: var(--font-size-xs);
           color: var(--text-secondary);
-          white-space: nowrap;
         }
 
-        .filter-input {
-          flex: 1;
-          max-width: 200px;
+        .filter-input,
+        .filter-select {
           padding: 0.5rem 0.75rem;
           background: var(--bg-secondary);
           border: 1px solid var(--border);
           border-radius: var(--radius-md);
           color: var(--text-primary);
           font-size: var(--font-size-sm);
+          min-width: 140px;
         }
 
-        .filter-input:focus {
+        .filter-input:focus,
+        .filter-select:focus {
           outline: none;
           border-color: var(--accent);
         }
@@ -91,18 +127,17 @@ export function FilterBar(props: FilterBarProps) {
           color: var(--text-muted);
         }
 
-        .filter-clear {
+        .filter-clear-all {
           background: none;
           border: none;
-          color: var(--text-muted);
+          color: var(--accent);
           cursor: pointer;
-          font-size: 1.25rem;
-          padding: 0.25rem;
-          line-height: 1;
+          font-size: var(--font-size-sm);
+          padding: 0.5rem 0;
         }
 
-        .filter-clear:hover {
-          color: var(--text-primary);
+        .filter-clear-all:hover {
+          text-decoration: underline;
         }
       `}</style>
     </div>
