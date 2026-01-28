@@ -114,12 +114,13 @@ export function HomePage(props: HomePageProps) {
           transition: background var(--transition-fast), color var(--transition-fast);
         }
 
-        .nav-tab:hover {
+        .nav-tab:hover:not(.nav-tab-active) {
           color: var(--text-primary);
           background: var(--bg-hover);
         }
 
-        .nav-tab-active {
+        .nav-tab-active,
+        .nav-tab-active:hover {
           background: var(--accent);
           color: var(--btn-text-dark);
         }
