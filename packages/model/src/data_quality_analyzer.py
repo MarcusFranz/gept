@@ -9,7 +9,7 @@ import json
 from datetime import datetime
 from typing import Dict, List
 
-from db_utils import CONN_PARAMS
+from db_utils import get_conn_params
 
 # Expected data parameters
 # 5-min intervals: 288 intervals per day, ~105,120 per year
@@ -28,7 +28,7 @@ TIER_CONFIG = {
 
 def get_item_ids() -> List[int]:
     """Get list of all item IDs with price data."""
-    conn = psycopg2.connect(**CONN_PARAMS)
+    conn = psycopg2.connect(**get_conn_params())
     cursor = conn.cursor()
     cursor.execute("SELECT DISTINCT item_id FROM price_data_5min ORDER BY item_id")
     items = [row[0] for row in cursor.fetchall()]
@@ -38,7 +38,7 @@ def get_item_ids() -> List[int]:
 
 def get_item_names() -> Dict[int, str]:
     """Get mapping of item IDs to names."""
-    conn = psycopg2.connect(**CONN_PARAMS)
+    conn = psycopg2.connect(**get_conn_params())
     cursor = conn.cursor()
     cursor.execute("SELECT item_id, name FROM items")
     names = {row[0]: row[1] for row in cursor.fetchall()}
@@ -157,7 +157,7 @@ def run_full_analysis(batch_size: int = 50) -> Dict:
     print(f"Analyzing {len(item_ids)} items in batches of {batch_size}...")
 
     all_results = []
-    conn = psycopg2.connect(**CONN_PARAMS)
+    conn = psycopg2.connect(**get_conn_params())
 
     for i in range(0, len(item_ids), batch_size):
         batch = item_ids[i:i+batch_size]
