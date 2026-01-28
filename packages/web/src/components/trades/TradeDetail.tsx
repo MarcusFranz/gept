@@ -26,6 +26,11 @@ export function TradeDetail(props: TradeDetailProps) {
     return amount.toLocaleString() + ' gp';
   };
 
+  // Exact GP price for GE offers - no abbreviation
+  const formatExactGold = (amount: number) => {
+    return amount.toLocaleString() + ' gp';
+  };
+
   const handleProgressChange = async (progress: number) => {
     setPendingProgress(progress);
   };
@@ -87,10 +92,16 @@ export function TradeDetail(props: TradeDetailProps) {
         </span>
       </div>
 
-      <div class="trade-detail-prices">
-        <span>Buy: {formatGold(actualBuy())}</span>
-        <span class="trade-detail-arrow">→</span>
-        <span>Sell: {formatGold(actualSell())}</span>
+      <div class="trade-detail-prices-exact">
+        <div class="price-box buy-price">
+          <span class="price-label">Buy at</span>
+          <span class="price-value">{formatExactGold(actualBuy())}</span>
+        </div>
+        <div class="price-arrow">→</div>
+        <div class="price-box sell-price">
+          <span class="price-label">Sell at</span>
+          <span class="price-value">{formatExactGold(actualSell())}</span>
+        </div>
       </div>
 
       <div class="trade-detail-profit">
@@ -203,16 +214,48 @@ export function TradeDetail(props: TradeDetailProps) {
           color: var(--success, #22c55e);
         }
 
-        .trade-detail-prices {
+        .trade-detail-prices-exact {
           display: flex;
           align-items: center;
+          justify-content: space-between;
           gap: 0.5rem;
-          color: var(--text-secondary, #aaa);
-          font-size: 0.875rem;
+          margin: 0.75rem 0;
+          padding: 0.75rem;
+          background: var(--surface-3, #252540);
+          border-radius: 6px;
         }
 
-        .trade-detail-arrow {
+        .price-box {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          flex: 1;
+        }
+
+        .price-label {
+          font-size: 0.7rem;
+          text-transform: uppercase;
           color: var(--text-tertiary, #666);
+          margin-bottom: 0.25rem;
+        }
+
+        .price-value {
+          font-size: 0.95rem;
+          font-weight: 600;
+          font-family: monospace;
+        }
+
+        .buy-price .price-value {
+          color: var(--warning, #f59e0b);
+        }
+
+        .sell-price .price-value {
+          color: var(--success, #22c55e);
+        }
+
+        .price-arrow {
+          color: var(--text-tertiary, #666);
+          font-size: 1rem;
         }
 
         .trade-detail-profit {

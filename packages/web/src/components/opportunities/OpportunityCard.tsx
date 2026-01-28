@@ -22,6 +22,11 @@ export function OpportunityCard(props: OpportunityCardProps) {
     return amount.toLocaleString();
   };
 
+  // Exact GP price for GE offers - no abbreviation
+  const formatExactGold = (amount: number) => {
+    return amount.toLocaleString() + ' gp';
+  };
+
   const formatHours = (hours: number) => {
     if (hours < 1) return `~${Math.round(hours * 60)}min`;
     return `~${hours.toFixed(1)}h`;
@@ -47,6 +52,17 @@ export function OpportunityCard(props: OpportunityCardProps) {
 
       <Show when={props.expanded}>
         <div class="opportunity-card-details">
+          <div class="opportunity-card-prices">
+            <div class="price-box buy-price">
+              <span class="price-label">Buy at</span>
+              <span class="price-value">{formatExactGold(opp().buyPrice)}</span>
+            </div>
+            <div class="price-arrow">→</div>
+            <div class="price-box sell-price">
+              <span class="price-label">Sell at</span>
+              <span class="price-value">{formatExactGold(opp().sellPrice)}</span>
+            </div>
+          </div>
           <div class="opportunity-card-row">
             <span>Quantity:</span>
             <span>{opp().quantity.toLocaleString()}</span>
@@ -146,6 +162,50 @@ export function OpportunityCard(props: OpportunityCardProps) {
           margin-top: 1rem;
           padding-top: 1rem;
           border-top: 1px solid var(--border, #333);
+        }
+
+        .opportunity-card-prices {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 0.5rem;
+          margin-bottom: 1rem;
+          padding: 0.75rem;
+          background: var(--surface-3, #252540);
+          border-radius: 6px;
+        }
+
+        .price-box {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          flex: 1;
+        }
+
+        .price-label {
+          font-size: 0.7rem;
+          text-transform: uppercase;
+          color: var(--text-tertiary, #666);
+          margin-bottom: 0.25rem;
+        }
+
+        .price-value {
+          font-size: 0.95rem;
+          font-weight: 600;
+          font-family: monospace;
+        }
+
+        .buy-price .price-value {
+          color: var(--warning, #f59e0b);
+        }
+
+        .sell-price .price-value {
+          color: var(--success, #22c55e);
+        }
+
+        .price-arrow {
+          color: var(--text-tertiary, #666);
+          font-size: 1rem;
         }
 
         .opportunity-card-row {
