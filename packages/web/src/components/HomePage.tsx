@@ -85,7 +85,7 @@ export function HomePage(props: HomePageProps) {
       <style>{`
         .home-page {
           min-height: 100vh;
-          background: var(--surface-1, #0f0f1a);
+          background: var(--bg-primary);
         }
 
         .home-nav {
@@ -93,41 +93,42 @@ export function HomePage(props: HomePageProps) {
           justify-content: center;
           gap: 0.5rem;
           padding: 1rem;
-          background: var(--surface-2, #1a1a2e);
-          border-bottom: 1px solid var(--border, #333);
+          background: var(--bg-secondary);
+          border-bottom: 1px solid var(--border);
           position: sticky;
-          top: 0;
+          top: 56px;
           z-index: 10;
         }
 
         .nav-tab {
           padding: 0.625rem 1.25rem;
           background: transparent;
-          color: var(--text-secondary, #aaa);
+          color: var(--text-secondary);
           border: none;
-          border-radius: 6px;
+          border-radius: var(--radius-md);
           font-weight: 600;
           cursor: pointer;
           display: flex;
           align-items: center;
           gap: 0.5rem;
-          transition: background 0.15s, color 0.15s;
+          transition: background var(--transition-fast), color var(--transition-fast);
         }
 
         .nav-tab:hover {
-          color: var(--text-primary, #fff);
+          color: var(--text-primary);
+          background: var(--bg-hover);
         }
 
         .nav-tab-active {
-          background: var(--accent, #4f46e5);
-          color: white;
+          background: var(--accent);
+          color: var(--btn-text-dark);
         }
 
         .nav-tab-badge {
-          background: rgba(255,255,255,0.2);
+          background: rgba(0,0,0,0.2);
           padding: 0.125rem 0.5rem;
-          border-radius: 10px;
-          font-size: 0.75rem;
+          border-radius: var(--radius-full);
+          font-size: var(--font-size-xs);
         }
 
         .home-content {
