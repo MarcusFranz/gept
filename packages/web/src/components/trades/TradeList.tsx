@@ -184,33 +184,33 @@ export function TradeList(props: TradeListProps) {
 
         .trade-list-header h1 {
           margin: 0;
-          font-size: 1.5rem;
+          font-size: var(--font-size-2xl);
         }
 
         .trade-list-capital {
-          color: var(--text-secondary, #aaa);
-          font-size: 0.875rem;
+          color: var(--text-secondary);
+          font-size: var(--font-size-sm);
         }
 
         .trade-list-empty {
           text-align: center;
           padding: 3rem 1rem;
-          color: var(--text-secondary, #aaa);
+          color: var(--text-secondary);
         }
 
         .trade-list-cta {
           margin-top: 1rem;
           padding: 0.75rem 1.5rem;
-          background: var(--accent, #4f46e5);
-          color: white;
+          background: var(--accent);
+          color: var(--btn-text-dark);
           border: none;
-          border-radius: 8px;
+          border-radius: var(--radius-lg);
           font-weight: 600;
           cursor: pointer;
         }
 
         .trade-list-cta:hover {
-          background: var(--accent-hover, #4338ca);
+          background: var(--accent-hover);
         }
 
         .trade-list-items {
@@ -224,11 +224,11 @@ export function TradeList(props: TradeListProps) {
           justify-content: space-between;
           align-items: center;
           padding: 0.75rem 1rem;
-          background: var(--error-bg, #3d2020);
-          color: var(--error, #ef4444);
-          border-radius: 6px;
+          background: var(--danger-light);
+          color: var(--danger);
+          border-radius: var(--radius-md);
           margin-bottom: 1rem;
-          font-size: 0.875rem;
+          font-size: var(--font-size-sm);
         }
 
         .trade-list-error button {

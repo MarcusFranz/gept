@@ -72,14 +72,14 @@ export function CheckInBar(props: CheckInBarProps) {
       <style>{`
         .check-in-bar-container {
           padding: 1rem;
-          background: var(--surface-2, #1a1a2e);
-          border-radius: 8px;
+          background: var(--bg-secondary);
+          border-radius: var(--radius-lg);
         }
 
         .check-in-prompt {
           margin: 0 0 0.75rem 0;
-          color: var(--text-secondary, #a0a0a0);
-          font-size: 0.875rem;
+          color: var(--text-secondary);
+          font-size: var(--font-size-sm);
         }
 
         .check-in-bar-wrapper {
@@ -91,7 +91,7 @@ export function CheckInBar(props: CheckInBarProps) {
         .check-in-bar {
           flex: 1;
           height: 24px;
-          background: var(--surface-3, #252540);
+          background: var(--bg-tertiary);
           border-radius: 12px;
           cursor: pointer;
           position: relative;
@@ -100,7 +100,7 @@ export function CheckInBar(props: CheckInBarProps) {
 
         .check-in-bar-fill {
           height: 100%;
-          background: linear-gradient(90deg, var(--accent, #4f46e5), var(--accent-light, #818cf8));
+          background: linear-gradient(90deg, var(--accent), var(--accent-hover));
           border-radius: 12px;
           transition: width 0.15s ease-out;
         }
@@ -119,17 +119,17 @@ export function CheckInBar(props: CheckInBarProps) {
 
         .check-in-done-btn {
           padding: 0.5rem 1rem;
-          background: var(--success, #22c55e);
-          color: white;
+          background: var(--success);
+          color: var(--btn-text-dark);
           border: none;
-          border-radius: 6px;
+          border-radius: var(--radius-md);
           font-weight: 600;
           cursor: pointer;
           white-space: nowrap;
         }
 
         .check-in-done-btn:hover:not(:disabled) {
-          background: var(--success-hover, #16a34a);
+          filter: brightness(1.1);
         }
 
         .check-in-done-btn:disabled {
@@ -141,12 +141,12 @@ export function CheckInBar(props: CheckInBarProps) {
           display: flex;
           justify-content: space-between;
           margin-top: 0.5rem;
-          font-size: 0.75rem;
-          color: var(--text-tertiary, #666);
+          font-size: var(--font-size-xs);
+          color: var(--text-muted);
         }
 
         .check-in-hint {
-          color: var(--text-secondary, #888);
+          color: var(--text-secondary);
         }
       `}</style>
     </div>

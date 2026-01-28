@@ -112,23 +112,22 @@ export function FilterBar(props: FilterBarProps) {
           </div>
 
           <div class="filter-group">
-            <label>
-              <input
-                type="checkbox"
-                checked={props.filters.capitalMax === props.availableCapital}
-                onChange={(e) => updateFilter('capitalMax', e.currentTarget.checked ? props.availableCapital : undefined)}
-              />
-              Only show what I can afford
-            </label>
+            <label>Max Capital (gp)</label>
+            <input
+              type="number"
+              placeholder="e.g. 10000000"
+              value={props.filters.capitalMax || ''}
+              onInput={(e) => updateFilter('capitalMax', e.currentTarget.value ? Number(e.currentTarget.value) : undefined)}
+            />
           </div>
         </div>
       )}
 
       <style>{`
         .filter-bar {
-          background: var(--surface-2, #1a1a2e);
-          border: 1px solid var(--border, #333);
-          border-radius: 8px;
+          background: var(--bg-secondary);
+          border: 1px solid var(--border);
+          border-radius: var(--radius-lg);
           margin-bottom: 1rem;
         }
 
@@ -142,7 +141,7 @@ export function FilterBar(props: FilterBarProps) {
         .filter-toggle {
           background: none;
           border: none;
-          color: var(--text-primary, #fff);
+          color: var(--text-primary);
           font-weight: 600;
           cursor: pointer;
           display: flex;
@@ -151,16 +150,16 @@ export function FilterBar(props: FilterBarProps) {
         }
 
         .filter-toggle-icon {
-          font-size: 0.75rem;
-          color: var(--text-tertiary, #666);
+          font-size: var(--font-size-xs);
+          color: var(--text-muted);
         }
 
         .filter-clear {
           background: none;
           border: none;
-          color: var(--accent, #4f46e5);
+          color: var(--accent);
           cursor: pointer;
-          font-size: 0.875rem;
+          font-size: var(--font-size-sm);
         }
 
         .filter-bar-content {
@@ -177,21 +176,23 @@ export function FilterBar(props: FilterBarProps) {
         }
 
         .filter-group label {
-          font-size: 0.75rem;
-          color: var(--text-secondary, #aaa);
+          font-size: var(--font-size-xs);
+          color: var(--text-secondary);
         }
 
         .filter-group input[type="number"],
         .filter-group select {
           padding: 0.5rem;
-          background: var(--surface-3, #252540);
-          border: 1px solid var(--border, #444);
-          border-radius: 4px;
-          color: var(--text-primary, #fff);
+          background: var(--bg-tertiary);
+          border: 1px solid var(--border);
+          border-radius: var(--radius-md);
+          color: var(--text-primary);
         }
 
-        .filter-group input[type="checkbox"] {
-          margin-right: 0.5rem;
+        .filter-group input[type="number"]:focus,
+        .filter-group select:focus {
+          outline: none;
+          border-color: var(--accent);
         }
       `}</style>
     </div>

@@ -117,20 +117,20 @@ export function OpportunityCard(props: OpportunityCardProps) {
 
       <style>{`
         .opportunity-card {
-          background: var(--surface-2, #1a1a2e);
-          border: 1px solid var(--border, #333);
-          border-radius: 8px;
+          background: var(--bg-secondary);
+          border: 1px solid var(--border);
+          border-radius: var(--radius-lg);
           padding: 0.875rem;
           cursor: pointer;
-          transition: border-color 0.15s;
+          transition: border-color var(--transition-fast);
         }
 
         .opportunity-card:hover {
-          border-color: var(--accent, #4f46e5);
+          border-color: var(--accent);
         }
 
         .opportunity-card-expanded {
-          border-color: var(--accent, #4f46e5);
+          border-color: var(--accent);
           cursor: default;
         }
 
@@ -142,26 +142,26 @@ export function OpportunityCard(props: OpportunityCardProps) {
 
         .opportunity-card-name {
           font-weight: 600;
-          color: var(--text-primary, #fff);
+          color: var(--text-primary);
         }
 
         .opportunity-card-profit {
           font-weight: 700;
-          color: var(--success, #22c55e);
+          color: var(--success);
         }
 
         .opportunity-card-meta {
           display: flex;
           gap: 0.5rem;
           margin-top: 0.25rem;
-          font-size: 0.875rem;
-          color: var(--text-secondary, #aaa);
+          font-size: var(--font-size-sm);
+          color: var(--text-secondary);
         }
 
         .opportunity-card-details {
           margin-top: 1rem;
           padding-top: 1rem;
-          border-top: 1px solid var(--border, #333);
+          border-top: 1px solid var(--border);
         }
 
         .opportunity-card-prices {
@@ -171,8 +171,8 @@ export function OpportunityCard(props: OpportunityCardProps) {
           gap: 0.5rem;
           margin-bottom: 1rem;
           padding: 0.75rem;
-          background: var(--surface-3, #252540);
-          border-radius: 6px;
+          background: var(--bg-tertiary);
+          border-radius: var(--radius-md);
         }
 
         .price-box {
@@ -183,40 +183,40 @@ export function OpportunityCard(props: OpportunityCardProps) {
         }
 
         .price-label {
-          font-size: 0.7rem;
+          font-size: var(--font-size-xs);
           text-transform: uppercase;
-          color: var(--text-tertiary, #666);
+          color: var(--text-muted);
           margin-bottom: 0.25rem;
         }
 
         .price-value {
-          font-size: 0.95rem;
+          font-size: var(--font-size-sm);
           font-weight: 600;
-          font-family: monospace;
+          font-family: var(--font-mono);
         }
 
         .buy-price .price-value {
-          color: var(--warning, #f59e0b);
+          color: var(--gold);
         }
 
         .sell-price .price-value {
-          color: var(--success, #22c55e);
+          color: var(--success);
         }
 
         .price-arrow {
-          color: var(--text-tertiary, #666);
+          color: var(--text-muted);
           font-size: 1rem;
         }
 
         .opportunity-card-row {
           display: flex;
           justify-content: space-between;
-          font-size: 0.875rem;
+          font-size: var(--font-size-sm);
           margin-bottom: 0.25rem;
         }
 
         .profit-value {
-          color: var(--success, #22c55e);
+          color: var(--success);
           font-weight: 600;
         }
 
@@ -228,47 +228,47 @@ export function OpportunityCard(props: OpportunityCardProps) {
         }
 
         .chip {
-          font-size: 0.75rem;
+          font-size: var(--font-size-xs);
           padding: 0.25rem 0.5rem;
-          border-radius: 4px;
+          border-radius: var(--radius-sm);
           white-space: nowrap;
         }
 
         .chip-positive {
-          background: var(--success-bg, #1a3d2e);
-          color: var(--success, #22c55e);
+          background: var(--success-light);
+          color: var(--success);
         }
 
         .chip-neutral {
-          background: var(--surface-3, #252540);
-          color: var(--text-secondary, #aaa);
+          background: var(--bg-tertiary);
+          color: var(--text-secondary);
         }
 
         .chip-negative {
-          background: var(--error-bg, #3d2020);
-          color: var(--error, #ef4444);
+          background: var(--danger-light);
+          color: var(--danger);
         }
 
         .opportunity-card-volume {
-          font-size: 0.75rem;
-          color: var(--text-tertiary, #666);
+          font-size: var(--font-size-xs);
+          color: var(--text-muted);
           margin-bottom: 1rem;
         }
 
         .opportunity-card-cta {
           width: 100%;
           padding: 0.75rem;
-          background: var(--accent, #4f46e5);
-          color: white;
+          background: var(--accent);
+          color: var(--btn-text-dark);
           border: none;
-          border-radius: 6px;
+          border-radius: var(--radius-md);
           font-weight: 600;
           cursor: pointer;
           margin-top: 1rem;
         }
 
         .opportunity-card-cta:hover:not(:disabled) {
-          background: var(--accent-hover, #4338ca);
+          background: var(--accent-hover);
         }
 
         .opportunity-card-cta:disabled {
@@ -280,14 +280,14 @@ export function OpportunityCard(props: OpportunityCardProps) {
           width: 100%;
           padding: 0.5rem;
           background: transparent;
-          color: var(--text-secondary, #aaa);
+          color: var(--text-secondary);
           border: none;
           cursor: pointer;
           margin-top: 0.5rem;
         }
 
         .opportunity-card-close:hover {
-          color: var(--text-primary, #fff);
+          color: var(--text-primary);
         }
       `}</style>
     </div>
