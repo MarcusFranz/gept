@@ -1,5 +1,5 @@
 name: top100_30d
-description: 'Top 100 items by volume, last 30 days, 5-minute granularity'
+description: 'High-volume items (top ~100), last 30 days, 5-minute granularity'
 version: '1.0'
 granularity: 5min
 source_table: null
@@ -7,14 +7,13 @@ item_filter:
   min_tier: 1
   max_tier: 3
   min_completeness: 0.85
-  min_avg_volume: 1000
+  min_avg_volume: 5000
   max_avg_volume: null
   categories: null
   include_item_ids: null
   exclude_item_ids: null
   min_rows: 5000
   min_history_days: null
-  limit_items: 100  # Take top 100 by volume
 time_filter:
   date_start: null
   date_end: null
