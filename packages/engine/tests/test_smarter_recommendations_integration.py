@@ -83,6 +83,12 @@ class TestSmarterRecommendationsIntegration:
         engine.crowding_tracker = MagicMock()
         engine.crowding_tracker.filter_crowded_items.side_effect = lambda x: x
 
+        # ML ranker shadow mode attributes (disabled for tests)
+        engine.enable_ml_shadow = False
+        engine.ml_ranker = None
+        engine.ml_feature_builder = None
+        engine.shadow_logger = None
+
         return engine
 
     def test_manipulated_item_rejected(self, engine):
