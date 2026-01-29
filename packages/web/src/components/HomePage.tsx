@@ -20,6 +20,9 @@ export function HomePage(props: HomePageProps) {
 
   const availableCapital = () => Math.max(0, props.userCapital - tiedCapital());
 
+  // Active trade item IDs (for filtering opportunities)
+  const activeTradeItemIds = () => trades().map(t => t.item_id);
+
   // Refresh trades and capital after adding a trade
   const handleTradeAdded = async () => {
     try {
@@ -38,9 +41,6 @@ export function HomePage(props: HomePageProps) {
     } catch (err) {
       console.error('Failed to refresh trades:', err);
     }
-
-    // Switch to trades tab
-    setActiveTab('trades');
   };
 
   return (
@@ -77,7 +77,9 @@ export function HomePage(props: HomePageProps) {
           <OpportunityBrowser
             availableCapital={availableCapital()}
             totalCapital={props.userCapital}
+            activeTradeItemIds={activeTradeItemIds()}
             onTradeAdded={handleTradeAdded}
+            onNavigateToTrades={() => setActiveTab('trades')}
           />
         </Show>
       </main>

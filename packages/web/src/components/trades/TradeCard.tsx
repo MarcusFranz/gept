@@ -173,27 +173,23 @@ export function TradeCard(props: TradeCardProps) {
           display: flex;
           align-items: center;
           justify-content: center;
-          width: 22px;
-          height: 22px;
+          width: 24px;
+          height: 24px;
           padding: 0;
           background: none;
-          border: 1px solid transparent;
+          border: 1px solid var(--border);
           border-radius: var(--radius-sm);
           color: var(--text-muted);
           font-size: 1rem;
           line-height: 1;
           cursor: pointer;
-          opacity: 0;
-          transition: opacity var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
-        }
-
-        .trade-card:hover .trade-card-cancel {
-          opacity: 1;
+          transition: color var(--transition-fast), border-color var(--transition-fast), background var(--transition-fast);
         }
 
         .trade-card-cancel:hover {
           color: var(--danger);
           border-color: var(--danger);
+          background: var(--danger-light);
         }
 
         .status-badge {
