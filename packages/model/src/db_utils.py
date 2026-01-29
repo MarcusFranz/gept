@@ -44,23 +44,20 @@ def _get_required_env(key: str, default: Optional[str] = None) -> str:
 
 
 # Database configuration from environment variables
-# DB_PASS is required - no default for security
-DEFAULT_DB_CONFIG: Dict[str, Any] = {
-    'host': os.getenv('DB_HOST', 'localhost'),
-    'port': int(os.getenv('DB_PORT', '5432')),
-    'dbname': os.getenv('DB_NAME', 'osrs_data'),
-    'user': os.getenv('DB_USER', 'osrs_user'),
-    'password': _get_required_env('DB_PASS')
-}
+# Lazy loading - only validates when get_db_config() is called
+def get_db_config() -> Dict[str, Any]:
+    """Get database configuration from environment variables."""
+    return {
+        'host': os.getenv('DB_HOST', 'localhost'),
+        'port': int(os.getenv('DB_PORT', '5432')),
+        'dbname': os.getenv('DB_NAME', 'osrs_data'),
+        'user': os.getenv('DB_USER', 'osrs_user'),
+        'password': _get_required_env('DB_PASS')
+    }
 
 
 # Connection pool singleton
 _connection_pool: Optional[pool.ThreadedConnectionPool] = None
-
-
-def get_db_config() -> Dict[str, Any]:
-    """Get the current database configuration."""
-    return DEFAULT_DB_CONFIG.copy()
 
 
 def get_connection_pool(minconn: int = 2, maxconn: int = 10) -> pool.ThreadedConnectionPool:
@@ -70,7 +67,7 @@ def get_connection_pool(minconn: int = 2, maxconn: int = 10) -> pool.ThreadedCon
         _connection_pool = pool.ThreadedConnectionPool(
             minconn,
             maxconn,
-            **DEFAULT_DB_CONFIG
+            **get_db_config()
         )
     return _connection_pool
 
@@ -111,7 +108,7 @@ def get_simple_connection():
     Note:
         The caller is responsible for closing this connection.
     """
-    return psycopg2.connect(**DEFAULT_DB_CONFIG)
+    return psycopg2.connect(**get_db_config())
 
 
 @contextmanager
@@ -195,7 +192,9 @@ class ConnectionPool:
         cls.get_pool().putconn(conn)
 
 
-# Convenience exports for backwards compatibility
-CONN_PARAMS = DEFAULT_DB_CONFIG.copy()
-# Legacy alias - use 'dbname' consistently but support 'database' for old code
-CONN_PARAMS['database'] = CONN_PARAMS['dbname']
+# Convenience function for backwards compatibility
+def get_conn_params() -> Dict[str, Any]:
+    """Get connection parameters with legacy 'database' alias."""
+    params = get_db_config().copy()
+    params['database'] = params.pop('dbname')  # Replace dbname with database
+    return params
