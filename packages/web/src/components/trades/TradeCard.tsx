@@ -4,6 +4,7 @@ import type { TradeViewModel } from '../../lib/trade-types';
 interface TradeCardProps {
   trade: TradeViewModel;
   onClick: () => void;
+  onCancel: () => void;
   expanded?: boolean;
 }
 
@@ -60,7 +61,19 @@ export function TradeCard(props: TradeCardProps) {
         <span class="trade-card-time">
           {Math.round((Date.now() - props.trade.createdAt.getTime()) / (1000 * 60 * 60))}h in trade
         </span>
-        {getStatusBadge()}
+        <div class="trade-card-footer-right">
+          {getStatusBadge()}
+          <button
+            class="trade-card-cancel"
+            onClick={(e) => {
+              e.stopPropagation();
+              props.onCancel();
+            }}
+            aria-label={`Cancel trade for ${props.trade.itemName}`}
+          >
+            ×
+          </button>
+        </div>
       </div>
 
       <style>{`
@@ -145,9 +158,42 @@ export function TradeCard(props: TradeCardProps) {
           align-items: center;
         }
 
+        .trade-card-footer-right {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+        }
+
         .trade-card-time {
           font-size: var(--font-size-xs);
           color: var(--text-muted);
+        }
+
+        .trade-card-cancel {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 22px;
+          height: 22px;
+          padding: 0;
+          background: none;
+          border: 1px solid transparent;
+          border-radius: var(--radius-sm);
+          color: var(--text-muted);
+          font-size: 1rem;
+          line-height: 1;
+          cursor: pointer;
+          opacity: 0;
+          transition: opacity var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
+        }
+
+        .trade-card:hover .trade-card-cancel {
+          opacity: 1;
+        }
+
+        .trade-card-cancel:hover {
+          color: var(--danger);
+          border-color: var(--danger);
         }
 
         .status-badge {

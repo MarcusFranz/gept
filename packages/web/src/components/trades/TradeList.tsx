@@ -1,9 +1,10 @@
 // packages/web/src/components/trades/TradeList.tsx
-import { createSignal, For, Show } from 'solid-js';
+import { createSignal, For, Show, onCleanup } from 'solid-js';
 import type { ActiveTrade } from '../../lib/db';
 import { toTradeViewModel, type TradeViewModel, type Guidance } from '../../lib/trade-types';
 import { TradeCard } from './TradeCard';
 import { TradeDetail } from './TradeDetail';
+import { addToast, removeToast } from '../ToastContainer';
 
 interface TradeListProps {
   initialTrades: ActiveTrade[];
@@ -87,24 +88,77 @@ export function TradeList(props: TradeListProps) {
     }
   };
 
-  // Handle cancel
-  const handleCancel = async (tradeId: string) => {
-    if (!confirm('Are you sure you want to cancel this trade?')) return;
+  // Track pending cancellations: tradeId → { timer, toastId, trade }
+  const pendingCancels = new Map<string, { timer: ReturnType<typeof setTimeout>; toastId: string; trade: TradeViewModel }>();
 
+  const UNDO_WINDOW_MS = 6000;
+
+  // Commit a pending cancel to the backend
+  const commitCancel = async (tradeId: string) => {
+    pendingCancels.delete(tradeId);
     try {
       const res = await fetch(`/api/trades/active/${tradeId}`, {
         method: 'DELETE'
       });
       if (!res.ok) throw new Error('Failed to cancel trade');
-
-      setTrades(prev => prev.filter(t => t.id !== tradeId));
-      setExpandedId(null);
       setError(null);
     } catch (err) {
       console.error('Cancel failed:', err);
+      // Restore the trade since backend failed
+      await refreshTrades();
       setError('Failed to cancel trade. Please try again.');
     }
   };
+
+  // Handle cancel — optimistic removal + undo toast
+  const handleCancel = (tradeId: string) => {
+    const trade = trades().find(t => t.id === tradeId);
+    if (!trade) return;
+
+    // Optimistically remove from UI
+    setTrades(prev => prev.filter(t => t.id !== tradeId));
+    setExpandedId(null);
+
+    // Schedule the actual DELETE
+    const timer = setTimeout(() => {
+      const pending = pendingCancels.get(tradeId);
+      if (pending) {
+        removeToast(pending.toastId);
+        commitCancel(tradeId);
+      }
+    }, UNDO_WINDOW_MS);
+
+    // Show undo toast
+    const toastId = addToast({
+      type: 'info',
+      title: 'Trade cancelled',
+      message: trade.itemName,
+      duration: UNDO_WINDOW_MS,
+      action: {
+        label: 'Undo',
+        onClick: () => {
+          // Restore the trade
+          const pending = pendingCancels.get(tradeId);
+          if (pending) {
+            clearTimeout(pending.timer);
+            removeToast(pending.toastId);
+            pendingCancels.delete(tradeId);
+            setTrades(prev => [...prev, trade]);
+          }
+        }
+      }
+    });
+
+    pendingCancels.set(tradeId, { timer, toastId, trade });
+  };
+
+  // Cleanup pending timers on unmount
+  onCleanup(() => {
+    for (const [tradeId, { timer }] of pendingCancels) {
+      clearTimeout(timer);
+      commitCancel(tradeId);
+    }
+  });
 
   const formatGold = (amount: number) => {
     if (amount >= 1_000_000) {
@@ -152,6 +206,7 @@ export function TradeList(props: TradeListProps) {
                   <TradeCard
                     trade={trade}
                     onClick={() => setExpandedId(trade.id)}
+                    onCancel={() => handleCancel(trade.id)}
                   />
                 }
               >
