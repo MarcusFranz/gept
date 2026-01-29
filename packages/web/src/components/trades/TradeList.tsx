@@ -88,8 +88,8 @@ export function TradeList(props: TradeListProps) {
     }
   };
 
-  // Track pending cancellations: tradeId → { timer, toastId, trade }
-  const pendingCancels = new Map<string, { timer: ReturnType<typeof setTimeout>; toastId: string; trade: TradeViewModel }>();
+  // Track pending cancellations: tradeId → { timer, toastId, trade, index }
+  const pendingCancels = new Map<string, { timer: ReturnType<typeof setTimeout>; toastId: string; trade: TradeViewModel; index: number }>();
 
   const UNDO_WINDOW_MS = 6000;
 
@@ -112,8 +112,10 @@ export function TradeList(props: TradeListProps) {
 
   // Handle cancel — optimistic removal + undo toast
   const handleCancel = (tradeId: string) => {
-    const trade = trades().find(t => t.id === tradeId);
-    if (!trade) return;
+    const currentTrades = trades();
+    const index = currentTrades.findIndex(t => t.id === tradeId);
+    if (index === -1) return;
+    const trade = currentTrades[index];
 
     // Optimistically remove from UI
     setTrades(prev => prev.filter(t => t.id !== tradeId));
@@ -137,19 +139,24 @@ export function TradeList(props: TradeListProps) {
       action: {
         label: 'Undo',
         onClick: () => {
-          // Restore the trade
           const pending = pendingCancels.get(tradeId);
           if (pending) {
             clearTimeout(pending.timer);
             removeToast(pending.toastId);
             pendingCancels.delete(tradeId);
-            setTrades(prev => [...prev, trade]);
+            // Restore to original position
+            setTrades(prev => {
+              const restored = [...prev];
+              const insertAt = Math.min(pending.index, restored.length);
+              restored.splice(insertAt, 0, trade);
+              return restored;
+            });
           }
         }
       }
     });
 
-    pendingCancels.set(tradeId, { timer, toastId, trade });
+    pendingCancels.set(tradeId, { timer, toastId, trade, index });
   };
 
   // Cleanup pending timers on unmount
