@@ -1,14 +1,17 @@
 // packages/web/src/components/opportunities/OpportunityBrowser.tsx
-import { createSignal, createEffect, For, Show, on } from 'solid-js';
+import { createSignal, createEffect, createMemo, For, Show, on } from 'solid-js';
 import type { Opportunity, OpportunityFilters } from '../../lib/trade-types';
 import { FILTER_STORAGE_KEY } from '../../lib/trade-types';
 import { FilterBar } from './FilterBar';
 import { OpportunityCard } from './OpportunityCard';
+import { addToast } from '../ToastContainer';
 
 interface OpportunityBrowserProps {
   availableCapital: number;
   totalCapital: number;
+  activeTradeItemIds: number[];
   onTradeAdded: () => void;
+  onNavigateToTrades: () => void;
 }
 
 export function OpportunityBrowser(props: OpportunityBrowserProps) {
@@ -87,6 +90,11 @@ export function OpportunityBrowser(props: OpportunityBrowserProps) {
     fetchOpportunities();
   }));
 
+  // Filter out opportunities for items the user already has as active trades
+  const visibleOpportunities = createMemo(() =>
+    opportunities().filter(o => !props.activeTradeItemIds.includes(o.itemId))
+  );
+
   // Add to trades
   const handleAddToTrades = async (opp: Opportunity) => {
     setAddingId(opp.id);
@@ -113,6 +121,17 @@ export function OpportunityBrowser(props: OpportunityBrowserProps) {
         setOpportunities(prev => prev.filter(o => o.id !== opp.id));
         setExpandedId(null);
         props.onTradeAdded();
+
+        addToast({
+          type: 'success',
+          title: 'Trade added',
+          message: `${opp.item} added to your trades`,
+          duration: 5000,
+          action: {
+            label: 'View Trades',
+            onClick: () => props.onNavigateToTrades()
+          }
+        });
       } else {
         setError(data.error || 'Failed to add trade');
       }
@@ -154,7 +173,7 @@ export function OpportunityBrowser(props: OpportunityBrowserProps) {
         fallback={<div class="opportunity-browser-loading">Loading opportunities...</div>}
       >
         <Show
-          when={opportunities().length > 0}
+          when={visibleOpportunities().length > 0}
           fallback={
             <div class="opportunity-browser-empty">
               <p>No opportunities match your filters.</p>
@@ -163,11 +182,11 @@ export function OpportunityBrowser(props: OpportunityBrowserProps) {
           }
         >
           <div class="opportunity-browser-count">
-            Showing {opportunities().length} of {total()} opportunities
+            Showing {visibleOpportunities().length} of {total()} opportunities
           </div>
 
           <div class="opportunity-browser-list">
-            <For each={opportunities()}>
+            <For each={visibleOpportunities()}>
               {(opp) => (
                 <OpportunityCard
                   opportunity={opp}
