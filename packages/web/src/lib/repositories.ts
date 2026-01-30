@@ -196,6 +196,11 @@ export const activeTradesRepo = {
     return true;
   },
 
+  async updateSellPrice(id: string, sellPrice: number): Promise<boolean> {
+    await sql`UPDATE active_trades SET sell_price = ${sellPrice} WHERE id = ${id}`;
+    return true;
+  },
+
   async delete(id: string): Promise<boolean> {
     await sql`DELETE FROM active_trades WHERE id = ${id}`;
     return true;
