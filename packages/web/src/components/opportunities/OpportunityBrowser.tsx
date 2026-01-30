@@ -14,6 +14,8 @@ interface OpportunityBrowserProps {
   onNavigateToTrades: () => void;
 }
 
+const WIKI_WARNING_DISMISSED_KEY = 'gept:wiki-warning-dismissed';
+
 export function OpportunityBrowser(props: OpportunityBrowserProps) {
   const [opportunities, setOpportunities] = createSignal<Opportunity[]>([]);
   const [filters, setFilters] = createSignal<OpportunityFilters>({});
@@ -24,6 +26,9 @@ export function OpportunityBrowser(props: OpportunityBrowserProps) {
   const [error, setError] = createSignal<string | null>(null);
   const [hasMore, setHasMore] = createSignal(false);
   const [total, setTotal] = createSignal(0);
+  const [wikiWarningDismissed, setWikiWarningDismissed] = createSignal(
+    typeof localStorage !== 'undefined' && localStorage.getItem(WIKI_WARNING_DISMISSED_KEY) === '1'
+  );
 
   // Load saved filters on mount
   createEffect(() => {
@@ -161,6 +166,31 @@ export function OpportunityBrowser(props: OpportunityBrowserProps) {
         availableCapital={props.availableCapital}
       />
 
+      <Show when={!wikiWarningDismissed()}>
+        <div class="opportunity-browser-warning">
+          <div class="opportunity-browser-warning-content">
+            <span class="opportunity-browser-warning-icon">⚠️</span>
+            <p>
+              Always verify trades on the{' '}
+              <a href="https://prices.runescape.wiki/osrs/" target="_blank" rel="noopener noreferrer">
+                OSRS Wiki price charts
+              </a>{' '}
+              before committing GP. Predictions are estimates, not guarantees.
+            </p>
+          </div>
+          <button
+            class="opportunity-browser-warning-dismiss"
+            onClick={() => {
+              setWikiWarningDismissed(true);
+              localStorage.setItem(WIKI_WARNING_DISMISSED_KEY, '1');
+            }}
+            aria-label="Dismiss warning"
+          >
+            ✕
+          </button>
+        </div>
+      </Show>
+
       <Show when={error()}>
         <div class="opportunity-browser-error">
           {error()}
@@ -292,6 +322,58 @@ export function OpportunityBrowser(props: OpportunityBrowserProps) {
 
         .opportunity-browser-load-more:hover {
           border-color: var(--accent);
+          color: var(--text-primary);
+        }
+
+        .opportunity-browser-warning {
+          display: flex;
+          align-items: flex-start;
+          gap: 0.75rem;
+          background: var(--warning-light);
+          border: 1px solid var(--warning);
+          border-radius: var(--radius-lg);
+          padding: 0.75rem 1rem;
+          margin-bottom: 1rem;
+        }
+
+        .opportunity-browser-warning-content {
+          display: flex;
+          align-items: flex-start;
+          gap: 0.5rem;
+          flex: 1;
+          min-width: 0;
+        }
+
+        .opportunity-browser-warning-icon {
+          flex-shrink: 0;
+          font-size: var(--font-size-md);
+          line-height: 1.5;
+        }
+
+        .opportunity-browser-warning-content p {
+          margin: 0;
+          font-size: var(--font-size-sm);
+          color: var(--text-primary);
+          line-height: 1.5;
+        }
+
+        .opportunity-browser-warning-content a {
+          color: var(--accent);
+          text-decoration: underline;
+        }
+
+        .opportunity-browser-warning-dismiss {
+          flex-shrink: 0;
+          background: none;
+          border: none;
+          color: var(--text-secondary);
+          cursor: pointer;
+          padding: 0;
+          font-size: var(--font-size-sm);
+          line-height: 1.5;
+        }
+
+        .opportunity-browser-warning-dismiss:hover {
           color: var(--text-primary);
         }
       `}</style>
