@@ -1,11 +1,13 @@
 // packages/web/src/components/trades/TradeCard.tsx
 import type { TradeViewModel } from '../../lib/trade-types';
+import type { UpdateRecommendation } from '../../lib/types';
 
 interface TradeCardProps {
   trade: TradeViewModel;
   onClick: () => void;
   onCancel: () => void;
   expanded?: boolean;
+  alert?: UpdateRecommendation;
 }
 
 export function TradeCard(props: TradeCardProps) {
@@ -33,7 +35,7 @@ export function TradeCard(props: TradeCardProps) {
 
   return (
     <div
-      class={`trade-card ${props.expanded ? 'trade-card-expanded' : ''}`}
+      class={`trade-card ${props.expanded ? 'trade-card-expanded' : ''} ${props.alert ? 'trade-card-alert' : ''}`}
       onClick={() => props.onClick()}
       role="button"
       tabIndex={0}
@@ -62,6 +64,7 @@ export function TradeCard(props: TradeCardProps) {
           {Math.round((Date.now() - props.trade.createdAt.getTime()) / (1000 * 60 * 60))}h in trade
         </span>
         <div class="trade-card-footer-right">
+          {props.alert && <span class="status-badge status-alert">Price alert</span>}
           {getStatusBadge()}
           <button
             class="trade-card-cancel"
@@ -212,6 +215,19 @@ export function TradeCard(props: TradeCardProps) {
         .status-ready {
           background: var(--success-light);
           color: var(--success);
+        }
+
+        .status-alert {
+          background: var(--warning-light);
+          color: var(--warning);
+        }
+
+        .trade-card-alert {
+          border-color: var(--warning);
+        }
+
+        .trade-card-alert:hover {
+          border-color: var(--warning);
         }
       `}</style>
     </div>

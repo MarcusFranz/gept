@@ -3,6 +3,8 @@ import { createSignal, Show } from 'solid-js';
 import { TradeList } from './trades';
 import { OpportunityBrowser } from './opportunities';
 import type { ActiveTrade } from '../lib/db';
+import { useAlerts } from '../lib/useAlerts';
+import { addToast } from './ToastContainer';
 
 interface HomePageProps {
   user: { id: string; email: string };
@@ -17,6 +19,8 @@ export function HomePage(props: HomePageProps) {
   const [activeTab, setActiveTab] = createSignal<Tab>('trades');
   const [trades, setTrades] = createSignal(props.initialTrades);
   const [tiedCapital, setTiedCapital] = createSignal(props.tiedCapital);
+
+  const { alerts, dismissAlert } = useAlerts();
 
   const availableCapital = () => Math.max(0, props.userCapital - tiedCapital());
 
@@ -40,6 +44,23 @@ export function HomePage(props: HomePageProps) {
       }
     } catch (err) {
       console.error('Failed to refresh trades:', err);
+    }
+  };
+
+  const handleAcceptAlert = async (tradeId: string, newSellPrice: number) => {
+    try {
+      const res = await fetch(`/api/trades/active/${tradeId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sellPrice: newSellPrice })
+      });
+      if (!res.ok) throw new Error('Failed to update sell price');
+      dismissAlert(tradeId);
+      await handleTradeAdded();
+      addToast({ type: 'success', title: 'Sell price updated', message: `Revised to ${newSellPrice.toLocaleString()} gp` });
+    } catch (err) {
+      console.error('Failed to accept alert:', err);
+      addToast({ type: 'error', title: 'Update failed', message: 'Could not update sell price' });
     }
   };
 
@@ -70,6 +91,9 @@ export function HomePage(props: HomePageProps) {
             availableCapital={availableCapital()}
             totalCapital={props.userCapital}
             onNavigateToOpportunities={() => setActiveTab('opportunities')}
+            alerts={alerts()}
+            onAcceptAlert={handleAcceptAlert}
+            onDismissAlert={(tradeId) => dismissAlert(tradeId)}
           />
         </Show>
 

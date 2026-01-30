@@ -1,8 +1,10 @@
 // packages/web/src/components/trades/TradeDetail.tsx
-import { createSignal } from 'solid-js';
+import { createSignal, Show } from 'solid-js';
 import type { TradeViewModel, Guidance } from '../../lib/trade-types';
+import type { UpdateRecommendation } from '../../lib/types';
 import { CheckInBar } from './CheckInBar';
 import { GuidancePrompt } from './GuidancePrompt';
+import { AlertBanner } from './AlertBanner';
 
 interface TradeDetailProps {
   trade: TradeViewModel;
@@ -10,6 +12,9 @@ interface TradeDetailProps {
   onAdvance: () => Promise<void>;
   onCancel: () => void;
   onClose: () => void;
+  alert?: UpdateRecommendation;
+  onAcceptAlert?: () => void;
+  onDismissAlert?: () => void;
 }
 
 export function TradeDetail(props: TradeDetailProps) {
@@ -107,6 +112,15 @@ export function TradeDetail(props: TradeDetailProps) {
       <div class="trade-detail-profit">
         Target profit: <strong>+{formatGold(props.trade.targetProfit)}</strong>
       </div>
+
+      <Show when={props.alert}>
+        <AlertBanner
+          alert={props.alert!}
+          onAccept={() => props.onAcceptAlert?.()}
+          onDismiss={() => props.onDismissAlert?.()}
+          loading={loading()}
+        />
+      </Show>
 
       <hr class="trade-detail-divider" />
 

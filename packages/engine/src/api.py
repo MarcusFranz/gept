@@ -32,8 +32,10 @@ from .logging_config import (
     configure_logging,
     get_logger,
 )
+from .alert_dispatcher import AlertDispatcher
 from .recommendation_engine import RecommendationEngine
 from .trade_events import TradeEvent, TradeEventHandler, TradeEventType, TradePayload
+from .trade_price_monitor import TradePriceMonitor
 from .webhook import WebhookSignatureError, verify_webhook_signature
 
 # Configure structured logging before creating logger
@@ -48,6 +50,12 @@ outcome_db_engine: Optional[Engine] = None
 
 # Background cleanup task handle
 _cleanup_task: Optional[asyncio.Task] = None
+
+# Trade price monitor background task
+_monitor_task: Optional[asyncio.Task] = None
+
+# Alert dispatcher for price monitoring
+alert_dispatcher: Optional[AlertDispatcher] = None
 
 # Startup time for uptime calculation
 _startup_time: Optional[float] = None
@@ -168,6 +176,20 @@ async def lifespan(app: FastAPI):
     )
     logger.info("Trade event handler initialized")
 
+    # Initialize alert dispatcher for price monitoring
+    alert_dispatcher = AlertDispatcher()
+    logger.info("Alert dispatcher initialized")
+
+    # Start trade price monitor background task
+    trade_monitor = TradePriceMonitor(
+        trade_event_handler=trade_event_handler,
+        prediction_loader=engine.loader,
+        alert_dispatcher=alert_dispatcher,
+        config=config,
+    )
+    _monitor_task = asyncio.create_task(trade_monitor.run())
+    logger.info("Trade price monitor started")
+
     # Initialize outcome database connection (optional - for ML feedback loop)
     if config.outcome_db_connection_string:
         try:
@@ -215,6 +237,19 @@ async def lifespan(app: FastAPI):
     _is_ready = False
 
     # Shutdown
+    # Cancel the trade price monitor task
+    if _monitor_task is not None:
+        _monitor_task.cancel()
+        try:
+            await _monitor_task
+        except asyncio.CancelledError:
+            pass
+        logger.info("Trade price monitor stopped")
+
+    if alert_dispatcher is not None:
+        await alert_dispatcher.close()
+        logger.info("Alert dispatcher closed")
+
     # Cancel the cleanup task
     if _cleanup_task is not None:
         _cleanup_task.cancel()
