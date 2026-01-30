@@ -24,23 +24,6 @@ export function HomePage(props: HomePageProps) {
 
   const availableCapital = () => Math.max(0, props.userCapital - tiedCapital());
 
-  const handleAcceptAlert = async (tradeId: string, newSellPrice: number) => {
-    try {
-      const res = await fetch(`/api/trades/active/${tradeId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sellPrice: newSellPrice })
-      });
-      if (!res.ok) throw new Error('Failed to update sell price');
-      dismissAlert(tradeId);
-      await handleTradeAdded(); // refresh trades
-      addToast({ type: 'success', title: 'Sell price updated', message: `Revised to ${newSellPrice.toLocaleString()} gp` });
-    } catch (err) {
-      console.error('Failed to accept alert:', err);
-      addToast({ type: 'error', title: 'Update failed', message: 'Could not update sell price' });
-    }
-  };
-
   // Active trade item IDs (for filtering opportunities)
   const activeTradeItemIds = () => trades().map(t => t.item_id);
 
@@ -61,6 +44,23 @@ export function HomePage(props: HomePageProps) {
       }
     } catch (err) {
       console.error('Failed to refresh trades:', err);
+    }
+  };
+
+  const handleAcceptAlert = async (tradeId: string, newSellPrice: number) => {
+    try {
+      const res = await fetch(`/api/trades/active/${tradeId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sellPrice: newSellPrice })
+      });
+      if (!res.ok) throw new Error('Failed to update sell price');
+      dismissAlert(tradeId);
+      await handleTradeAdded();
+      addToast({ type: 'success', title: 'Sell price updated', message: `Revised to ${newSellPrice.toLocaleString()} gp` });
+    } catch (err) {
+      console.error('Failed to accept alert:', err);
+      addToast({ type: 'error', title: 'Update failed', message: 'Could not update sell price' });
     }
   };
 
