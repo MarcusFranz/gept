@@ -2,6 +2,7 @@
 import { createSignal, For, Show, onCleanup } from 'solid-js';
 import type { ActiveTrade } from '../../lib/db';
 import { toTradeViewModel, type TradeViewModel, type Guidance } from '../../lib/trade-types';
+import type { UpdateRecommendation } from '../../lib/types';
 import { TradeCard } from './TradeCard';
 import { TradeDetail } from './TradeDetail';
 import { addToast, removeToast } from '../ToastContainer';
@@ -11,6 +12,9 @@ interface TradeListProps {
   availableCapital: number;
   totalCapital: number;
   onNavigateToOpportunities: () => void;
+  alerts?: Map<string, UpdateRecommendation>;
+  onAcceptAlert?: (tradeId: string, newSellPrice: number) => void;
+  onDismissAlert?: (tradeId: string) => void;
 }
 
 export function TradeList(props: TradeListProps) {
@@ -214,6 +218,7 @@ export function TradeList(props: TradeListProps) {
                     trade={trade}
                     onClick={() => setExpandedId(trade.id)}
                     onCancel={() => handleCancel(trade.id)}
+                    alert={props.alerts?.get(trade.id)}
                   />
                 }
               >
@@ -223,6 +228,15 @@ export function TradeList(props: TradeListProps) {
                   onAdvance={() => handleAdvance(trade.id)}
                   onCancel={() => handleCancel(trade.id)}
                   onClose={() => setExpandedId(null)}
+                  alert={props.alerts?.get(trade.id)}
+                  onAcceptAlert={() => {
+                    const alert = props.alerts?.get(trade.id);
+                    const newPrice = alert?.newSellPrice ?? alert?.adjustedSellPrice;
+                    if (newPrice) {
+                      props.onAcceptAlert?.(trade.id, newPrice);
+                    }
+                  }}
+                  onDismissAlert={() => props.onDismissAlert?.(trade.id)}
                 />
               </Show>
             )}

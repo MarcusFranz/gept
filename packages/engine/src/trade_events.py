@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Optional
+from typing import Callable, Optional
 
 from .logging_config import get_logger
 
@@ -63,6 +63,35 @@ class TradeEventHandler:
         self.crowding_tracker = crowding_tracker
         self.recommendation_engine = recommendation_engine
         self._active_trades: dict[str, TradeEvent] = {}
+        self._on_trade_event_callbacks: list[Callable] = []
+
+    def register_callback(self, callback: Callable) -> None:
+        """Register a callback for trade lifecycle events.
+
+        Callbacks are invoked with (event_type, trade_id) after each event
+        is processed.
+
+        Args:
+            callback: Callable accepting (TradeEventType, str)
+        """
+        self._on_trade_event_callbacks.append(callback)
+
+    def _notify_callbacks(self, event_type: TradeEventType, trade_id: str) -> None:
+        """Notify all registered callbacks of a trade event.
+
+        Args:
+            event_type: Type of trade event
+            trade_id: Identifier of the affected trade
+        """
+        for callback in self._on_trade_event_callbacks:
+            try:
+                callback(event_type, trade_id)
+            except Exception:
+                logger.exception(
+                    "Error in trade event callback",
+                    event_type=event_type.value,
+                    trade_id=trade_id,
+                )
 
     async def handle_event(self, event: TradeEvent) -> None:
         """Process a trade event.
@@ -149,6 +178,8 @@ class TradeEventHandler:
             rec_id=event.payload.rec_id,
         )
 
+        self._notify_callbacks(TradeEventType.TRADE_COMPLETED, event.trade_id)
+
     async def _handle_trade_cancelled(self, event: TradeEvent) -> None:
         """Handle a trade being cancelled.
 
@@ -176,6 +207,8 @@ class TradeEventHandler:
             item_id=event.payload.item_id,
         )
 
+        self._notify_callbacks(TradeEventType.TRADE_CANCELLED, event.trade_id)
+
     async def _handle_trade_updated(self, event: TradeEvent) -> None:
         """Handle a trade being updated.
 
@@ -191,6 +224,8 @@ class TradeEventHandler:
             item_id=event.payload.item_id,
             quantity=event.payload.quantity,
         )
+
+        self._notify_callbacks(TradeEventType.TRADE_UPDATED, event.trade_id)
 
     def get_active_trades(self) -> dict[str, TradeEvent]:
         """Get all active trades being monitored."""

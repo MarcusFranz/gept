@@ -224,6 +224,29 @@ class Config:
         default_factory=lambda: float(environ.get("PRICE_BUFFER_MAX_PCT", "4.0"))
     )
 
+    # Price drop monitor thresholds
+    price_drop_monitor_interval: int = field(
+        default_factory=lambda: int(environ.get("PRICE_DROP_MONITOR_INTERVAL", "300"))
+    )
+    price_drop_min_pct: float = field(
+        default_factory=lambda: float(environ.get("PRICE_DROP_MIN_PCT", "0.02"))
+    )
+    price_drop_medium_pct: float = field(
+        default_factory=lambda: float(environ.get("PRICE_DROP_MEDIUM_PCT", "0.05"))
+    )
+    price_drop_high_pct: float = field(
+        default_factory=lambda: float(environ.get("PRICE_DROP_HIGH_PCT", "0.10"))
+    )
+    price_drop_cooldown_low: int = field(
+        default_factory=lambda: int(environ.get("PRICE_DROP_COOLDOWN_LOW", "1800"))
+    )
+    price_drop_cooldown_medium: int = field(
+        default_factory=lambda: int(environ.get("PRICE_DROP_COOLDOWN_MEDIUM", "900"))
+    )
+    price_drop_cooldown_high: int = field(
+        default_factory=lambda: int(environ.get("PRICE_DROP_COOLDOWN_HIGH", "600"))
+    )
+
     # Webhook configuration for web app integration
     # Shared secret for HMAC-SHA256 signature verification
     # Generate: python -c "import secrets; print(secrets.token_urlsafe(32))"
