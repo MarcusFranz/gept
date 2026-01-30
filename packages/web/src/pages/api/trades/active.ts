@@ -158,7 +158,9 @@ export const POST: APIRoute = async ({ request, locals }) => {
       sellPrice,
       quantity,
       recId: recId || null,
-      modelId: modelId || null
+      modelId: modelId || null,
+      expectedHours: trade.expected_hours || null,
+      createdAt: trade.created_at ? new Date(trade.created_at).toISOString() : null
     });
 
     return new Response(JSON.stringify({
