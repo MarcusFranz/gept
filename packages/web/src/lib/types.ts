@@ -218,6 +218,8 @@ export interface TradeEventPayload {
   profit?: number;
   recId?: string | null;
   modelId?: string | null;
+  expectedHours?: number | null;
+  createdAt?: string | null;
 }
 
 export interface WebhookEvent {

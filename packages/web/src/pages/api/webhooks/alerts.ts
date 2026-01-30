@@ -1,6 +1,7 @@
 import type { APIRoute } from 'astro';
 import { verifyWebhookSignature } from '../../../lib/webhook';
 import { sseManager } from '../../../lib/sse-manager';
+import { activeTradesRepo } from '../../../lib/repositories';
 import type { UpdateRecommendation } from '../../../lib/types';
 
 interface IncomingAlert {
@@ -62,6 +63,12 @@ export const POST: APIRoute = async ({ request }) => {
         status: 400,
         headers: { 'Content-Type': 'application/json' }
       });
+    }
+
+    // Persist suggested sell price to DB for durable display
+    const suggestedPrice = alert.newSellPrice ?? alert.adjustedSellPrice;
+    if (suggestedPrice && alert.tradeId) {
+      await activeTradesRepo.setSuggestedSellPrice(alert.tradeId, suggestedPrice);
     }
 
     // Route to user's SSE connections (or queue for later)
