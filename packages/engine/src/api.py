@@ -3144,6 +3144,12 @@ class TradeWebhookPayload(BaseModel):
     modelId: Optional[str] = Field(
         default=None, description="Links to model that made recommendation"
     )
+    expectedHours: Optional[int] = Field(
+        default=None, description="Expected trade duration in hours"
+    )
+    createdAt: Optional[str] = Field(
+        default=None, description="ISO 8601 timestamp of trade creation"
+    )
 
 
 class TradeWebhookRequest(BaseModel):
@@ -3227,6 +3233,12 @@ async def receive_trade_webhook(
             profit=body.payload.profit,
             rec_id=body.payload.recId,
             model_id=body.payload.modelId,
+            expected_hours=body.payload.expectedHours,
+            created_at=(
+                datetime.fromisoformat(body.payload.createdAt.replace("Z", "+00:00"))
+                if body.payload.createdAt
+                else None
+            ),
         ),
     )
 
