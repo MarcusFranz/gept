@@ -5,6 +5,7 @@ active trade sell prices and dispatching alerts when significant drops are detec
 """
 
 import asyncio
+import math
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Callable, Optional
@@ -183,20 +184,38 @@ class TradePriceMonitor:
         buy_price = trade.payload.buy_price
         quantity = trade.payload.quantity
 
-        # Filter predictions for this item with fill_probability >= 0.5
-        # and hour_offset between 1 and 12
+        # Compute remaining hours in the trade window.
+        # If the trade has expected_hours and created_at, use the remaining
+        # time to cap the prediction horizon. Otherwise fall back to 12h.
+        max_hour_offset = 12  # default
+        if trade.payload.expected_hours and trade.payload.created_at:
+            elapsed_hours = (
+                datetime.now(timezone.utc) - trade.payload.created_at
+            ).total_seconds() / 3600
+            remaining = trade.payload.expected_hours - elapsed_hours
+            # Clamp to at least 1h and at most 48h (predictions table range)
+            max_hour_offset = max(1, min(48, math.ceil(remaining)))
+
+        # Filter predictions for this item within the remaining trade window,
+        # using the lowest offset_pct (most conservative margin) per hour_offset.
+        # This gives the most realistic sell price the model expects to fill.
         item_preds = predictions_df[
             (predictions_df["item_id"] == item_id)
-            & (predictions_df["fill_probability"] >= 0.5)
             & (predictions_df["hour_offset"] >= 1)
-            & (predictions_df["hour_offset"] <= 12)
+            & (predictions_df["hour_offset"] <= max_hour_offset)
         ]
 
         if item_preds.empty:
             return
 
-        # Find the best predicted sell price (highest)
-        best_predicted_sell = item_preds["sell_price"].max()
+        # For each hour_offset, take the row with the highest offset_pct
+        # (= widest margin = most conservative/lowest-risk sell price)
+        conservative_preds = item_preds.loc[
+            item_preds.groupby("hour_offset")["offset_pct"].idxmax()
+        ]
+
+        # Best predicted sell = max across all hour offsets at conservative margin
+        best_predicted_sell = conservative_preds["sell_price"].max()
 
         if best_predicted_sell is None or best_predicted_sell <= 0:
             return
@@ -256,7 +275,7 @@ class TradePriceMonitor:
         alert_id = f"pda_{trade_id}_{int(datetime.now(timezone.utc).timestamp())}"
 
         # Get best row's fill probability for confidence
-        best_row = item_preds.loc[item_preds["sell_price"].idxmax()]
+        best_row = conservative_preds.loc[conservative_preds["sell_price"].idxmax()]
         confidence = float(best_row["fill_probability"])
 
         if is_sell_now:
