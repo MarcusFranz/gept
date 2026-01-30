@@ -159,17 +159,23 @@ export function TradeCard(props: TradeCardProps) {
           display: flex;
           justify-content: space-between;
           align-items: center;
+          gap: 0.5rem;
         }
 
         .trade-card-footer-right {
           display: flex;
           align-items: center;
           gap: 0.5rem;
+          flex-shrink: 0;
         }
 
         .trade-card-time {
           font-size: var(--font-size-xs);
           color: var(--text-muted);
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          min-width: 0;
         }
 
         .trade-card-cancel {
@@ -178,6 +184,7 @@ export function TradeCard(props: TradeCardProps) {
           justify-content: center;
           width: 24px;
           height: 24px;
+          min-width: 24px;
           padding: 0;
           background: none;
           border: 1px solid var(--border);
@@ -186,6 +193,7 @@ export function TradeCard(props: TradeCardProps) {
           font-size: 1rem;
           line-height: 1;
           cursor: pointer;
+          flex-shrink: 0;
           transition: color var(--transition-fast), border-color var(--transition-fast), background var(--transition-fast);
         }
 
@@ -200,6 +208,7 @@ export function TradeCard(props: TradeCardProps) {
           font-weight: 600;
           padding: 0.125rem 0.5rem;
           border-radius: var(--radius-sm);
+          white-space: nowrap;
         }
 
         .status-check-in {
