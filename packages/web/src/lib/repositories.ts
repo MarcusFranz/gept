@@ -197,7 +197,17 @@ export const activeTradesRepo = {
   },
 
   async updateSellPrice(id: string, sellPrice: number): Promise<boolean> {
-    await sql`UPDATE active_trades SET sell_price = ${sellPrice} WHERE id = ${id}`;
+    await sql`UPDATE active_trades SET sell_price = ${sellPrice}, suggested_sell_price = NULL WHERE id = ${id}`;
+    return true;
+  },
+
+  async setSuggestedSellPrice(id: string, price: number): Promise<boolean> {
+    await sql`UPDATE active_trades SET suggested_sell_price = ${price} WHERE id = ${id}`;
+    return true;
+  },
+
+  async clearSuggestedSellPrice(id: string): Promise<boolean> {
+    await sql`UPDATE active_trades SET suggested_sell_price = NULL WHERE id = ${id}`;
     return true;
   },
 

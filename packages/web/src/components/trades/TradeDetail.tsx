@@ -15,6 +15,7 @@ interface TradeDetailProps {
   alert?: UpdateRecommendation;
   onAcceptAlert?: () => void;
   onDismissAlert?: () => void;
+  onAcknowledgePrice?: () => void;
 }
 
 export function TradeDetail(props: TradeDetailProps) {
@@ -105,7 +106,24 @@ export function TradeDetail(props: TradeDetailProps) {
         <div class="price-arrow">→</div>
         <div class="price-box sell-price">
           <span class="price-label">Sell at</span>
-          <span class="price-value">{formatExactGold(actualSell())}</span>
+          <Show
+            when={props.trade.suggestedSellPrice}
+            fallback={<span class="price-value">{formatExactGold(actualSell())}</span>}
+          >
+            <span class="price-value price-strikethrough">{formatExactGold(actualSell())}</span>
+            <span class="price-value price-suggested">{formatExactGold(props.trade.suggestedSellPrice!)}</span>
+            <button
+              class="price-acknowledge"
+              onClick={(e) => {
+                e.stopPropagation();
+                props.onAcknowledgePrice?.();
+              }}
+              aria-label="Acknowledge price update"
+              title="I've updated my GE offer"
+            >
+              ✓
+            </button>
+          </Show>
         </div>
       </div>
 
@@ -265,6 +283,40 @@ export function TradeDetail(props: TradeDetailProps) {
 
         .sell-price .price-value {
           color: var(--success);
+        }
+
+        .price-strikethrough {
+          text-decoration: line-through;
+          opacity: 0.5;
+          color: var(--text-muted) !important;
+          font-size: var(--font-size-xs);
+        }
+
+        .price-suggested {
+          color: var(--warning) !important;
+        }
+
+        .price-acknowledge {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: 22px;
+          height: 22px;
+          padding: 0;
+          margin-left: 0.25rem;
+          background: var(--success-light);
+          color: var(--success);
+          border: 1px solid var(--success);
+          border-radius: var(--radius-sm);
+          font-size: 0.75rem;
+          font-weight: 700;
+          cursor: pointer;
+          transition: background var(--transition-fast);
+        }
+
+        .price-acknowledge:hover {
+          background: var(--success);
+          color: var(--bg-primary);
         }
 
         .price-arrow {

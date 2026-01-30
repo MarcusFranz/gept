@@ -35,7 +35,7 @@ export function TradeCard(props: TradeCardProps) {
 
   return (
     <div
-      class={`trade-card ${props.expanded ? 'trade-card-expanded' : ''} ${props.alert ? 'trade-card-alert' : ''}`}
+      class={`trade-card ${props.expanded ? 'trade-card-expanded' : ''} ${(props.alert || props.trade.suggestedSellPrice) ? 'trade-card-alert' : ''}`}
       onClick={() => props.onClick()}
       role="button"
       tabIndex={0}
@@ -64,7 +64,7 @@ export function TradeCard(props: TradeCardProps) {
           {Math.round((Date.now() - props.trade.createdAt.getTime()) / (1000 * 60 * 60))}h in trade
         </span>
         <div class="trade-card-footer-right">
-          {props.alert && <span class="status-badge status-alert">Price alert</span>}
+          {(props.alert || props.trade.suggestedSellPrice) && <span class="status-badge status-alert">Price alert</span>}
           {getStatusBadge()}
           <button
             class="trade-card-cancel"

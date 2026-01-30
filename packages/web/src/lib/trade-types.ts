@@ -25,6 +25,7 @@ export interface TradeViewModel {
   sellPrice: number;
   actualBuyPrice: number | null;
   actualSellPrice: number | null;
+  suggestedSellPrice: number | null;
 
   // Profit
   targetProfit: number;
@@ -143,6 +144,7 @@ export function toTradeViewModel(trade: ActiveTrade): TradeViewModel {
     sellPrice: trade.sell_price,
     actualBuyPrice: trade.actual_buy_price,
     actualSellPrice: trade.actual_sell_price,
+    suggestedSellPrice: trade.suggested_sell_price ?? null,
     targetProfit: (trade.sell_price - trade.buy_price) * trade.quantity,
     quantity: trade.quantity,
     createdAt,

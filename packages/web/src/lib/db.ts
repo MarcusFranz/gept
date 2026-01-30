@@ -61,6 +61,7 @@ export interface ActiveTrade {
   actual_buy_price: number | null;
   actual_sell_price: number | null;
   expected_hours: number | null;
+  suggested_sell_price: number | null;
 }
 
 export interface TradeHistory {
