@@ -120,10 +120,14 @@ export const PATCH: APIRoute = async ({ params, request, locals }) => {
     }
 
     const body = await request.json();
-    const { quantity } = body;
+    const { quantity, sellPrice } = body;
 
     if (quantity !== undefined) {
       await activeTradesRepo.updateQuantity(tradeId, quantity);
+    }
+
+    if (sellPrice !== undefined) {
+      await activeTradesRepo.updateSellPrice(tradeId, sellPrice);
     }
 
     const updated = await activeTradesRepo.findById(tradeId);
