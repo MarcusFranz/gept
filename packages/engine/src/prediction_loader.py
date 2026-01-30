@@ -928,7 +928,7 @@ class PredictionLoader:
             return {int(row[0]): int(row[1]) for row in result if row[1]}
 
         except Exception as e:
-            logger.debug(f"Could not fetch batch 24h volumes: {e}")
+            logger.warning(f"Could not fetch batch 24h volumes: {e}")
             return {}
 
     def get_batch_volumes_1h(self, item_ids: list[int]) -> dict[int, int]:
@@ -1235,7 +1235,7 @@ class PredictionLoader:
             return trends
 
         except Exception as e:
-            logger.debug(f"Could not fetch batch trends: {e}")
+            logger.warning(f"Could not fetch batch trends: {e}")
             # Return Stable for all items on error
             return {item_id: "Stable" for item_id in item_ids}
 
