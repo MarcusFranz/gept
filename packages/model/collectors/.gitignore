@@ -21,9 +21,6 @@ venv/
 env/
 ENV/
 
-# Docker
-.dockerignore
-
 # IDE
 .vscode/
 .idea/

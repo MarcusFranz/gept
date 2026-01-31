@@ -8,25 +8,25 @@ slowapi==0.1.9
 # Database
 psycopg2-binary==2.9.11
 sqlalchemy==2.0.45
-asyncpg==0.31.0
 
 # Cache (optional - for multi-instance crowding tracking)
 redis==7.1.0
 
-# ML/Data
-catboost==1.2.8
+# Data processing
 numpy==2.3.2
 pandas==2.3.1
-scikit-learn==1.8.0
-scipy==1.16.3
-joblib==1.5.3
 
-# Scheduling & Monitoring
-schedule==1.2.2
+# Optimization (used by ILP portfolio optimizer)
+scipy==1.16.3
+
+# HTTP client
 requests==2.32.4
 
 # Logging
 structlog==25.4.0
+
+# Utilities
+python-dotenv==1.2.1
 
 # Testing
 pytest==9.0.2
@@ -34,10 +34,6 @@ pytest-asyncio==1.3.0
 pytest-cov==7.0.0
 httpx==0.28.1
 fakeredis==2.33.0
-
-# Utilities
-python-dotenv==1.2.1
-rapidfuzz==3.14.3
 
 # Code Quality (development only)
 flake8==7.1.2

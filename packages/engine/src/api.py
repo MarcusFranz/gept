@@ -1,7 +1,6 @@
 """FastAPI server for the recommendation engine."""
 
 import asyncio
-import os
 import hashlib
 import time
 from contextlib import asynccontextmanager
@@ -156,8 +155,6 @@ async def lifespan(app: FastAPI):
     engine = RecommendationEngine(
         db_connection_string=config.db_connection_string,
         config=config,
-        enable_ml_shadow=os.getenv("ENABLE_ML_SHADOW", "false").lower() == "true",
-        ml_model_path=os.getenv("ML_RANKER_MODEL_PATH"),
     )
 
     # Test connection
