@@ -19,8 +19,8 @@ class TestOrderAdvisor:
             "timestamp": "2024-01-01T00:00:00Z",
             "high": 1_000_000,  # Instant sell price
             "low": 980_000,  # Instant buy price
-            "high_volume": 100,
-            "low_volume": 100,
+            "high_time": "2024-01-01T00:00:00Z",
+            "low_time": "2024-01-01T00:00:00Z",
         }
         # Default predictions DataFrame
         loader.get_predictions_for_item.return_value = pd.DataFrame(
@@ -74,8 +74,8 @@ class TestOrderAdvisor:
             "timestamp": "2024-01-01T00:00:00Z",
             "high": 1_000_000,
             "low": 985_000,  # User's price is close to market
-            "high_volume": 100,
-            "low_volume": 100,
+            "high_time": "2024-01-01T00:00:00Z",
+            "low_time": "2024-01-01T00:00:00Z",
         }
 
         result = advisor.evaluate_order(
@@ -98,8 +98,8 @@ class TestOrderAdvisor:
             "timestamp": "2024-01-01T00:00:00Z",
             "high": 1_000_000,
             "low": 950_000,  # Market dropped, user's buy is too high
-            "high_volume": 100,
-            "low_volume": 100,
+            "high_time": "2024-01-01T00:00:00Z",
+            "low_time": "2024-01-01T00:00:00Z",
         }
 
         result = advisor.evaluate_order(
@@ -122,8 +122,8 @@ class TestOrderAdvisor:
             "timestamp": "2024-01-01T00:00:00Z",
             "high": 1_000_000,
             "low": 900_000,  # User's buy is way below market
-            "high_volume": 100,
-            "low_volume": 100,
+            "high_time": "2024-01-01T00:00:00Z",
+            "low_time": "2024-01-01T00:00:00Z",
         }
         # Predictions show low fill probability
         mock_loader.get_predictions_for_item.return_value = pd.DataFrame(
@@ -213,8 +213,8 @@ class TestOrderAdvisor:
             "timestamp": "2024-01-01T00:00:00Z",
             "high": 1_000_000,
             "low": 980_000,
-            "high_volume": 100,
-            "low_volume": 100,
+            "high_time": "2024-01-01T00:00:00Z",
+            "low_time": "2024-01-01T00:00:00Z",
         }
         mock_loader.get_predictions_for_item.return_value = pd.DataFrame()
         advisor = OrderAdvisor(loader=mock_loader)
@@ -377,8 +377,8 @@ class TestOrderAdvisorDecisionLogic:
             "timestamp": "2024-01-01T00:00:00Z",
             "high": 1_000_000,
             "low": 980_000,
-            "high_volume": 100,
-            "low_volume": 100,
+            "high_time": "2024-01-01T00:00:00Z",
+            "low_time": "2024-01-01T00:00:00Z",
         }
         mock_loader.get_predictions_for_item.return_value = pd.DataFrame(
             {
@@ -414,8 +414,8 @@ class TestOrderAdvisorDecisionLogic:
             "timestamp": "2024-01-01T00:00:00Z",
             "high": 1_000_000,
             "low": 980_000,  # Current market
-            "high_volume": 100,
-            "low_volume": 100,
+            "high_time": "2024-01-01T00:00:00Z",
+            "low_time": "2024-01-01T00:00:00Z",
         }
         mock_loader.get_predictions_for_item.return_value = pd.DataFrame(
             {
