@@ -10,7 +10,7 @@ import math
 import random
 import uuid
 from datetime import datetime, timezone
-from typing import Literal, Optional
+from typing import Literal, Optional, cast
 
 import pandas as pd
 
@@ -360,7 +360,7 @@ class RecommendationEngine:
             request_id = str(uuid.uuid4())[:8]
             try:
                 # Build ML features for candidate items
-                candidate_item_ids = [c.get("item_id") for c in candidates if c.get("item_id")]
+                candidate_item_ids = [int(c["item_id"]) for c in candidates if "item_id" in c and c["item_id"] is not None]
                 pred_features = self.ml_feature_builder.build_features_for_items(candidate_item_ids)
 
                 # Score with ML ranker
@@ -571,7 +571,7 @@ class RecommendationEngine:
             request_id = str(uuid.uuid4())[:8]
             try:
                 # Build ML features for candidate items
-                candidate_item_ids = [c.get("item_id") for c in candidates if c.get("item_id")]
+                candidate_item_ids = [int(c["item_id"]) for c in candidates if "item_id" in c and c["item_id"] is not None]
                 pred_features = self.ml_feature_builder.build_features_for_items(candidate_item_ids)
 
                 # Score with ML ranker
@@ -830,7 +830,7 @@ class RecommendationEngine:
         df = df.dropna(subset=['buy_price', 'sell_price'])
 
         # Filter 2: Remove non-positive prices
-        df = df[(df['buy_price'] > 0) & (df['sell_price'] > 0)]
+        df = cast(pd.DataFrame, df[(df['buy_price'] > 0) & (df['sell_price'] > 0)])
 
         # Filter 3: Remove missing/NaN current_high (fail closed)
         df = df.dropna(subset=['current_high'])
@@ -873,7 +873,7 @@ class RecommendationEngine:
             return df
 
         # Generate random buffer percentages (vectorized)
-        import numpy as np
+        import numpy as np  # type: ignore[import-untyped]
         buffer_pcts = np.random.uniform(
             self.config.price_buffer_min_pct,
             self.config.price_buffer_max_pct,
@@ -929,7 +929,7 @@ class RecommendationEngine:
                 f"Blocking {instant_fill_mask.sum()} instant-fill candidates "
                 f"(buy_price >= current_high)"
             )
-            df = df[~instant_fill_mask]
+            df = cast(pd.DataFrame, df[~instant_fill_mask])
 
         return df
 
@@ -968,7 +968,7 @@ class RecommendationEngine:
 
         # Step 2: Calculate effective limits based on style and hour_offset
         # Vectorize the get_effective_buy_limit() logic
-        import numpy as np
+        import numpy as np  # type: ignore[import-untyped]
 
         # Apply conservative fallback for missing or zero buy limits
         # Original logic: if base_buy_limit and base_buy_limit > 0
@@ -1002,13 +1002,13 @@ class RecommendationEngine:
         df['max_qty_by_capital'] = (max_capital // df['buy_price']).astype(int)
 
         # Step 5: Take minimum of capital-based and limit-based
-        df['max_quantity'] = df[['max_qty_by_capital', 'effective_limit']].min(axis=1)
+        df['max_quantity'] = df[['max_qty_by_capital', 'effective_limit']].min(axis=1)  # type: ignore[call-overload]
 
         # Step 6: Filter out zero/negative quantity candidates
         zero_qty_count = (df['max_quantity'] < 1).sum()
         if zero_qty_count > 0:
             logger.debug(f"Filtering out {zero_qty_count} candidates with max_quantity < 1")
-        df = df[df['max_quantity'] >= 1]
+        df = cast(pd.DataFrame, df[df['max_quantity'] >= 1])
 
         # Clean up temp columns
         df = df.drop(columns=['max_qty_by_capital', 'effective_limit'])
@@ -1120,7 +1120,7 @@ class RecommendationEngine:
             return df
 
         df = df.copy()
-        import numpy as np
+        import numpy as np  # type: ignore[import-untyped]
 
         # 1. Tax calculation (vectorized tax_calculator.calculate_tax logic)
         # Tax = 2% of sell_price, rounded down, with floor of 50gp and cap of 5M
@@ -1169,7 +1169,7 @@ class RecommendationEngine:
 
         # Convert NaN to None for volume_24h to match original behavior
         # (NaN values become None in dict, which are then excluded from final recommendations)
-        import numpy as np
+        import numpy as np  # type: ignore[import-untyped]
         df['volume_24h'] = df['volume_24h'].replace({np.nan: None})
 
         # 7. Crowding capacity (vectorized _get_crowding_capacity logic)
@@ -1728,8 +1728,8 @@ class RecommendationEngine:
             List of selected options, or empty list if solver fails
         """
         try:
-            from scipy.optimize import Bounds, LinearConstraint, milp
-            import numpy as np
+            from scipy.optimize import Bounds, LinearConstraint, milp  # type: ignore[import-untyped]
+            import numpy as np  # type: ignore[import-untyped]
         except ImportError:
             logger.warning("scipy.optimize not available, ILP solver disabled")
             return []
@@ -2037,7 +2037,7 @@ class RecommendationEngine:
                 + (" ..." if len(rejected) > 5 else "")
             )
 
-        return predictions[mask].reset_index(drop=True)
+        return cast(pd.DataFrame, predictions[mask].reset_index(drop=True))
 
     def _determine_fill_confidence(
         self,
@@ -2252,7 +2252,7 @@ class RecommendationEngine:
 
         # Quantity calculation (vectorized)
         df['max_qty_by_capital'] = (default_capital // df['buy_price']).fillna(0).astype(int)
-        df['max_quantity'] = df[['buy_limit', 'max_qty_by_capital']].min(axis=1)
+        df['max_quantity'] = df[['buy_limit', 'max_qty_by_capital']].min(axis=1)  # type: ignore[call-overload]
 
         # Filter out zero quantity (vectorized)
         df = df[df['max_quantity'] >= 1]
@@ -2458,14 +2458,14 @@ class RecommendationEngine:
             # Find the closest match to explain why
             best_any = predictions_df.loc[predictions_df["expected_value"].idxmax()]
             buy_price = (
-                int(best_any["buy_price"]) if best_any["buy_price"] is not None else 0
+                int(best_any["buy_price"].item()) if best_any["buy_price"] is not None else 0
             )
             sell_price = (
-                int(best_any["sell_price"]) if best_any["sell_price"] is not None else 0
+                int(best_any["sell_price"].item()) if best_any["sell_price"] is not None else 0
             )
             spread = (sell_price - buy_price) / buy_price if buy_price > 0 else 0
             ev = (
-                float(best_any["expected_value"])
+                float(best_any["expected_value"].item())
                 if best_any["expected_value"] is not None
                 else 0
             )
@@ -2479,7 +2479,7 @@ class RecommendationEngine:
                 reason = f"Spread too low ({spread:.1%}) - below minimum threshold"
             else:
                 fill_prob = (
-                    float(best_any["fill_probability"])
+                    float(best_any["fill_probability"].item())
                     if best_any["fill_probability"] is not None
                     else 0
                 )
@@ -2488,7 +2488,7 @@ class RecommendationEngine:
                         f"Fill probability ({fill_prob:.1%}) too low for {risk} risk"
                     )
                 else:
-                    hour_offset = int(best_any["hour_offset"])
+                    hour_offset = int(best_any["hour_offset"].item())
                     reason = (
                         f"Time window ({hour_offset}h) doesn't match "
                         f"{style} style ({min_hour}-{max_hour}h)"
@@ -2651,13 +2651,13 @@ class RecommendationEngine:
             "item_id": item_id,
             "item_name": best["item_name"],
             "best_config": {
-                "hour_offset": int(best["hour_offset"]),
-                "offset_pct": float(best["offset_pct"]),
+                "hour_offset": int(best["hour_offset"].item()),
+                "offset_pct": float(best["offset_pct"].item()),
             },
-            "fill_probability": float(best["fill_probability"]),
-            "expected_value": float(best["expected_value"]),
-            "buy_price": int(best["buy_price"]),
-            "sell_price": int(best["sell_price"]),
+            "fill_probability": float(best["fill_probability"].item()),
+            "expected_value": float(best["expected_value"].item()),
+            "buy_price": int(best["buy_price"].item()),
+            "sell_price": int(best["sell_price"].item()),
             "confidence": best["confidence"],
             "all_predictions": df.to_dict("records"),
         }
@@ -2717,10 +2717,10 @@ class RecommendationEngine:
         best_row = df.loc[df["hour_diff"].idxmin()]
 
         # Extract prediction data
-        hour_offset = int(best_row["hour_offset"])
-        actual_offset_pct = float(best_row["offset_pct"])
-        fill_prob = float(best_row["fill_probability"])
-        ev = float(best_row["expected_value"])
+        hour_offset = int(best_row["hour_offset"].item())
+        actual_offset_pct = float(best_row["offset_pct"].item())
+        fill_prob = float(best_row["fill_probability"].item())
+        ev = float(best_row["expected_value"].item())
 
         # Get prices based on side
         if side == "buy":
@@ -2753,8 +2753,8 @@ class RecommendationEngine:
             warning = " - ".join(warnings) + ". Consider waiting for better conditions."
 
         # Calculate flip metrics (issue #129)
-        buy_price = int(best_row["buy_price"])
-        sell_price = int(best_row["sell_price"])
+        buy_price = int(best_row["buy_price"].item())
+        sell_price = int(best_row["sell_price"].item())
         tax_per_unit = self._calculate_tax_per_unit(sell_price)
         margin_gp = sell_price - buy_price - tax_per_unit
         margin_pct = margin_gp / buy_price if buy_price > 0 else 0
