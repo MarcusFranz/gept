@@ -25,6 +25,7 @@ export const TTL = {
   ITEM_SEARCH: 300,        // 5 minutes - item names rarely change
   ITEM_METADATA: 3600,     // 1 hour - item IDs/names very stable
   RECOMMENDATIONS: 30,     // 30 seconds - personalized, short cache
+  OPPORTUNITIES: 45,       // 45 seconds - shared data, changes every 5 min
   USER_SETTINGS: 300,      // 5 minutes - user settings
 } as const;
 
@@ -34,6 +35,7 @@ export const KEY = {
   ITEM_SEARCH: 'search:',
   ITEM_META: 'meta:',
   RECS: 'recs:',
+  OPPS: 'opps:',
   USER: 'user:',
   SSE: 'sse:',
 } as const;
@@ -204,19 +206,6 @@ export const pubsub = {
  */
 export function cacheKey(...parts: (string | number)[]): string {
   return parts.join(':');
-}
-
-/**
- * Helper to bucket capital values for cache key generation
- * This allows caching recommendations by capital range instead of exact value
- */
-export function bucketCapital(capital: number): string {
-  if (capital < 1_000_000) return '0-1m';
-  if (capital < 10_000_000) return '1-10m';
-  if (capital < 50_000_000) return '10-50m';
-  if (capital < 100_000_000) return '50-100m';
-  if (capital < 500_000_000) return '100-500m';
-  return '500m+';
 }
 
 export default cache;
