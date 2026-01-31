@@ -1,0 +1,122 @@
+x-collector-common: &collector-common
+  image: ghcr.io/marcusfranz/gept-collectors:latest
+  restart: unless-stopped
+  network_mode: host
+  env_file:
+    - .env
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "3"
+
+services:
+  # ========== Data Collectors ==========
+
+  osrs-5m-collector:
+    <<: *collector-common
+    container_name: osrs-5m-collector
+    command: ["python", "collect_5m_pg.py"]
+    environment:
+      - METRICS_PORT=9100
+      - COLLECTION_INTERVAL=300
+
+  osrs-hourly-collector:
+    <<: *collector-common
+    container_name: osrs-hourly-collector
+    command: ["python", "collect_hourly_pg.py"]
+    environment:
+      - METRICS_PORT=9101
+      - COLLECTION_INTERVAL=3600
+
+  osrs-news-collector:
+    <<: *collector-common
+    container_name: osrs-news-collector
+    command: ["python", "collect_news_pg.py"]
+    environment:
+      - METRICS_PORT=9102
+      - COLLECTION_INTERVAL=1800
+
+  osrs-latest-1m:
+    <<: *collector-common
+    container_name: osrs-latest-1m
+    command: ["python", "collect_latest_1m.py"]
+    environment:
+      - METRICS_PORT=9103
+      - COLLECTION_INTERVAL=60
+
+  # ========== Dashboard ==========
+
+  osrs-dashboard:
+    <<: *collector-common
+    container_name: osrs-dashboard
+    command: ["python", "dashboard.py"]
+    environment:
+      - DASHBOARD_PORT=8080
+
+  # ========== Monitoring Services ==========
+
+  gept-collector-monitor:
+    <<: *collector-common
+    container_name: gept-collector-monitor
+    command: ["python", "collector_monitor.py"]
+    environment:
+      - METRICS_PORT=9106
+      - CHECK_INTERVAL=60
+
+  gept-gap-detector:
+    <<: *collector-common
+    container_name: gept-gap-detector
+    command: ["python", "gap_detector.py"]
+    environment:
+      - METRICS_PORT=9107
+      - RUN_INTERVAL=3600
+
+  gept-watchdog:
+    <<: *collector-common
+    container_name: gept-watchdog
+    command: ["python", "watchdog.py"]
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - METRICS_PORT=9108
+      - CHECK_INTERVAL=30
+
+  # ========== Monitoring Stack ==========
+
+  gept-prometheus:
+    image: prom/prometheus:latest
+    container_name: gept-prometheus
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.retention.time=30d"
+      - "--web.enable-lifecycle"
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"
+
+  gept-alertmanager:
+    image: prom/alertmanager:latest
+    container_name: gept-alertmanager
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      - ./prometheus/alertmanager.yml:/etc/alertmanager/config.yml:ro
+    command:
+      - "--config.file=/etc/alertmanager/config.yml"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  prometheus-data:
