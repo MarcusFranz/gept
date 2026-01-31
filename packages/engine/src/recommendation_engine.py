@@ -2724,19 +2724,17 @@ class RecommendationEngine:
 
         # Get prices based on side
         if side == "buy":
-            recommended_price = int(best_row["buy_price"])
-            current_market_price = (
-                int(best_row["current_high"])
-                if best_row["current_high"]
-                else recommended_price
-            )
+            recommended_price = int(best_row["buy_price"].item())
+            try:
+                current_market_price = int(best_row["current_high"].item())
+            except (ValueError, TypeError, AttributeError):
+                current_market_price = recommended_price
         else:  # sell
-            recommended_price = int(best_row["sell_price"])
-            current_market_price = (
-                int(best_row["current_low"])
-                if best_row["current_low"]
-                else recommended_price
-            )
+            recommended_price = int(best_row["sell_price"].item())
+            try:
+                current_market_price = int(best_row["current_low"].item())
+            except (ValueError, TypeError, AttributeError):
+                current_market_price = recommended_price
 
         # Determine if this would meet recommendation thresholds
         # Using medium risk defaults as reference
