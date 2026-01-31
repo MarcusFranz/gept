@@ -276,6 +276,11 @@ class Config:
         errors = []
         if not self.db_connection_string:
             errors.append("DB_CONNECTION_STRING is required")
+        if not self.internal_api_key:
+            errors.append(
+                "INTERNAL_API_KEY is required. "
+                "Generate one: python -c \"import secrets; print(secrets.token_urlsafe(32))\""
+            )
         return errors
 
 

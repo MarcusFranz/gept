@@ -3318,57 +3318,6 @@ class TestAPIAuthentication:
             importlib.reload(config_module)
             importlib.reload(api_module)
 
-    @pytest.fixture
-    def client_no_auth(self, sample_registry, mock_db_connection):
-        """Create test client with API key authentication disabled."""
-        with patch.dict(
-            "os.environ",
-            {
-                "DB_CONNECTION_STRING": mock_db_connection,
-                "MODEL_REGISTRY_PATH": str(sample_registry),
-            },
-        ):
-            # Ensure INTERNAL_API_KEY is not set
-            import os
-
-            if "INTERNAL_API_KEY" in os.environ:
-                del os.environ["INTERNAL_API_KEY"]
-
-            # Reload config
-            import importlib
-            import src.config as config_module
-
-            importlib.reload(config_module)
-
-            with patch("src.api.RecommendationEngine") as MockEngine:
-                mock_engine = MagicMock()
-                mock_engine.supported_items = {554, 565}
-                mock_engine.health_check.return_value = {
-                    "status": "ok",
-                    "checks": [{"status": "ok", "component": "test"}],
-                    "timestamp": "2026-01-08T12:00:00Z",
-                    "supported_items": 2,
-                    "recommendation_store_size": 0,
-                    "crowding_stats": {},
-                }
-                mock_engine.get_recommendations.return_value = []
-                MockEngine.return_value = mock_engine
-
-                # Reload api module
-                import src.api as api_module
-
-                importlib.reload(api_module)
-                api_module.engine = mock_engine
-
-                # Reset rate limiter
-                api_module.limiter.reset()
-
-                yield TestClient(api_module.app), mock_engine
-
-            # Clean up
-            importlib.reload(config_module)
-            importlib.reload(api_module)
-
     def test_health_endpoint_public_with_auth_enabled(self, client_with_auth):
         """Test health endpoint is accessible without API key even when auth is enabled."""
         test_client, mock_engine, _ = client_with_auth
@@ -3455,15 +3404,26 @@ class TestAPIAuthentication:
 
         assert response.status_code == 200
 
-    def test_auth_disabled_no_key_required(self, client_no_auth):
-        """Test endpoints work without API key when auth is disabled."""
-        test_client, mock_engine = client_no_auth
-        response = test_client.get(
-            "/api/v1/recommendations?capital=10000000&style=active"
-        )
+    def test_validate_rejects_missing_api_key(self):
+        """Test config.validate() rejects missing INTERNAL_API_KEY."""
+        import importlib
+        import os
 
-        assert response.status_code == 200
-        assert isinstance(response.json(), list)
+        env_backup = os.environ.get("INTERNAL_API_KEY")
+        if "INTERNAL_API_KEY" in os.environ:
+            del os.environ["INTERNAL_API_KEY"]
+
+        try:
+            import src.config as config_module
+            importlib.reload(config_module)
+
+            errors = config_module.config.validate()
+            assert any("INTERNAL_API_KEY" in e for e in errors)
+        finally:
+            if env_backup is not None:
+                os.environ["INTERNAL_API_KEY"] = env_backup
+            import src.config as config_module
+            importlib.reload(config_module)
 
     def test_root_endpoint_public(self, client_with_auth):
         """Test root endpoint is always public."""
@@ -3494,7 +3454,7 @@ class TestAPIAuthentication:
             importlib.reload(config_module)
 
     def test_config_internal_api_key_default_empty(self):
-        """Test INTERNAL_API_KEY defaults to empty string (auth disabled)."""
+        """Test INTERNAL_API_KEY defaults to empty string (caught by validate)."""
         import os
 
         # Ensure env var is not set
@@ -3509,6 +3469,9 @@ class TestAPIAuthentication:
             importlib.reload(config_module)
 
             assert config_module.config.internal_api_key == ""
+            # validate() should flag this as an error
+            errors = config_module.config.validate()
+            assert any("INTERNAL_API_KEY" in e for e in errors)
         finally:
             # Restore env var if it was set
             if env_backup is not None:
@@ -3545,17 +3508,32 @@ class TestRateLimiting:
         key = get_rate_limit_key(mock_request)
         assert key == f"user:{'b' * 64}"
 
-    def test_get_rate_limit_key_x_forwarded_for(self):
-        """Test rate limit key from X-Forwarded-For header."""
+    def test_get_rate_limit_key_x_forwarded_for_trusted_proxy(self):
+        """Test rate limit key from X-Forwarded-For when client is a trusted proxy."""
         from src.api import get_rate_limit_key
 
         mock_request = MagicMock()
         mock_request.headers = {"X-Forwarded-For": "1.2.3.4, 5.6.7.8, 9.10.11.12"}
         mock_request.query_params = {}
-        mock_request.client = None
+        mock_request.client = MagicMock()
+        mock_request.client.host = "127.0.0.1"  # trusted proxy
 
         key = get_rate_limit_key(mock_request)
         assert key == "ip:1.2.3.4"
+
+    def test_get_rate_limit_key_x_forwarded_for_untrusted(self):
+        """Test X-Forwarded-For is ignored when client is not a trusted proxy."""
+        from src.api import get_rate_limit_key
+
+        mock_request = MagicMock()
+        mock_request.headers = {"X-Forwarded-For": "1.2.3.4"}
+        mock_request.query_params = {}
+        mock_request.client = MagicMock()
+        mock_request.client.host = "10.0.0.50"  # not a trusted proxy
+
+        key = get_rate_limit_key(mock_request)
+        # Should use direct client IP, not the spoofed forwarded header
+        assert key == "ip:10.0.0.50"
 
     def test_get_rate_limit_key_client_ip(self):
         """Test rate limit key from client IP."""
