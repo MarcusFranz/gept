@@ -1431,12 +1431,17 @@ class TestInstantFillBlocking:
     def _make_row(
         self,
         item_id: int = 554,
-        buy_price: int = 100,
-        sell_price: int = 110,
-        current_high=105,
-        current_low: int = 95,
+        buy_price: int = 5000,
+        sell_price: int = 5500,
+        current_high=5250,
+        current_low: int = 4900,
     ) -> dict:
-        """Create a mock prediction row for testing."""
+        """Create a mock prediction row for testing.
+
+        Default prices are set to avoid triggering manipulation filters:
+        - buy_price > 1000gp (avoids cheap-item volume check)
+        - spread ~7% (under 10% max_spread_pct threshold)
+        """
         return {
             "item_id": item_id,
             "item_name": "Test Item",
@@ -1456,17 +1461,19 @@ class TestInstantFillBlocking:
 
         mock_loader.get_item_buy_limit.return_value = 10000
         mock_loader.get_item_trend.return_value = "Stable"
-        mock_loader.get_item_volume_24h.return_value = None
+        mock_loader.get_item_volume_24h.return_value = 100000
         mock_loader.get_item_volume_1h.return_value = 50000
 
-        # buy_price (100) < current_high (105) - should be allowed
-        row = self._make_row(buy_price=100, current_high=105)
+        # buy_price (5000) < current_high (5250) - should be allowed
+        row = self._make_row(buy_price=5000, current_high=5250)
         candidate = engine._build_candidate(
             row, max_capital=1000000, pred_age_seconds=60
         )
 
         assert candidate is not None
-        assert candidate["buy_price"] == 100
+        # Price buffer may adjust buy_price slightly upward (toward market)
+        assert candidate["buy_price"] >= 5000
+        assert candidate["buy_price"] < 5250  # Must stay below current_high
 
     def test_build_candidate_blocks_buy_at_current_high(self, mock_engine):
         """Buy price equal to current_high should be blocked (instant-fill)."""
@@ -1474,11 +1481,11 @@ class TestInstantFillBlocking:
 
         mock_loader.get_item_buy_limit.return_value = 10000
         mock_loader.get_item_trend.return_value = "Stable"
-        mock_loader.get_item_volume_24h.return_value = None
+        mock_loader.get_item_volume_24h.return_value = 100000
         mock_loader.get_item_volume_1h.return_value = 50000
 
-        # buy_price (105) == current_high (105) - should be blocked
-        row = self._make_row(buy_price=105, current_high=105)
+        # buy_price (5250) == current_high (5250) - should be blocked
+        row = self._make_row(buy_price=5250, current_high=5250)
         candidate = engine._build_candidate(
             row, max_capital=1000000, pred_age_seconds=60
         )
@@ -1491,11 +1498,11 @@ class TestInstantFillBlocking:
 
         mock_loader.get_item_buy_limit.return_value = 10000
         mock_loader.get_item_trend.return_value = "Stable"
-        mock_loader.get_item_volume_24h.return_value = None
+        mock_loader.get_item_volume_24h.return_value = 100000
         mock_loader.get_item_volume_1h.return_value = 50000
 
-        # buy_price (110) > current_high (105) - should be blocked
-        row = self._make_row(buy_price=110, current_high=105)
+        # buy_price (5500) > current_high (5250) - should be blocked
+        row = self._make_row(buy_price=5500, current_high=5250)
         candidate = engine._build_candidate(
             row, max_capital=1000000, pred_age_seconds=60
         )
@@ -1508,7 +1515,7 @@ class TestInstantFillBlocking:
 
         mock_loader.get_item_buy_limit.return_value = 10000
         mock_loader.get_item_trend.return_value = "Stable"
-        mock_loader.get_item_volume_24h.return_value = None
+        mock_loader.get_item_volume_24h.return_value = 100000
         mock_loader.get_item_volume_1h.return_value = 50000
 
         # current_high is None - should fail closed
@@ -1525,7 +1532,7 @@ class TestInstantFillBlocking:
 
         mock_loader.get_item_buy_limit.return_value = 10000
         mock_loader.get_item_trend.return_value = "Stable"
-        mock_loader.get_item_volume_24h.return_value = None
+        mock_loader.get_item_volume_24h.return_value = 100000
         mock_loader.get_item_volume_1h.return_value = 50000
 
         # current_high is NaN - should fail closed
@@ -4265,21 +4272,21 @@ class TestGetAllRecommendations:
 class TestFilterIntegration:
     """Test that new filters are called in get_recommendations flow."""
 
-    def test_stability_filter_called(self):
-        """Stability filter should be called during recommendation flow."""
+    def test_liquidity_filter_called(self):
+        """Liquidity filter should be called during recommendation flow."""
         from src.recommendation_engine import RecommendationEngine
 
         engine = MagicMock(spec=RecommendationEngine)
-        engine._apply_price_stability_filter = MagicMock(
-            side_effect=lambda x: x
+        engine._apply_liquidity_filter = MagicMock(
+            side_effect=lambda x, b, v: x
         )
-        engine._apply_trend_entry_filter = MagicMock(
-            side_effect=lambda x, s: x
+        engine._check_manipulation_signals_vectorized = MagicMock(
+            side_effect=lambda x, v24, v1: pd.Series([False] * len(x))
         )
 
         # Verify methods exist and are callable
-        assert hasattr(engine, '_apply_price_stability_filter')
-        assert hasattr(engine, '_apply_trend_entry_filter')
+        assert hasattr(engine, '_apply_liquidity_filter')
+        assert hasattr(engine, '_check_manipulation_signals_vectorized')
 
     def test_filters_applied_before_candidate_building(self):
         """Filters should be applied after fetching predictions, before building candidates."""
@@ -4291,18 +4298,20 @@ class TestFilterIntegration:
 
         # Find positions of key operations
         fetch_pos = source.find('get_best_prediction_per_item')
-        stability_pos = source.find('_apply_price_stability_filter')
-        trend_pos = source.find('_apply_trend_entry_filter')
-        build_pos = source.find('_build_candidate')
+        liquidity_pos = source.find('_apply_liquidity_filter')
+        # Check for validation and manipulation checks in vectorized pipeline
+        validation_pos = source.find('_filter_valid_candidates')
+        manipulation_pos = source.find('_check_manipulation_signals_vectorized')
+        build_pos = source.find('_enrich_metadata_vectorized')
 
-        # Stability filter should come after fetch, before build
-        assert stability_pos > fetch_pos, \
-            "Stability filter should come after fetching predictions"
-        assert stability_pos < build_pos, \
-            "Stability filter should come before building candidates"
+        # Liquidity filter should come after fetch, before vectorized pipeline
+        assert liquidity_pos > fetch_pos, \
+            "Liquidity filter should come after fetching predictions"
+        assert liquidity_pos < validation_pos, \
+            "Liquidity filter should come before vectorized pipeline"
 
-        # Trend filter should come after stability, before build
-        assert trend_pos > stability_pos, \
-            "Trend filter should come after stability filter"
-        assert trend_pos < build_pos, \
-            "Trend filter should come before building candidates"
+        # Manipulation check should come after validation, before enrichment
+        assert manipulation_pos > validation_pos, \
+            "Manipulation check should come after validation"
+        assert manipulation_pos < build_pos, \
+            "Manipulation check should come before metadata enrichment"
