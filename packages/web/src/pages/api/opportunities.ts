@@ -2,7 +2,7 @@
 import type { APIRoute } from 'astro';
 import { cache, cacheKey, TTL, KEY } from '../../lib/cache';
 
-const PREDICTION_API = import.meta.env.PREDICTION_API || 'http://150.136.170.128:8000';
+const PREDICTION_API = import.meta.env.PREDICTION_API;
 const API_KEY = import.meta.env.PREDICTION_API_KEY;
 
 export const POST: APIRoute = async ({ request, locals }) => {
@@ -13,6 +13,17 @@ export const POST: APIRoute = async ({ request, locals }) => {
       error: 'Unauthorized'
     }), {
       status: 401,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+
+  if (!PREDICTION_API) {
+    console.error('[Opportunities] PREDICTION_API env var is not configured');
+    return new Response(JSON.stringify({
+      success: false,
+      error: 'Service misconfigured'
+    }), {
+      status: 503,
       headers: { 'Content-Type': 'application/json' }
     });
   }
