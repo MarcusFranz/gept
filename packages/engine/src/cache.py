@@ -7,8 +7,7 @@ to reduce database load and improve response times.
 import hashlib
 import json
 import logging
-from functools import wraps
-from typing import Any, Callable, Optional
+from typing import Any, Optional
 
 import redis.asyncio as aioredis
 
@@ -195,87 +194,3 @@ async def get_cache_stats() -> dict:
         return {"available": False, "reason": str(e)}
 
 
-def cache_response(
-    key_prefix: str,
-    ttl_config_key: str = "cache_ttl_recommendations",
-    key_builder: Optional[Callable[..., str]] = None,
-):
-    """Decorator for caching async endpoint responses.
-
-    Args:
-        key_prefix: Prefix for cache key (e.g., "recs", "item")
-        ttl_config_key: Config attribute name for TTL (e.g., "cache_ttl_recommendations")
-        key_builder: Optional function to build cache key from function args
-
-    Usage:
-        @cache_response("recs", "cache_ttl_recommendations")
-        async def get_recommendations(...):
-            ...
-
-        @cache_response("item", "cache_ttl_items", key_builder=lambda item_id, **k: str(item_id))
-        async def get_item(item_id: int, ...):
-            ...
-    """
-
-    def decorator(func: Callable):
-        @wraps(func)
-        async def wrapper(*args, **kwargs):
-            # Check for no_cache parameter
-            no_cache = kwargs.pop("no_cache", False)
-            if no_cache or not _cache_available:
-                return await func(*args, **kwargs)
-
-            # Build cache key
-            if key_builder:
-                cache_key = f"{key_prefix}:{key_builder(*args, **kwargs)}"
-            else:
-                # Default: hash all kwargs
-                key_parts = ":".join(
-                    f"{k}={v}" for k, v in sorted(kwargs.items()) if v is not None
-                )
-                cache_key = f"{key_prefix}:{hash_query(key_parts)}"
-
-            # Try to get from cache
-            cached = await get_cached(cache_key)
-            if cached is not None:
-                return cached
-
-            # Execute function and cache result
-            result = await func(*args, **kwargs)
-
-            # Get TTL from config
-            ttl = getattr(config, ttl_config_key, 60)
-            await set_cached(cache_key, result, ttl)
-
-            return result
-
-        return wrapper
-
-    return decorator
-
-
-# Cache key builders for common patterns
-def recommendations_key(
-    style: str = "hybrid",
-    risk: str = "medium",
-    capital: int = 0,
-    **kwargs,
-) -> str:
-    """Build cache key for recommendations."""
-    capital_tier = get_capital_tier(capital)
-    return f"{style}:{risk}:{capital_tier}"
-
-
-def item_key(item_id: int, **kwargs) -> str:
-    """Build cache key for item lookups."""
-    return str(item_id)
-
-
-def search_key(q: str, **kwargs) -> str:
-    """Build cache key for search queries."""
-    return hash_query(q)
-
-
-def stats_key(hashed_user_id: str, period: str = "week", **kwargs) -> str:
-    """Build cache key for user stats."""
-    return f"{hashed_user_id}:{period}"
