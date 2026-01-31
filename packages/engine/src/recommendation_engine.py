@@ -283,7 +283,7 @@ class RecommendationEngine:
             return []
 
         # Exclude tracked items (hour filtering is now done at DB level)
-        predictions_df = predictions_df[~predictions_df["item_id"].isin(excluded_items)]
+        predictions_df = cast(pd.DataFrame, predictions_df[~predictions_df["item_id"].isin(excluded_items)])
 
         # Get prediction age for confidence adjustment
         pred_age = self.loader.get_prediction_age_seconds()
@@ -296,7 +296,7 @@ class RecommendationEngine:
         trends = self.loader.get_batch_trends(candidate_item_ids)
 
         # Apply liquidity filter (anti-manipulation: filter items where buy_limit >> volume)
-        predictions_df = self._apply_liquidity_filter(predictions_df, buy_limits, volumes_24h)
+        predictions_df = cast(pd.DataFrame, self._apply_liquidity_filter(predictions_df, buy_limits, volumes_24h))
         if predictions_df.empty:
             logger.info("All predictions filtered by liquidity check")
             return []
@@ -313,7 +313,7 @@ class RecommendationEngine:
                 return []
 
         # Vectorized candidate building pipeline
-        df = self._filter_valid_candidates(predictions_df)
+        df = cast(pd.DataFrame, self._filter_valid_candidates(predictions_df))
         if df.empty:
             logger.info("All predictions filtered by validation checks")
             return []
@@ -333,13 +333,13 @@ class RecommendationEngine:
 
         # Check manipulation signals and filter suspicious items
         suspicious_mask = self._check_manipulation_signals_vectorized(df, volumes_24h, volumes_1h)
-        df = df[~suspicious_mask]
+        df = cast(pd.DataFrame, df[~suspicious_mask])
         if df.empty:
             logger.info("All predictions filtered by manipulation checks")
             return []
 
         # Enrich with metadata (tax, profit, confidence, etc.)
-        df = self._enrich_metadata_vectorized(df, pred_age, volumes_24h, volumes_1h, trends)
+        df = cast(pd.DataFrame, self._enrich_metadata_vectorized(df, pred_age, volumes_24h, volumes_1h, trends))
 
         # Convert to list of dicts (candidate format expected by downstream code)
         candidates = df.to_dict('records')
@@ -504,7 +504,7 @@ class RecommendationEngine:
             return []
 
         # Exclude tracked items
-        predictions_df = predictions_df[~predictions_df["item_id"].isin(excluded_items)]
+        predictions_df = cast(pd.DataFrame, predictions_df[~predictions_df["item_id"].isin(excluded_items)])
 
         # Get prediction age for confidence adjustment
         pred_age = self.loader.get_prediction_age_seconds()
@@ -517,7 +517,7 @@ class RecommendationEngine:
         trends = self.loader.get_batch_trends(candidate_item_ids)
 
         # Apply liquidity filter (anti-manipulation: filter items where buy_limit >> volume)
-        predictions_df = self._apply_liquidity_filter(predictions_df, buy_limits, volumes_24h)
+        predictions_df = cast(pd.DataFrame, self._apply_liquidity_filter(predictions_df, buy_limits, volumes_24h))
         if predictions_df.empty:
             logger.info("All predictions filtered by liquidity check for get_all")
             return []
@@ -544,13 +544,13 @@ class RecommendationEngine:
 
         # Check manipulation signals and filter suspicious items
         suspicious_mask = self._check_manipulation_signals_vectorized(df, volumes_24h, volumes_1h)
-        df = df[~suspicious_mask]
+        df = cast(pd.DataFrame, df[~suspicious_mask])
         if df.empty:
             logger.info("All predictions filtered by manipulation checks for get_all")
             return []
 
         # Enrich with metadata (tax, profit, confidence, etc.)
-        df = self._enrich_metadata_vectorized(df, pred_age, volumes_24h, volumes_1h, trends)
+        df = cast(pd.DataFrame, self._enrich_metadata_vectorized(df, pred_age, volumes_24h, volumes_1h, trends))
 
         # Convert to list of dicts (candidate format expected by downstream code)
         candidates = df.to_dict('records')
@@ -791,7 +791,7 @@ class RecommendationEngine:
                 return None
 
             # Enrich with metadata
-            df = self._enrich_metadata_vectorized(df, pred_age_seconds, volumes_24h, volumes_1h, trends)
+            df = cast(pd.DataFrame, self._enrich_metadata_vectorized(df, pred_age_seconds, volumes_24h, volumes_1h, trends))
 
             # Convert to dict and return first (and only) result
             candidates = df.to_dict('records')
