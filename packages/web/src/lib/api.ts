@@ -63,10 +63,11 @@ function transformRecommendation(api: ApiRecommendation): Recommendation {
     Stable: 'stable'
   };
 
+  // Engine returns: "Strong" | "Good" | "Fair" (see recommendation_engine.py _classify_fill_confidence)
   const fillConfidenceMap: Record<string, number> = {
     Strong: 0.90,
-    Fair: 0.70,
-    Weak: 0.50
+    Good: 0.75,
+    Fair: 0.60
   };
 
   return {
