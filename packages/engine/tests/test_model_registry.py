@@ -1,7 +1,5 @@
 """Tests for model registry and lifecycle management."""
 
-import pytest
-
 from src.model_registry import (
     ModelStatus,
     can_serve_prediction,

@@ -1,12 +1,8 @@
 """Test cases for structured logging configuration (Issue #153)."""
 
 import importlib
-import json
 import os
-from io import StringIO
 from unittest.mock import MagicMock, patch
-
-import pytest
 
 
 class TestLoggingConfig:
@@ -79,7 +75,7 @@ class TestRequestIDMiddleware:
         """Test middleware generates request ID when not provided."""
         from src.logging_config import RequestIDMiddleware
 
-        middleware = RequestIDMiddleware(app=MagicMock())
+        middleware = RequestIDMiddleware(app=MagicMock())  # noqa: F841
 
         # Create mock request without X-Request-ID
         mock_request = MagicMock()
