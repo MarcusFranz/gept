@@ -45,7 +45,7 @@ except ImportError:
 
 from feature_engine import FeatureEngine, Granularity
 from target_engine import compute_expected_value_pct
-from db_utils import ConnectionPool, get_db_connection, get_db_cursor
+from db_utils import ConnectionPool, get_db_connection, get_db_cursor, validate_db_config
 from inference_config import clip_probability, get_confidence_tier, DEFAULT_AUC
 from calibration import CalibrationManager
 
@@ -226,6 +226,7 @@ class MultiTargetBatchPredictor:
             models_dir: Path to models directory. If None, finds latest run in 'models/'
             use_calibration: Whether to apply calibration to predictions (default: True)
         """
+        validate_db_config()
         if models_dir is None:
             models_dir = find_latest_model_run()
             if models_dir is None:
