@@ -98,7 +98,7 @@ export const PUT: APIRoute = async ({ request, locals }) => {
       await userRepo.update(userId, updates);
 
       // Clear user's recommendation cache so they get fresh data with new settings
-      // Key format: recs::userId:bucket:style:risk:margin (double colon after prefix)
+      // Key format: recs:userId:capital:style:risk:margin
       cache.delPattern(`${KEY.RECS}:${userId}:*`).catch(() => {});
     }
 

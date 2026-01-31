@@ -1,5 +1,5 @@
 import type { Recommendation, UserSettings, ItemSearchResult } from './types';
-import { cache, cacheKey, bucketCapital, TTL, KEY } from './cache';
+import { cache, cacheKey, TTL, KEY } from './cache';
 
 function getApiBase(): string {
   // Server-side: use process.env directly (Vercel injects at runtime)
@@ -205,14 +205,13 @@ export async function getRecommendationByItemId(
   userId: string,
   settings: UserSettings
 ): Promise<Recommendation | null> {
-  // Cache by item ID + settings bucket (not user-specific)
-  const capitalBucket = bucketCapital(settings.capital);
+  // Cache by item ID + exact capital (not user-specific)
   const key = cacheKey(
     KEY.ITEM_PRICE,
     itemId.toString(),
     settings.style,
     settings.risk,
-    capitalBucket
+    settings.capital.toString()
   );
 
   try {

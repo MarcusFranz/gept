@@ -1,7 +1,7 @@
 import type { APIRoute } from 'astro';
 import { userRepo, activeTradesRepo } from '../../lib/repositories';
 import { getRecommendations } from '../../lib/api';
-import { cache, cacheKey, bucketCapital, TTL, KEY } from '../../lib/cache';
+import { cache, cacheKey, TTL, KEY } from '../../lib/cache';
 
 export const GET: APIRoute = async ({ locals, request }) => {
   // Use request.url to get params - Astro's url object can lose query params with ISR
@@ -73,9 +73,8 @@ export const GET: APIRoute = async ({ locals, request }) => {
     // Check if client requested fresh data (bypass cache)
     const skipCache = url.searchParams.get('fresh') === '1';
 
-    // Build cache key based on effective settings
-    const capitalBucket = bucketCapital(availableCapital);
-    const redisCacheKey = cacheKey(KEY.RECS, userId, capitalBucket, effectiveStyle, effectiveRisk, effectiveMargin);
+    // Build cache key based on effective settings (use exact capital for accuracy)
+    const redisCacheKey = cacheKey(KEY.RECS, userId, availableCapital.toString(), effectiveStyle, effectiveRisk, effectiveMargin);
 
     // Try Redis cache first (unless fresh=1 requested)
     let recommendations: Awaited<ReturnType<typeof getRecommendations>> | null = null;
