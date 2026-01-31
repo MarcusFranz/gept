@@ -8,7 +8,6 @@ optimized trade recommendations for the Discord bot.
 import logging
 import math
 import random
-import uuid
 from datetime import datetime, timezone
 from typing import Literal, Optional, cast
 
@@ -16,9 +15,7 @@ import pandas as pd
 
 from .config import Config
 from .crowding import create_crowding_tracker
-from .ml_ranker import MLRanker, MLFeatureBuilder
 from .prediction_loader import PredictionLoader
-from .shadow_logger import ShadowLogger
 from .store import RecommendationStore  # Re-exported for backward compatibility
 from .tax_calculator import calculate_tax
 
@@ -82,16 +79,12 @@ class RecommendationEngine:
         self,
         db_connection_string: str,
         config: Optional[Config] = None,
-        enable_ml_shadow: bool = False,
-        ml_model_path: Optional[str] = None,
     ):
         """Initialize recommendation engine.
 
         Args:
             db_connection_string: PostgreSQL connection string to Ampere server
             config: Optional configuration object
-            enable_ml_shadow: Whether to enable ML ranker shadow mode
-            ml_model_path: Optional path to ML ranker model file
         """
         self.config = config or Config()
         self.loader = PredictionLoader(
@@ -106,21 +99,6 @@ class RecommendationEngine:
             redis_url=self.config.redis_url or None,
             fallback_to_memory=self.config.redis_fallback_to_memory,
         )
-
-        # ML ranker shadow mode
-        self.enable_ml_shadow = enable_ml_shadow
-        self.ml_ranker = None
-        self.ml_feature_builder = None
-        self.shadow_logger = None
-
-        if enable_ml_shadow:
-            self.ml_ranker = MLRanker(model_path=ml_model_path)
-            self.ml_feature_builder = MLFeatureBuilder(self.loader)
-            self.shadow_logger = ShadowLogger(enabled=True)
-            if self.ml_ranker.is_available():
-                logger.info("ML ranker shadow mode enabled")
-            else:
-                logger.warning("ML ranker model not loaded - shadow mode disabled")
 
     def _apply_price_buffer(self, buy_price: int, sell_price: int) -> tuple[int, int]:
         """Apply a random buffer to buy and sell prices to reduce price competition.
@@ -356,31 +334,6 @@ class RecommendationEngine:
             logger.info("No candidates available after crowding filter")
             return []
 
-        # ML ranker shadow mode: score candidates and log comparison
-        if self.enable_ml_shadow and self.ml_ranker and self.ml_ranker.is_available() and self.ml_feature_builder:
-            request_id = str(uuid.uuid4())[:8]
-            try:
-                # Build ML features for candidate items
-                candidate_item_ids = [int(c["item_id"]) for c in candidates if "item_id" in c and c["item_id"] is not None]
-                pred_features = self.ml_feature_builder.build_features_for_items(candidate_item_ids)
-
-                # Score with ML ranker
-                candidates = self.ml_ranker.score_candidates(candidates, pred_features)
-
-                # Log comparison between heuristic and ML rankings
-                if self.shadow_logger:
-                    self.shadow_logger.log_rankings(
-                        request_id=request_id,
-                        user_id=user_id,
-                        style=style,
-                        risk=risk,
-                        capital=capital,
-                        slots=slots,
-                        candidates=candidates,
-                    )
-            except Exception as e:
-                logger.warning(f"ML ranker shadow scoring failed: {e}")
-
         # Optimize portfolio selection
         selected = self._optimize_portfolio(
             candidates=candidates,
@@ -566,31 +519,6 @@ class RecommendationEngine:
         if not candidates:
             logger.info("No candidates available after crowding filter for get_all")
             return []
-
-        # ML ranker shadow mode: score candidates and log comparison
-        if self.enable_ml_shadow and self.ml_ranker and self.ml_ranker.is_available() and self.ml_feature_builder:
-            request_id = str(uuid.uuid4())[:8]
-            try:
-                # Build ML features for candidate items
-                candidate_item_ids = [int(c["item_id"]) for c in candidates if "item_id" in c and c["item_id"] is not None]
-                pred_features = self.ml_feature_builder.build_features_for_items(candidate_item_ids)
-
-                # Score with ML ranker
-                candidates = self.ml_ranker.score_candidates(candidates, pred_features)
-
-                # Log comparison between heuristic and ML rankings
-                if self.shadow_logger:
-                    self.shadow_logger.log_rankings(
-                        request_id=request_id,
-                        user_id=user_id,
-                        style=style,
-                        risk=risk,
-                        capital=capital,
-                        slots=8,  # get_all_recommendations doesn't have slots param
-                        candidates=candidates,
-                    )
-            except Exception as e:
-                logger.warning(f"ML ranker shadow scoring failed in get_all: {e}")
 
         # Calculate composite score for each candidate and format as recommendation
         recommendations = []

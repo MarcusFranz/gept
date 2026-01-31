@@ -1,0 +1,51 @@
+# Version control
+.git
+.gitignore
+
+# Python artifacts
+__pycache__
+*.pyc
+*.pyo
+*.egg-info
+.pytest_cache
+.coverage
+htmlcov/
+.venv/
+venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Environment / secrets
+.env
+.env.*
+.secrets/
+
+# Tests and docs (not needed in production)
+tests/
+docs/
+scripts/
+migrations/
+
+# Logs
+logs/
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# CI/CD
+.github/
+.flake8
+
+# Config files not needed in image
+pyproject.toml
+README.md
+CHANGELOG.md
+package.json
+package-lock.json
+node_modules/

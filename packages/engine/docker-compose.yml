@@ -1,0 +1,24 @@
+services:
+  engine:
+    image: ghcr.io/marcusfranz/gept-engine:latest
+    container_name: gept-engine
+    restart: unless-stopped
+    network_mode: host
+    env_file:
+      - .env
+    volumes:
+      # Mount ML ranker model from host (read-only)
+      - /home/ubuntu/gept/models/ranker:/app/models/ranker:ro
+      # Persist logs (optional - structured logs also go to stdout)
+      - ./logs:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/healthz"]
+      interval: 30s
+      timeout: 5s
+      start_period: 60s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
