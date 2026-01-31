@@ -1,0 +1,27 @@
+# Python artifacts
+__pycache__
+*.pyc
+*.pyo
+.pytest_cache
+
+# Environment / secrets
+.env
+.env.*
+
+# Logs
+*.log
+
+# Dev files
+requirements.in
+README.md
+.DS_Store
+.git
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+
+# Systemd service files (not used in Docker)
+*.service
+*.timer

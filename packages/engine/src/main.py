@@ -33,7 +33,6 @@ def main():
         sys.exit(1)
 
     logger.info("Starting GePT Prediction Engine...")
-    logger.info(f"Model registry: {config.model_registry_path}")
     logger.info(f"API endpoint: http://{config.api_host}:{config.api_port}")
 
     # Run the server
