@@ -73,22 +73,6 @@ class Config:
         default_factory=lambda: float(environ.get("MAX_BUY_LIMIT_VOLUME_RATIO", "0.05"))
     )
 
-    # Confidence thresholds (AUC values)
-    confidence_high_auc: float = field(
-        default_factory=lambda: float(environ.get("CONFIDENCE_HIGH_AUC", "0.75"))
-    )
-    confidence_medium_auc: float = field(
-        default_factory=lambda: float(environ.get("CONFIDENCE_MEDIUM_AUC", "0.65"))
-    )
-
-    # Cache
-    prediction_cache_ttl: int = field(
-        default_factory=lambda: int(environ.get("PREDICTION_CACHE_TTL", "60"))
-    )
-    prediction_cache_max_size: int = field(
-        default_factory=lambda: int(environ.get("PREDICTION_CACHE_MAX_SIZE", "1000"))
-    )
-
     # API Response Cache (Redis)
     # TTL values in seconds for different cache types
     cache_ttl_recommendations: int = field(
