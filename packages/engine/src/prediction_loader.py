@@ -314,12 +314,13 @@ class PredictionLoader:
     and filters them based on user constraints.
     """
 
-    def __init__(self, db_connection_string: str, pool_size: int = 5):
+    def __init__(self, db_connection_string: str, pool_size: int = 5, preferred_model_id: str = ""):
         """Initialize database connection.
 
         Args:
             db_connection_string: PostgreSQL connection string
             pool_size: Connection pool size
+            preferred_model_id: If set, only serve predictions from this model_id
         """
         self.engine = create_engine(
             db_connection_string,
@@ -328,6 +329,21 @@ class PredictionLoader:
             max_overflow=3,
             pool_pre_ping=True,
         )
+        self.preferred_model_id = preferred_model_id
+        if preferred_model_id:
+            logger.info(f"Model filter active: preferred_model_id={preferred_model_id}")
+
+    def _max_time_subquery(self) -> str:
+        """Return the MAX(time) subquery, scoped to preferred model if configured."""
+        if self.preferred_model_id:
+            return "(SELECT MAX(time) FROM predictions WHERE model_id = :preferred_model_id)"
+        return "(SELECT MAX(time) FROM predictions)"
+
+    def _inject_model_params(self, params: dict) -> dict:
+        """Add preferred_model_id to params dict if configured."""
+        if self.preferred_model_id:
+            params["preferred_model_id"] = self.preferred_model_id
+        return params
 
     def get_latest_predictions(
         self,
@@ -351,7 +367,7 @@ class PredictionLoader:
         """
         # Build query with filters
         conditions = [
-            "time = (SELECT MAX(time) FROM predictions)",
+            f"time = {self._max_time_subquery()}",
             "fill_probability >= :min_fill_prob",
             "expected_value >= :min_ev",
         ]
@@ -361,6 +377,7 @@ class PredictionLoader:
             "min_ev": min_ev,
             "limit": limit,
         }
+        self._inject_model_params(params)
 
         if max_hour_offset:
             conditions.append("hour_offset <= :max_hour_offset")
@@ -418,7 +435,7 @@ class PredictionLoader:
             DataFrame with all hour_offset/offset_pct combinations for the item
         """
         query = text(
-            """
+            f"""
             SELECT
                 item_id,
                 item_name,
@@ -433,15 +450,16 @@ class PredictionLoader:
                 confidence,
                 time as prediction_time
             FROM predictions
-            WHERE time = (SELECT MAX(time) FROM predictions)
+            WHERE time = {self._max_time_subquery()}
               AND item_id = :item_id
             ORDER BY hour_offset, offset_pct
         """
         )
 
         try:
+            params = self._inject_model_params({"item_id": item_id})
             with self.engine.connect() as conn:
-                df = pd.read_sql(query, conn, params={"item_id": item_id})
+                df = pd.read_sql(query, conn, params=params)
             return df
         except Exception as e:
             logger.error(f"Error fetching predictions for item {item_id}: {e}")
@@ -539,7 +557,7 @@ class PredictionLoader:
                         ) as rn
                     FROM predictions p
                     LEFT JOIN volume_24h v ON v.item_id = p.item_id
-                    WHERE p.time = (SELECT MAX(time) FROM predictions)
+                    WHERE p.time = {self._max_time_subquery()}
                       AND p.fill_probability >= :min_fill_prob
                       AND p.expected_value >= :min_ev
                       {hour_filter}
@@ -576,7 +594,7 @@ class PredictionLoader:
                             PARTITION BY p.item_id ORDER BY p.expected_value DESC
                         ) as rn
                     FROM predictions p
-                    WHERE p.time = (SELECT MAX(time) FROM predictions)
+                    WHERE p.time = {self._max_time_subquery()}
                       AND p.fill_probability >= :min_fill_prob
                       AND p.expected_value >= :min_ev
                       {hour_filter}
@@ -605,6 +623,7 @@ class PredictionLoader:
             params["max_offset_pct"] = max_offset_pct
         if min_volume_24h is not None and min_volume_24h > 0:
             params["min_volume_24h"] = min_volume_24h
+        self._inject_model_params(params)
 
         try:
             with self.engine.connect() as conn:
@@ -627,11 +646,16 @@ class PredictionLoader:
         Returns:
             Most recent prediction timestamp, or None if no data
         """
-        query = text("SELECT MAX(time) FROM predictions")
+        if self.preferred_model_id:
+            query = text("SELECT MAX(time) FROM predictions WHERE model_id = :preferred_model_id")
+            params = {"preferred_model_id": self.preferred_model_id}
+        else:
+            query = text("SELECT MAX(time) FROM predictions")
+            params = {}
 
         try:
             with self.engine.connect() as conn:
-                result = conn.execute(query).fetchone()
+                result = conn.execute(query, params).fetchone()
 
             if result and result[0]:
                 return result[0]
@@ -1293,12 +1317,12 @@ class PredictionLoader:
         expanded_query = expand_acronym(query)
 
         sql = text(
-            """
+            f"""
             SELECT item_id, item_name
             FROM (
                 SELECT DISTINCT item_id, item_name
                 FROM predictions
-                WHERE time = (SELECT MAX(time) FROM predictions)
+                WHERE time = {self._max_time_subquery()}
                   AND LOWER(item_name) LIKE LOWER(:query)
             ) AS items
             ORDER BY
@@ -1312,17 +1336,15 @@ class PredictionLoader:
         """
         )
 
+        params = self._inject_model_params({
+            "query": f"%{expanded_query}%",
+            "exact": expanded_query,
+            "starts": f"{expanded_query}%",
+            "limit": limit,
+        })
         try:
             with self.engine.connect() as conn:
-                result = conn.execute(
-                    sql,
-                    {
-                        "query": f"%{expanded_query}%",
-                        "exact": expanded_query,
-                        "starts": f"{expanded_query}%",
-                        "limit": limit,
-                    },
-                )
+                result = conn.execute(sql, params)
                 return [{"item_id": row[0], "item_name": row[1]} for row in result]
         except Exception as e:
             logger.error(f"Error searching items: {e}")
@@ -1560,7 +1582,7 @@ class PredictionLoader:
             return pd.DataFrame()
 
         query = text(
-            """
+            f"""
             SELECT
                 item_id,
                 item_name,
@@ -1575,15 +1597,16 @@ class PredictionLoader:
                 confidence,
                 time as prediction_time
             FROM predictions
-            WHERE time = (SELECT MAX(time) FROM predictions)
+            WHERE time = {self._max_time_subquery()}
               AND item_id = ANY(:item_ids)
             ORDER BY item_id, hour_offset, offset_pct
         """
         )
 
+        params = self._inject_model_params({"item_ids": item_ids})
         try:
             with self.engine.connect() as conn:
-                df = pd.read_sql(query, conn, params={"item_ids": item_ids})
+                df = pd.read_sql(query, conn, params=params)
             return df
         except Exception as e:
             logger.error(f"Error fetching predictions for items: {e}")
