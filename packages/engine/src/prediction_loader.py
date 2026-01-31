@@ -858,13 +858,13 @@ class PredictionLoader:
     def get_item_volume_24h(self, item_id: int) -> Optional[int]:
         """Get 24-hour trade volume for an item.
 
-        Sums buy and sell volumes from the last 24 hours of hourly data.
+        Sums buy and sell volumes from the last 24 hours of 5-minute data.
 
         Args:
             item_id: OSRS item ID
 
         Returns:
-            Total 24h volume or None if not available
+            Total 24h volume (0 if no data), or None on query failure
         """
         query = text(
             """
@@ -880,9 +880,9 @@ class PredictionLoader:
             with self.engine.connect() as conn:
                 result = conn.execute(query, {"item_id": item_id}).fetchone()
 
-            if result and result[0]:
+            if result and result[0] is not None:
                 return int(result[0])
-            return None
+            return 0
 
         except Exception as e:
             logger.debug(f"Could not fetch 24h volume for item {item_id}: {e}")
@@ -895,7 +895,7 @@ class PredictionLoader:
             item_id: OSRS item ID
 
         Returns:
-            Total 1h volume (sum of high_price_volume + low_price_volume) or 0 if no data
+            Total 1h volume (0 if no data), or None on query failure
         """
         query = text(
             """
@@ -949,7 +949,7 @@ class PredictionLoader:
             with self.engine.connect() as conn:
                 result = conn.execute(query, {"item_ids": item_ids}).fetchall()
 
-            return {int(row[0]): int(row[1]) for row in result if row[1]}
+            return {int(row[0]): int(row[1]) for row in result}
 
         except Exception as e:
             logger.warning(f"Could not fetch batch 24h volumes: {e}")
