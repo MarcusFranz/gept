@@ -1,6 +1,6 @@
 """Tests for materialized view fallback logic in PredictionLoader."""
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 from src.prediction_loader import PredictionLoader
 
