@@ -30,9 +30,7 @@ export const auth = betterAuth({
     enabled: true,
     minPasswordLength: 8,
     sendResetPassword: async ({ user, url }) => {
-      // For now, log the reset URL (in production, send via email service)
       // TODO: Integrate with email service (SendGrid, Resend, etc.)
-      console.log(`Password reset requested for ${user.email}: ${url}`);
 
       // In development, we'll use a simple approach
       // The URL will be available in the server logs
