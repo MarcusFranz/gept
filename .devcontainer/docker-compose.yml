@@ -1,0 +1,28 @@
+services:
+  workspace:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ..:/workspaces/gept:cached
+    command: sleep infinity
+    environment:
+      - SSH_DEPLOY_KEY
+      - DB_CONNECTION_STRING
+      - NEON_DATABASE_URL
+      - BETTER_AUTH_SECRET
+      - INTERNAL_API_KEY
+      - WEBHOOK_SECRET
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
