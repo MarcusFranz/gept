@@ -1,5 +1,6 @@
 // packages/web/src/pages/api/opportunities.ts
 import type { APIRoute } from 'astro';
+import { cache, cacheKey, TTL, KEY } from '../../lib/cache';
 
 const PREDICTION_API = import.meta.env.PREDICTION_API || 'http://150.136.170.128:8000';
 const API_KEY = import.meta.env.PREDICTION_API_KEY;
@@ -20,36 +21,60 @@ export const POST: APIRoute = async ({ request, locals }) => {
     // Parse filter parameters from body
     const filters = await request.json();
 
-    // Call engine opportunities endpoint
-    const engineRes = await fetch(`${PREDICTION_API}/api/v1/opportunities`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(API_KEY ? { 'X-API-Key': API_KEY } : {})
-      },
-      body: JSON.stringify({
-        min_profit: filters.profitMin,
-        max_profit: filters.profitMax,
-        min_hours: filters.timeMin,
-        max_hours: filters.timeMax,
-        confidence: filters.confidence, // array of levels
-        max_capital: filters.capitalMax,
-        categories: filters.categories,
-        limit: filters.limit || 50,
-        offset: filters.offset || 0
-      })
-    });
+    // Build the engine request payload
+    const enginePayload = {
+      min_profit: filters.profitMin,
+      max_profit: filters.profitMax,
+      min_hours: filters.timeMin,
+      max_hours: filters.timeMax,
+      confidence: filters.confidence, // array of levels
+      max_capital: filters.capitalMax,
+      categories: filters.categories,
+      limit: filters.limit || 50,
+      offset: filters.offset || 0
+    };
 
-    if (!engineRes.ok) {
-      throw new Error(`Engine returned ${engineRes.status}`);
+    // Build cache key from all filter parameters that affect the response
+    const redisCacheKey = cacheKey(
+      KEY.OPPS,
+      enginePayload.min_profit ?? '',
+      enginePayload.max_profit ?? '',
+      enginePayload.min_hours ?? '',
+      enginePayload.max_hours ?? '',
+      (enginePayload.confidence ?? []).join(','),
+      enginePayload.max_capital ?? '',
+      (enginePayload.categories ?? []).join(','),
+      enginePayload.limit,
+      enginePayload.offset
+    );
+
+    // Try cache first
+    let responseData: any = null;
+    try {
+      responseData = await cache.get(redisCacheKey);
+    } catch {
+      // Continue without cache on Redis errors
     }
 
-    const data = await engineRes.json();
+    if (!responseData) {
+      // Call engine opportunities endpoint
+      const engineRes = await fetch(`${PREDICTION_API}/api/v1/opportunities`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(API_KEY ? { 'X-API-Key': API_KEY } : {})
+        },
+        body: JSON.stringify(enginePayload)
+      });
 
-    // Transform to frontend format
-    return new Response(JSON.stringify({
-      success: true,
-      data: {
+      if (!engineRes.ok) {
+        throw new Error(`Engine returned ${engineRes.status}`);
+      }
+
+      const data = await engineRes.json();
+
+      // Transform to frontend format
+      responseData = {
         items: data.items.map((item: any) => ({
           id: item.id,
           itemId: item.item_id,
@@ -70,7 +95,15 @@ export const POST: APIRoute = async ({ request, locals }) => {
         })),
         total: data.total,
         hasMore: data.has_more
-      }
+      };
+
+      // Cache the transformed response (fire and forget)
+      cache.set(redisCacheKey, responseData, TTL.OPPORTUNITIES).catch(() => {});
+    }
+
+    return new Response(JSON.stringify({
+      success: true,
+      data: responseData
     }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' }
