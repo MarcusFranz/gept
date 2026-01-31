@@ -1,6 +1,110 @@
 import { Ratelimit } from '@upstash/ratelimit';
 import { Redis } from '@upstash/redis';
 
+// ---------------------------------------------------------------------------
+// In-memory fallback rate limiter (activates when Redis is unavailable)
+// Uses a simple sliding window approach with a Map. Limits are more aggressive
+// (roughly half the Redis limits) since this is per-instance, not distributed.
+// ---------------------------------------------------------------------------
+
+interface MemoryBucket {
+  timestamps: number[];
+}
+
+class InMemoryRateLimiter {
+  private buckets: Map<string, MemoryBucket> = new Map();
+  private readonly maxRequests: number;
+  private readonly windowMs: number;
+  private readonly prefix: string;
+  private cleanupTimer: ReturnType<typeof setInterval> | null = null;
+
+  constructor(maxRequests: number, windowMs: number, prefix: string) {
+    this.maxRequests = maxRequests;
+    this.windowMs = windowMs;
+    this.prefix = prefix;
+
+    // Periodic cleanup of expired entries every 60 seconds
+    this.cleanupTimer = setInterval(() => this.cleanup(), 60_000);
+    // Allow the timer to not keep the process alive
+    if (this.cleanupTimer && typeof this.cleanupTimer === 'object' && 'unref' in this.cleanupTimer) {
+      this.cleanupTimer.unref();
+    }
+  }
+
+  check(identifier: string): RateLimitResult {
+    const key = `${this.prefix}${identifier}`;
+    const now = Date.now();
+    const windowStart = now - this.windowMs;
+
+    let bucket = this.buckets.get(key);
+    if (!bucket) {
+      bucket = { timestamps: [] };
+      this.buckets.set(key, bucket);
+    }
+
+    // Remove timestamps outside the window
+    bucket.timestamps = bucket.timestamps.filter((t) => t > windowStart);
+
+    const remaining = Math.max(0, this.maxRequests - bucket.timestamps.length);
+    const success = bucket.timestamps.length < this.maxRequests;
+
+    if (success) {
+      bucket.timestamps.push(now);
+    }
+
+    return {
+      success,
+      limit: this.maxRequests,
+      remaining: success ? Math.max(0, this.maxRequests - bucket.timestamps.length) : 0,
+      reset: now + this.windowMs,
+    };
+  }
+
+  private cleanup(): void {
+    const now = Date.now();
+    const windowStart = now - this.windowMs;
+    this.buckets.forEach((bucket, key) => {
+      bucket.timestamps = bucket.timestamps.filter((t) => t > windowStart);
+      if (bucket.timestamps.length === 0) {
+        this.buckets.delete(key);
+      }
+    });
+  }
+}
+
+// In-memory fallback instances (created lazily, one per action type)
+let memoryLoginLimiter: InMemoryRateLimiter | null = null;
+let memorySignupLimiter: InMemoryRateLimiter | null = null;
+let memoryPasswordResetLimiter: InMemoryRateLimiter | null = null;
+
+function getMemoryLoginLimiter(): InMemoryRateLimiter {
+  if (!memoryLoginLimiter) {
+    // Half of Redis limit: 2 attempts per 15 minutes
+    memoryLoginLimiter = new InMemoryRateLimiter(2, 15 * 60 * 1000, 'mem:login:');
+  }
+  return memoryLoginLimiter;
+}
+
+function getMemorySignupLimiter(): InMemoryRateLimiter {
+  if (!memorySignupLimiter) {
+    // Half of Redis limit: 1 signup per hour
+    memorySignupLimiter = new InMemoryRateLimiter(1, 60 * 60 * 1000, 'mem:signup:');
+  }
+  return memorySignupLimiter;
+}
+
+function getMemoryPasswordResetLimiter(): InMemoryRateLimiter {
+  if (!memoryPasswordResetLimiter) {
+    // Half of Redis limit: 1 reset per hour
+    memoryPasswordResetLimiter = new InMemoryRateLimiter(1, 60 * 60 * 1000, 'mem:reset:');
+  }
+  return memoryPasswordResetLimiter;
+}
+
+// ---------------------------------------------------------------------------
+// Redis-based primary rate limiting
+// ---------------------------------------------------------------------------
+
 // Initialize Redis client for rate limiting
 let redis: Redis | null = null;
 
@@ -97,9 +201,10 @@ export interface RateLimitResult {
 export async function checkLoginRateLimit(identifier: string): Promise<RateLimitResult> {
   const limiter = getLoginLimiter();
 
-  // If rate limiting is not available, allow the request
+  // If Redis rate limiting is not available, fall back to in-memory limiter
   if (!limiter) {
-    return { success: true, limit: 5, remaining: 5, reset: 0 };
+    console.warn('[RateLimit] Redis unavailable for login check, using in-memory fallback');
+    return getMemoryLoginLimiter().check(identifier);
   }
 
   try {
@@ -112,8 +217,8 @@ export async function checkLoginRateLimit(identifier: string): Promise<RateLimit
     };
   } catch (err) {
     console.error('[RateLimit] Login check error:', err);
-    // On error, allow the request
-    return { success: true, limit: 5, remaining: 5, reset: 0 };
+    console.warn('[RateLimit] Falling back to in-memory limiter for login');
+    return getMemoryLoginLimiter().check(identifier);
   }
 }
 
@@ -124,8 +229,10 @@ export async function checkLoginRateLimit(identifier: string): Promise<RateLimit
 export async function checkSignupRateLimit(ip: string): Promise<RateLimitResult> {
   const limiter = getSignupLimiter();
 
+  // If Redis rate limiting is not available, fall back to in-memory limiter
   if (!limiter) {
-    return { success: true, limit: 3, remaining: 3, reset: 0 };
+    console.warn('[RateLimit] Redis unavailable for signup check, using in-memory fallback');
+    return getMemorySignupLimiter().check(ip);
   }
 
   try {
@@ -138,7 +245,8 @@ export async function checkSignupRateLimit(ip: string): Promise<RateLimitResult>
     };
   } catch (err) {
     console.error('[RateLimit] Signup check error:', err);
-    return { success: true, limit: 3, remaining: 3, reset: 0 };
+    console.warn('[RateLimit] Falling back to in-memory limiter for signup');
+    return getMemorySignupLimiter().check(ip);
   }
 }
 
@@ -149,8 +257,10 @@ export async function checkSignupRateLimit(ip: string): Promise<RateLimitResult>
 export async function checkPasswordResetRateLimit(email: string): Promise<RateLimitResult> {
   const limiter = getPasswordResetLimiter();
 
+  // If Redis rate limiting is not available, fall back to in-memory limiter
   if (!limiter) {
-    return { success: true, limit: 3, remaining: 3, reset: 0 };
+    console.warn('[RateLimit] Redis unavailable for password reset check, using in-memory fallback');
+    return getMemoryPasswordResetLimiter().check(email.toLowerCase());
   }
 
   try {
@@ -163,7 +273,8 @@ export async function checkPasswordResetRateLimit(email: string): Promise<RateLi
     };
   } catch (err) {
     console.error('[RateLimit] Password reset check error:', err);
-    return { success: true, limit: 3, remaining: 3, reset: 0 };
+    console.warn('[RateLimit] Falling back to in-memory limiter for password reset');
+    return getMemoryPasswordResetLimiter().check(email.toLowerCase());
   }
 }
 
