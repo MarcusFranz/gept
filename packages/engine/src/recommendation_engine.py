@@ -1766,17 +1766,13 @@ class RecommendationEngine:
         mask = predictions.apply(passes_stability_check, axis=1)
         rejected = predictions[~mask]
 
-        # Log rejections for debugging
-        for _, row in rejected.iterrows():
-            ratio = row.get('price_vs_median_ratio')
-            volume = row.get('volume_24h')
-            value = row.get('current_high')
-            ratio_str = f"{ratio:.1%}" if ratio is not None else "N/A"
-            vol_str = str(volume) if volume is not None else "N/A"
-            value_str = f"{value:,.0f}" if value is not None else "N/A"
+        # Log rejections for debugging (batch summary)
+        if not rejected.empty:
+            item_names = rejected['item_name'].fillna('Unknown').tolist()
             logger.info(
-                f"Stability filter rejected {row.get('item_name', 'Unknown')}: "
-                f"ratio={ratio_str}, vol={vol_str}, value={value_str}"
+                f"Stability filter rejected {len(rejected)} items: "
+                f"{', '.join(item_names[:5])}"
+                + (" ..." if len(rejected) > 5 else "")
             )
 
         return predictions[mask].reset_index(drop=True)
@@ -1854,20 +1850,13 @@ class RecommendationEngine:
         mask = predictions.apply(passes_trend_check, axis=1)
         rejected = predictions[~mask]
 
-        # Log rejections for debugging (with safe formatting)
-        for _, row in rejected.iterrows():
-            r1h = row.get('return_1h')
-            r4h = row.get('return_4h')
-            r24h = row.get('return_24h')
-            r1h_str = "N/A" if r1h is None or pd.isna(r1h) else f"{r1h:.1%}"
-            r4h_str = "N/A" if r4h is None or pd.isna(r4h) else f"{r4h:.1%}"
-            r24h_str = "N/A" if r24h is None or pd.isna(r24h) else f"{r24h:.1%}"
+        # Log rejections for debugging (batch summary)
+        if not rejected.empty:
+            item_names = rejected['item_name'].fillna('Unknown').tolist()
             logger.info(
-                "Trend filter rejected %s: 1h=%s, 4h=%s, 24h=%s",
-                row.get('item_name', 'Unknown'),
-                r1h_str,
-                r4h_str,
-                r24h_str
+                f"Trend filter rejected {len(rejected)} items: "
+                f"{', '.join(item_names[:5])}"
+                + (" ..." if len(rejected) > 5 else "")
             )
 
         return predictions[mask].reset_index(drop=True)
@@ -1918,14 +1907,13 @@ class RecommendationEngine:
         mask = predictions.apply(passes_liquidity_check, axis=1)
         rejected = predictions[~mask]
 
-        for _, row in rejected.iterrows():
-            item_id = int(row["item_id"])
-            buy_limit = buy_limits.get(item_id, 0)
-            volume = volumes_24h.get(item_id, 0)
-            ratio = buy_limit / volume if volume > 0 else float("inf")
+        # Log rejections for debugging (batch summary)
+        if not rejected.empty:
+            item_names = rejected['item_name'].fillna('Unknown').tolist()
             logger.info(
-                f"Liquidity filter rejected {row.get('item_name', 'Unknown')}: "
-                f"buy_limit={buy_limit:,}, volume_24h={volume:,}, ratio={ratio:.1%}"
+                f"Liquidity filter rejected {len(rejected)} items: "
+                f"{', '.join(item_names[:5])}"
+                + (" ..." if len(rejected) > 5 else "")
             )
 
         return predictions[mask].reset_index(drop=True)
