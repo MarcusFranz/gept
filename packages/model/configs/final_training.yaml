@@ -1,0 +1,62 @@
+# Final Training Config - Best hyperparameters from Optuna HPO
+# Source: Trial #1 from patchtst_volume_v1_full study
+# val_price_loss: 0.1317, val_volume_loss: 0.5474
+
+data:
+  recent_hours: 24        # 5-min resolution, 288 timesteps
+  medium_days: 7          # 1-hour resolution, 168 timesteps
+  long_days: 30           # 4-hour resolution, 180 timesteps
+  max_gap_pct: 0.05
+  outlier_threshold: 0.5
+
+model:
+  # Multi-resolution input dimensions
+  recent_len: 288
+  recent_features: 6
+  medium_len: 168
+  medium_features: 10
+  long_len: 180
+  long_features: 10
+
+  # WINNING ARCHITECTURE (from Trial #1)
+  patch_size: 16
+  d_model: 384
+  n_heads: 8
+  n_layers: 5
+  d_ff: 768
+  dropout: 0.1
+
+  # Quantile prediction
+  n_horizons: 7
+  n_quantiles: 5
+  quantiles: [0.1, 0.3, 0.5, 0.7, 0.9]
+
+  # Item embeddings
+  n_items: 1200
+  item_embed_dim: 32
+
+  # Volume head
+  enable_volume_head: true
+  volume_quantiles: [0.1, 0.5, 0.9]
+  volume_hidden_dim: 64
+
+training:
+  # WINNING HYPERPARAMETERS (from Trial #1)
+  batch_size: 384
+  lr: 0.000138
+  weight_decay: 0.00121
+
+  # Training settings
+  epochs: 15              # Plateaus around epoch 12-15
+  warmup_steps: 500
+  num_workers: 4
+
+  # Checkpointing
+  checkpoint_every: 1     # Save every epoch
+  save_best: true         # Save best model
+
+# Volume training
+volume_weight: 0.2
+
+output_dir: /workspace/gept/data
+model_dir: /workspace/gept/models

@@ -1,0 +1,72 @@
+# Fast Sweep Optuna Config - Quick hyperparameter exploration
+# Uses reduced data (25%) and fewer epochs for rapid iteration
+# Results inform full-data retraining of best configs
+
+data:
+  recent_hours: 24        # 5-min resolution, 288 timesteps
+  medium_days: 7          # 1-hour resolution, 168 timesteps
+  long_days: 30           # 4-hour resolution, 180 timesteps
+  max_gap_pct: 0.05       # Max 5% missing data
+  outlier_threshold: 0.5  # Flag >50% price changes
+
+model:
+  # Multi-resolution input dimensions
+  recent_len: 288         # 24h at 5-min
+  recent_features: 6
+  medium_len: 168         # 7d at 1-hour
+  medium_features: 10
+  long_len: 180           # 30d at 4-hour
+  long_features: 10
+
+  # Transformer architecture (search space)
+  patch_size: 16
+  d_model: 384            # Will be tuned: [256, 384, 512]
+  n_heads: 8              # Will be tuned: [4, 8]
+  n_layers: 6             # Will be tuned: [4-8]
+  d_ff: 768
+  dropout: 0.1            # Will be tuned: [0.1-0.4]
+
+  # Quantile prediction
+  n_horizons: 7           # 1h, 2h, 4h, 8h, 12h, 24h, 48h
+  n_quantiles: 5          # p10, p30, p50, p70, p90
+  quantiles: [0.1, 0.3, 0.5, 0.7, 0.9]
+
+  # Item embeddings
+  n_items: 1200           # Max item_id is 1149, need headroom
+  item_embed_dim: 32      # Will be tuned: [16, 32, 64]
+
+  # Volume head (ENABLED)
+  enable_volume_head: true
+  volume_quantiles: [0.1, 0.5, 0.9]
+  volume_hidden_dim: 64
+
+training:
+  batch_size: 256         # Per-GPU batch size
+  epochs: 10              # FAST: Reduced from 30
+  max_epochs: 10          # FAST: Max epochs for Optuna trials
+  patience: 3             # FAST: Reduced patience for quicker stopping
+  lr: 0.0001              # Will be tuned
+  warmup_steps: 200       # FAST: Reduced warmup
+  weight_decay: 0.01      # Will be tuned
+  num_workers: 4
+  checkpoint_every: 5
+
+# FAST SWEEP settings
+optuna:
+  n_trials_per_gpu: 2     # FAST: 8 GPUs x 2 = 16 total trials
+  study_name: patchtst_volume_v1_fast
+  volume_weight: 0.2      # Fixed weight for volume loss
+  calibration_trials: 8   # First 8 trials before volume pruning
+  # Search space - same as full run
+  batch_sizes: [256, 384, 512, 768, 1024]
+  d_model_options: [256, 384, 512]
+  n_layers_range: [4, 8]
+  item_embed_options: [16, 32, 64]
+
+  # FAST SWEEP specific
+  data_fraction: 0.25     # Use 25% of training data
+  sweep_type: fast        # Tag for traceability
+
+output_dir: /workspace/gept/data
+model_dir: /workspace/gept/models
+log_dir: /workspace/logs/fast
