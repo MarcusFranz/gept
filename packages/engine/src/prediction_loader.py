@@ -345,6 +345,22 @@ class PredictionLoader:
             params["preferred_model_id"] = self.preferred_model_id
         return params
 
+    def _matview_exists(self, view_name: str) -> bool:
+        """Check if a materialized view exists (cached per instance)."""
+        if not hasattr(self, "_matview_cache"):
+            self._matview_cache: dict[str, bool] = {}
+        if view_name not in self._matview_cache:
+            try:
+                with self.engine.connect() as conn:
+                    result = conn.execute(
+                        text("SELECT 1 FROM pg_matviews WHERE matviewname = :name"),
+                        {"name": view_name},
+                    ).fetchone()
+                    self._matview_cache[view_name] = result is not None
+            except Exception:
+                self._matview_cache[view_name] = False
+        return self._matview_cache[view_name]
+
     def get_latest_predictions(
         self,
         min_fill_prob: float = 0.03,
@@ -527,8 +543,14 @@ class PredictionLoader:
         needs_volume = min_volume_24h is not None and min_volume_24h > 0
 
         if needs_volume:
-            query = text(
-                f"""
+            # Use materialized view if available (refreshed every 5 min)
+            if self._matview_exists("mv_volume_24h"):
+                volume_cte = """
+                WITH volume_24h AS (
+                    SELECT item_id, total_volume FROM mv_volume_24h
+                ),"""
+            else:
+                volume_cte = """
                 WITH volume_24h AS (
                     SELECT item_id,
                            COALESCE(SUM(high_price_volume), 0)
@@ -536,7 +558,10 @@ class PredictionLoader:
                     FROM price_data_5min
                     WHERE timestamp >= NOW() - INTERVAL '24 hours'
                     GROUP BY item_id
-                ),
+                ),"""
+            query = text(
+                f"""
+                {volume_cte}
                 ranked AS (
                     SELECT
                         p.item_id,
@@ -866,15 +891,20 @@ class PredictionLoader:
         Returns:
             Total 24h volume (0 if no data), or None on query failure
         """
-        query = text(
+        if self._matview_exists("mv_volume_24h"):
+            query = text(
+                "SELECT total_volume FROM mv_volume_24h WHERE item_id = :item_id"
+            )
+        else:
+            query = text(
+                """
+                SELECT COALESCE(SUM(high_price_volume), 0)
+                       + COALESCE(SUM(low_price_volume), 0) as total_volume
+                FROM price_data_5min
+                WHERE item_id = :item_id
+                  AND timestamp >= NOW() - INTERVAL '24 hours'
             """
-            SELECT COALESCE(SUM(high_price_volume), 0)
-                   + COALESCE(SUM(low_price_volume), 0) as total_volume
-            FROM price_data_5min
-            WHERE item_id = :item_id
-              AND timestamp >= NOW() - INTERVAL '24 hours'
-        """
-        )
+            )
 
         try:
             with self.engine.connect() as conn:
@@ -897,15 +927,20 @@ class PredictionLoader:
         Returns:
             Total 1h volume (0 if no data), or None on query failure
         """
-        query = text(
+        if self._matview_exists("mv_volume_1h"):
+            query = text(
+                "SELECT total_volume FROM mv_volume_1h WHERE item_id = :item_id"
+            )
+        else:
+            query = text(
+                """
+                SELECT COALESCE(SUM(high_price_volume), 0)
+                       + COALESCE(SUM(low_price_volume), 0) as total_volume
+                FROM price_data_5min
+                WHERE item_id = :item_id
+                  AND timestamp >= NOW() - INTERVAL '1 hour'
             """
-            SELECT COALESCE(SUM(high_price_volume), 0)
-                   + COALESCE(SUM(low_price_volume), 0) as total_volume
-            FROM price_data_5min
-            WHERE item_id = :item_id
-              AND timestamp >= NOW() - INTERVAL '1 hour'
-        """
-        )
+            )
 
         try:
             with self.engine.connect() as conn:
@@ -933,17 +968,26 @@ class PredictionLoader:
         if not item_ids:
             return {}
 
-        query = text(
+        if self._matview_exists("mv_volume_24h"):
+            query = text(
+                """
+                SELECT item_id, total_volume
+                FROM mv_volume_24h
+                WHERE item_id = ANY(:item_ids)
             """
-            SELECT item_id,
-                   COALESCE(SUM(high_price_volume), 0)
-                   + COALESCE(SUM(low_price_volume), 0) as total_volume
-            FROM price_data_5min
-            WHERE item_id = ANY(:item_ids)
-              AND timestamp >= NOW() - INTERVAL '24 hours'
-            GROUP BY item_id
-        """
-        )
+            )
+        else:
+            query = text(
+                """
+                SELECT item_id,
+                       COALESCE(SUM(high_price_volume), 0)
+                       + COALESCE(SUM(low_price_volume), 0) as total_volume
+                FROM price_data_5min
+                WHERE item_id = ANY(:item_ids)
+                  AND timestamp >= NOW() - INTERVAL '24 hours'
+                GROUP BY item_id
+            """
+            )
 
         try:
             with self.engine.connect() as conn:
@@ -969,17 +1013,26 @@ class PredictionLoader:
         if not item_ids:
             return {}
 
-        query = text(
+        if self._matview_exists("mv_volume_1h"):
+            query = text(
+                """
+                SELECT item_id, total_volume
+                FROM mv_volume_1h
+                WHERE item_id = ANY(:item_ids)
             """
-            SELECT item_id,
-                   COALESCE(SUM(high_price_volume), 0)
-                   + COALESCE(SUM(low_price_volume), 0) as total_volume
-            FROM price_data_5min
-            WHERE item_id = ANY(:item_ids)
-              AND timestamp >= NOW() - INTERVAL '1 hour'
-            GROUP BY item_id
-        """
-        )
+            )
+        else:
+            query = text(
+                """
+                SELECT item_id,
+                       COALESCE(SUM(high_price_volume), 0)
+                       + COALESCE(SUM(low_price_volume), 0) as total_volume
+                FROM price_data_5min
+                WHERE item_id = ANY(:item_ids)
+                  AND timestamp >= NOW() - INTERVAL '1 hour'
+                GROUP BY item_id
+            """
+            )
 
         try:
             with self.engine.connect() as conn:
