@@ -42,7 +42,7 @@ if [ -z "${DB_PASS:-}" ]; then
     fi
 fi
 
-export PGPASSWORD="$DB_PASS"
+# Auth handled by ~/.pgpass (chmod 600)
 
 # Test connection
 log_info "Testing database connection..."
@@ -62,6 +62,7 @@ MIGRATIONS=(
     "004_predictions_model_fk.sql"
     "005_completed_trades.sql"
     "006_watchlist.sql"
+    "017_price_data_volume_index.sql"
 )
 
 log_info "Running ${#MIGRATIONS[@]} migrations..."

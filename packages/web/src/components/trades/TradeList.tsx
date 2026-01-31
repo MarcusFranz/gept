@@ -237,6 +237,12 @@ export function TradeList(props: TradeListProps) {
                     }
                   }}
                   onDismissAlert={() => props.onDismissAlert?.(trade.id)}
+                  onAcknowledgePrice={() => {
+                    const suggestedPrice = trade.suggestedSellPrice;
+                    if (suggestedPrice) {
+                      props.onAcceptAlert?.(trade.id, suggestedPrice);
+                    }
+                  }}
                 />
               </Show>
             )}
