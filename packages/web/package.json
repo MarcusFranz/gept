@@ -20,14 +20,10 @@
     "@upstash/redis": "^1.36.1",
     "astro": "^5.16.9",
     "better-auth": "^1.4.13",
-    "better-sqlite3": "^12.6.0",
-    "dotenv": "^17.2.3",
     "pg": "^8.17.1",
     "solid-js": "^1.9.10"
   },
-  "devDependencies": {
-    "@types/better-sqlite3": "^7.6.13"
-  },
+  "devDependencies": {},
   "engines": {
     "node": ">=20"
   }
