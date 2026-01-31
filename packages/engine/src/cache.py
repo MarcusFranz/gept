@@ -192,5 +192,3 @@ async def get_cache_stats() -> dict:
         }
     except Exception as e:
         return {"available": False, "reason": str(e)}
-
-
