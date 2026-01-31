@@ -1,0 +1,22 @@
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/packages/web"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    security-updates-only: true
+
+  - package-ecosystem: "pip"
+    directory: "/packages/engine"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    security-updates-only: true
+
+  - package-ecosystem: "pip"
+    directory: "/packages/model"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    security-updates-only: true
