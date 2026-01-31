@@ -298,16 +298,19 @@ def get_rate_limit_key(request: Request) -> str:
     if user_id and len(user_id) == 64:
         return f"user:{user_id}"
 
-    # Try X-Forwarded-For for proxied requests (Vercel, nginx, etc.)
-    forwarded = request.headers.get("X-Forwarded-For")
-    if forwarded:
-        # Get the first IP in the chain (original client)
-        client_ip = forwarded.split(",")[0].strip()
-        return f"ip:{client_ip}"
+    # Only trust X-Forwarded-For from known proxies (localhost, Docker network)
+    # Prevents rate limit bypass via spoofed headers from direct connections
+    client_host = request.client.host if request.client else None
+    trusted_proxies = {"127.0.0.1", "::1", "172.17.0.1"}
+    if client_host in trusted_proxies:
+        forwarded = request.headers.get("X-Forwarded-For")
+        if forwarded:
+            client_ip = forwarded.split(",")[0].strip()
+            return f"ip:{client_ip}"
 
-    # Fall back to direct client IP
-    if request.client:
-        return f"ip:{request.client.host}"
+    # Use direct connection IP (not spoofable)
+    if client_host:
+        return f"ip:{client_host}"
 
     return "ip:unknown"
 
@@ -347,16 +350,17 @@ async def verify_api_key(
 ) -> Optional[str]:
     """Verify API key for protected endpoints.
 
-    If INTERNAL_API_KEY is not configured, authentication is disabled.
-    If configured, requests must include a valid X-API-Key header.
+    INTERNAL_API_KEY is required at startup (enforced by config.validate()).
+    The bypass below is unreachable in production but kept for test ergonomics.
 
     Returns:
-        The API key if valid, None if auth is disabled
+        The API key if valid, None if auth is not configured (unreachable in prod)
 
     Raises:
         HTTPException: 401 if API key is missing or invalid
     """
-    # If no API key configured, authentication is disabled
+    # Unreachable in production — config.validate() blocks startup without key.
+    # Kept for test fixtures that don't go through the lifespan startup path.
     if not config.internal_api_key:
         return None
 

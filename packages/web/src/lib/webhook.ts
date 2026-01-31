@@ -51,6 +51,7 @@ export async function dispatchWebhook(
  */
 export function generateSignature(body: string, timestamp: string): string {
   if (!WEBHOOK_SECRET) {
+    console.error('WEBHOOK_SECRET not configured — cannot sign outbound webhooks');
     return '';
   }
   const payload = `${timestamp}.${body}`;
@@ -67,8 +68,8 @@ export function verifyWebhookSignature(
   signature: string
 ): boolean {
   if (!WEBHOOK_SECRET) {
-    console.warn('WEBHOOK_SECRET not configured, accepting all webhooks');
-    return true;
+    console.error('WEBHOOK_SECRET not configured — rejecting webhook (fail closed)');
+    return false;
   }
 
   // Check timestamp to prevent replay attacks
