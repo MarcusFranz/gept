@@ -4265,21 +4265,21 @@ class TestGetAllRecommendations:
 class TestFilterIntegration:
     """Test that new filters are called in get_recommendations flow."""
 
-    def test_stability_filter_called(self):
-        """Stability filter should be called during recommendation flow."""
+    def test_liquidity_filter_called(self):
+        """Liquidity filter should be called during recommendation flow."""
         from src.recommendation_engine import RecommendationEngine
 
         engine = MagicMock(spec=RecommendationEngine)
-        engine._apply_price_stability_filter = MagicMock(
-            side_effect=lambda x: x
+        engine._apply_liquidity_filter = MagicMock(
+            side_effect=lambda x, b, v: x
         )
-        engine._apply_trend_entry_filter = MagicMock(
-            side_effect=lambda x, s: x
+        engine._check_manipulation_signals_vectorized = MagicMock(
+            side_effect=lambda x, v24, v1: pd.Series([False] * len(x))
         )
 
         # Verify methods exist and are callable
-        assert hasattr(engine, '_apply_price_stability_filter')
-        assert hasattr(engine, '_apply_trend_entry_filter')
+        assert hasattr(engine, '_apply_liquidity_filter')
+        assert hasattr(engine, '_check_manipulation_signals_vectorized')
 
     def test_filters_applied_before_candidate_building(self):
         """Filters should be applied after fetching predictions, before building candidates."""
@@ -4291,18 +4291,20 @@ class TestFilterIntegration:
 
         # Find positions of key operations
         fetch_pos = source.find('get_best_prediction_per_item')
-        stability_pos = source.find('_apply_price_stability_filter')
-        trend_pos = source.find('_apply_trend_entry_filter')
-        build_pos = source.find('_build_candidate')
+        liquidity_pos = source.find('_apply_liquidity_filter')
+        # Check for validation and manipulation checks in vectorized pipeline
+        validation_pos = source.find('_filter_valid_candidates')
+        manipulation_pos = source.find('_check_manipulation_signals_vectorized')
+        build_pos = source.find('_enrich_metadata_vectorized')
 
-        # Stability filter should come after fetch, before build
-        assert stability_pos > fetch_pos, \
-            "Stability filter should come after fetching predictions"
-        assert stability_pos < build_pos, \
-            "Stability filter should come before building candidates"
+        # Liquidity filter should come after fetch, before vectorized pipeline
+        assert liquidity_pos > fetch_pos, \
+            "Liquidity filter should come after fetching predictions"
+        assert liquidity_pos < validation_pos, \
+            "Liquidity filter should come before vectorized pipeline"
 
-        # Trend filter should come after stability, before build
-        assert trend_pos > stability_pos, \
-            "Trend filter should come after stability filter"
-        assert trend_pos < build_pos, \
-            "Trend filter should come before building candidates"
+        # Manipulation check should come after validation, before enrichment
+        assert manipulation_pos > validation_pos, \
+            "Manipulation check should come after validation"
+        assert manipulation_pos < build_pos, \
+            "Manipulation check should come before metadata enrichment"
