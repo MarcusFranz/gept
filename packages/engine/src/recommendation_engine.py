@@ -2155,64 +2155,88 @@ class RecommendationEngine:
         # Use a large default capital for quantity calculations
         default_capital = 1_000_000_000  # 1B gp
 
-        # Build opportunity list
-        opportunities = []
-        for _, row in predictions_df.iterrows():
-            item_id = int(row["item_id"])
-            buy_price = int(row["buy_price"])
-            sell_price = int(row["sell_price"])
-            fill_prob = float(row["fill_probability"])
-            ev = float(row["expected_value"])
-            hour_offset = int(row["hour_offset"])
-            confidence = row.get("confidence", "medium")
-            item_name = row.get("item_name", f"Item {item_id}")
+        # Build opportunity list (vectorized)
+        df = predictions_df.copy()
 
-            # Get buy limit and calculate quantity
-            buy_limit = buy_limits.get(item_id, 10000)
-            max_quantity = min(buy_limit, default_capital // buy_price) if buy_price > 0 else 0
-            if max_quantity < 1:
-                continue
+        # Type conversions (vectorized)
+        df['item_id'] = df['item_id'].astype(int)
+        df['buy_price'] = df['buy_price'].astype(int)
+        df['sell_price'] = df['sell_price'].astype(int)
+        df['fill_probability'] = df['fill_probability'].astype(float)
+        df['expected_value'] = df['expected_value'].astype(float)
+        df['hour_offset'] = df['hour_offset'].astype(int)
 
-            # Calculate profit (after 1% GE tax)
-            profit_per_unit = sell_price - buy_price - calculate_tax(sell_price)
-            if profit_per_unit <= 0:
-                continue
+        # Handle optional columns with defaults
+        if 'confidence' not in df.columns:
+            df['confidence'] = 'medium'
+        else:
+            df['confidence'] = df['confidence'].fillna('medium')
 
-            capital_required = buy_price * max_quantity
-            expected_profit = int(profit_per_unit * max_quantity * fill_prob)
+        if 'item_name' not in df.columns:
+            df['item_name'] = df['item_id'].apply(lambda x: f"Item {x}")
+        else:
+            df['item_name'] = df['item_name'].fillna(df['item_id'].apply(lambda x: f"Item {x}"))
 
-            # Get additional data
-            volume_24h = volumes_24h.get(item_id)
-            trend = trends.get(item_id, "Stable")
-            category = None  # Not currently in items table
+        # Batch lookups (vectorized)
+        df['buy_limit'] = df['item_id'].map(buy_limits).fillna(10000).astype(int)
+        df['volume_24h'] = df['item_id'].map(volumes_24h)
+        df['trend'] = df['item_id'].map(trends).fillna('Stable')
 
-            # Build opportunity dict (includes fields needed for generate_why_chips)
-            opp = {
-                "item_id": item_id,
-                "item_name": item_name,
-                "icon_url": f"https://secure.runescape.com/m=itemdb_oldschool/obj_big.gif?id={item_id}",
-                "buy_price": buy_price,
-                "sell_price": sell_price,
-                "quantity": max_quantity,
-                "capital_required": capital_required,
-                "expected_profit": expected_profit,
-                "expected_hours": hour_offset,
-                "confidence": confidence,
-                "fill_probability": round(fill_prob, 4),
-                "expected_value": round(ev, 6),
-                "volume_24h": volume_24h,
-                "trend": trend,
-                "category": category,
-                # Fields for generate_why_chips
-                "hour_offset": hour_offset,
-                "volume_tier": self._volume_to_tier(volume_24h) if volume_24h else None,
-                "_spread_pct": (sell_price - buy_price) / buy_price if buy_price > 0 else 0,
-            }
+        # Quantity calculation (vectorized)
+        df['max_qty_by_capital'] = (default_capital // df['buy_price']).fillna(0).astype(int)
+        df['max_quantity'] = df[['buy_limit', 'max_qty_by_capital']].min(axis=1)
 
-            opportunities.append(opp)
+        # Filter out zero quantity (vectorized)
+        df = df[df['max_quantity'] >= 1]
 
-        # Sort by expected profit descending
-        opportunities.sort(key=lambda x: x["expected_profit"], reverse=True)
+        # Profit calculations (vectorized)
+        df['tax_per_unit'] = df['sell_price'].apply(calculate_tax)
+        df['profit_per_unit'] = df['sell_price'] - df['buy_price'] - df['tax_per_unit']
+
+        # Filter negative profit (vectorized)
+        df = df[df['profit_per_unit'] > 0]
+
+        # Expected profit and capital (vectorized)
+        df['capital_required'] = df['buy_price'] * df['max_quantity']
+        df['expected_profit'] = (df['profit_per_unit'] * df['max_quantity'] * df['fill_probability']).astype(int)
+
+        # Icon URLs (vectorized)
+        df['icon_url'] = df['item_id'].apply(
+            lambda item_id: f"https://secure.runescape.com/m=itemdb_oldschool/obj_big.gif?id={item_id}"
+        )
+
+        # Volume tier (vectorized)
+        df['volume_tier'] = df['volume_24h'].apply(lambda v: self._volume_to_tier(v) if v else None)
+
+        # Spread percentage (vectorized)
+        df['_spread_pct'] = (df['sell_price'] - df['buy_price']) / df['buy_price']
+
+        # Round numerical fields (vectorized)
+        df['fill_probability_rounded'] = df['fill_probability'].round(4)
+        df['expected_value_rounded'] = df['expected_value'].round(6)
+
+        # Build opportunity dicts (convert to list of dicts)
+        df['category'] = None  # Not currently in items table
+        opportunities = df[[
+            'item_id', 'item_name', 'icon_url', 'buy_price', 'sell_price',
+            'max_quantity', 'capital_required', 'expected_profit', 'hour_offset',
+            'confidence', 'fill_probability_rounded', 'expected_value_rounded',
+            'volume_24h', 'trend', 'category', 'volume_tier', '_spread_pct'
+        ]].rename(columns={
+            'fill_probability_rounded': 'fill_probability',
+            'expected_value_rounded': 'expected_value',
+            'max_quantity': 'quantity',
+            'hour_offset': 'expected_hours'
+        }).copy()
+
+        # Add hour_offset back for generate_why_chips
+        opportunities['hour_offset'] = df['hour_offset'].values
+
+        # Sort by expected profit descending (vectorized)
+        opportunities = opportunities.sort_values('expected_profit', ascending=False)
+
+        # Convert to list of dicts
+        opportunities = opportunities.to_dict('records')
 
         logger.info(f"Generated {len(opportunities)} opportunities for browsing")
         return opportunities
