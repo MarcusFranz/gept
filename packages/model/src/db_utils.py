@@ -43,6 +43,35 @@ def _get_required_env(key: str, default: Optional[str] = None) -> str:
     return value
 
 
+# Required environment variables that have no defaults and must be set
+_REQUIRED_ENV_VARS = ['DB_PASS']
+
+# Optional environment variables with their defaults (for documentation/validation)
+_OPTIONAL_ENV_VARS = {
+    'DB_HOST': 'localhost',
+    'DB_PORT': '5432',
+    'DB_NAME': 'osrs_data',
+    'DB_USER': 'osrs_user',
+}
+
+
+def validate_db_config() -> None:
+    """Validate that all required database environment variables are set.
+
+    Call this at service startup (before any database operations) to fail fast
+    with a clear error message instead of failing lazily at first connection.
+
+    Raises:
+        EnvironmentError: If any required environment variable is missing.
+    """
+    missing = [var for var in _REQUIRED_ENV_VARS if not os.getenv(var)]
+    if missing:
+        raise EnvironmentError(
+            f"Missing required database environment variable(s): {', '.join(missing)}. "
+            f"Set these before starting the service. See .env.example for details."
+        )
+
+
 # Database configuration from environment variables
 # Lazy loading - only validates when get_db_config() is called
 def get_db_config() -> Dict[str, Any]:

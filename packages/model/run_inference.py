@@ -31,9 +31,13 @@ sys.path.insert(0, 'src')
 
 # Import probability thresholds from centralized config (see calibration_analysis.md)
 from inference_config import MAX_PROBABILITY, MIN_PROBABILITY
+from db_utils import validate_db_config
 
 
 def main():
+    # Fail fast if required database env vars are missing
+    validate_db_config()
+
     parser = argparse.ArgumentParser(description='Run inference cycle')
     parser.add_argument('--models-dir', type=str, default=None,
                         help='Directory containing trained models (auto-detects latest if not specified)')
