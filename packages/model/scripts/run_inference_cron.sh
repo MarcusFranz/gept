@@ -58,6 +58,13 @@ timeout $MAX_RUNTIME python run_inference.py
 
 EXIT_CODE=$?
 
+# Refresh volume materialized views (used by engine for fast volume lookups)
+# Non-critical: if this fails, engine falls back to raw queries
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [ -f "$SCRIPT_DIR/refresh_volume_matviews.sh" ]; then
+    bash "$SCRIPT_DIR/refresh_volume_matviews.sh" || echo "[$(date '+%Y-%m-%d %H:%M:%S')] WARN: Volume matview refresh failed (non-fatal)"
+fi
+
 if [ $EXIT_CODE -eq 124 ]; then
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] WARNING: Inference timed out after ${MAX_RUNTIME}s"
 elif [ $EXIT_CODE -ne 0 ]; then
