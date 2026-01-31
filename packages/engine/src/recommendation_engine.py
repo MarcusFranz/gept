@@ -313,7 +313,7 @@ class RecommendationEngine:
                 return []
 
         # Vectorized candidate building pipeline
-        df = cast(pd.DataFrame, self._filter_valid_candidates(predictions_df))
+        df = cast(pd.DataFrame, self._filter_valid_candidates(cast(pd.DataFrame, predictions_df)))
         if df.empty:
             logger.info("All predictions filtered by validation checks")
             return []
@@ -791,7 +791,7 @@ class RecommendationEngine:
                 return None
 
             # Enrich with metadata
-            df = cast(pd.DataFrame, self._enrich_metadata_vectorized(df, pred_age_seconds, volumes_24h, volumes_1h, trends))
+            df = cast(pd.DataFrame, self._enrich_metadata_vectorized(cast(pd.DataFrame, df), pred_age_seconds, volumes_24h, volumes_1h, trends))
 
             # Convert to dict and return first (and only) result
             candidates = df.to_dict('records')
