@@ -22,14 +22,6 @@ OSRS Wiki API → Docker Collectors → PostgreSQL/TimescaleDB → ML Pipeline
 | News Feed | `collect_news_pg.py` | 1800s | 9102 | ✅ Active |
 | Dashboard | `dashboard.py` | - | 8080 | ✅ Active |
 
-### Legacy Services (Systemd)
-
-| Service | Script | Status |
-|---------|--------|--------|
-| Player Counts | `collect_player_counts.py` | ✅ Active (DuckDB) |
-| Item Metadata | `update_items.py` | ✅ Active (DuckDB) |
-| Legacy Collector | `osrs_collector_pg.py` | ⚠️ Redundant |
-
 ## Quick Start
 
 ### Prerequisites
@@ -203,46 +195,6 @@ CREATE TABLE osrs_news (
 - `/health` - Health check
 
 **Resource Usage**: ~16 MiB RAM, <0.01% CPU
-
----
-
-### 6. Player Count Collector (Legacy)
-
-**Purpose**: Track concurrent OSRS players
-
-**Source**: Scrapes OSRS homepage HTML
-
-**Storage**: DuckDB (`data/player_counts.duckdb`)
-
-**Status**: ⚠️ Active but uses DuckDB instead of PostgreSQL
-
-**Migration Needed**: Should move to PostgreSQL for unified data access
-
----
-
-### 7. Item Metadata Updater (Legacy)
-
-**Purpose**: Keep item reference data up-to-date
-
-**API Endpoint**: `https://prices.runescape.wiki/api/v1/osrs/mapping`
-
-**Storage**: DuckDB (`data/items.duckdb`)
-
-**Update Frequency**: Daily (86400s)
-
-**Status**: ⚠️ Active but uses DuckDB instead of PostgreSQL
-
-**Migration Needed**: PostgreSQL already has an `items` table that should be used
-
----
-
-### 8. Legacy Combined Collector (Deprecated)
-
-**Script**: `osrs_collector_pg.py`
-
-**Status**: ⚠️ **REDUNDANT** - duplicates Docker services
-
-**Recommendation**: Stop this service - functionality covered by Docker containers
 
 ---
 
@@ -606,9 +558,7 @@ Before deploying to production:
 
 **Issues**: Report to GitHub issues
 
-**Logs Location**:
-- Docker: `docker-compose logs`
-- Systemd: `/home/ubuntu/osrs_collector/*.log`
+**Logs Location**: `docker-compose logs`
 
 **Monitoring**: `http://$AMPERE_IP:8080` (dashboard, see `config/servers.env` for IP)
 
