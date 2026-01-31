@@ -1431,12 +1431,17 @@ class TestInstantFillBlocking:
     def _make_row(
         self,
         item_id: int = 554,
-        buy_price: int = 100,
-        sell_price: int = 110,
-        current_high=105,
-        current_low: int = 95,
+        buy_price: int = 5000,
+        sell_price: int = 5500,
+        current_high=5250,
+        current_low: int = 4900,
     ) -> dict:
-        """Create a mock prediction row for testing."""
+        """Create a mock prediction row for testing.
+
+        Default prices are set to avoid triggering manipulation filters:
+        - buy_price > 1000gp (avoids cheap-item volume check)
+        - spread ~7% (under 10% max_spread_pct threshold)
+        """
         return {
             "item_id": item_id,
             "item_name": "Test Item",
@@ -1456,17 +1461,19 @@ class TestInstantFillBlocking:
 
         mock_loader.get_item_buy_limit.return_value = 10000
         mock_loader.get_item_trend.return_value = "Stable"
-        mock_loader.get_item_volume_24h.return_value = None
+        mock_loader.get_item_volume_24h.return_value = 100000
         mock_loader.get_item_volume_1h.return_value = 50000
 
-        # buy_price (100) < current_high (105) - should be allowed
-        row = self._make_row(buy_price=100, current_high=105)
+        # buy_price (5000) < current_high (5250) - should be allowed
+        row = self._make_row(buy_price=5000, current_high=5250)
         candidate = engine._build_candidate(
             row, max_capital=1000000, pred_age_seconds=60
         )
 
         assert candidate is not None
-        assert candidate["buy_price"] == 100
+        # Price buffer may adjust buy_price slightly upward (toward market)
+        assert candidate["buy_price"] >= 5000
+        assert candidate["buy_price"] < 5250  # Must stay below current_high
 
     def test_build_candidate_blocks_buy_at_current_high(self, mock_engine):
         """Buy price equal to current_high should be blocked (instant-fill)."""
@@ -1474,11 +1481,11 @@ class TestInstantFillBlocking:
 
         mock_loader.get_item_buy_limit.return_value = 10000
         mock_loader.get_item_trend.return_value = "Stable"
-        mock_loader.get_item_volume_24h.return_value = None
+        mock_loader.get_item_volume_24h.return_value = 100000
         mock_loader.get_item_volume_1h.return_value = 50000
 
-        # buy_price (105) == current_high (105) - should be blocked
-        row = self._make_row(buy_price=105, current_high=105)
+        # buy_price (5250) == current_high (5250) - should be blocked
+        row = self._make_row(buy_price=5250, current_high=5250)
         candidate = engine._build_candidate(
             row, max_capital=1000000, pred_age_seconds=60
         )
@@ -1491,11 +1498,11 @@ class TestInstantFillBlocking:
 
         mock_loader.get_item_buy_limit.return_value = 10000
         mock_loader.get_item_trend.return_value = "Stable"
-        mock_loader.get_item_volume_24h.return_value = None
+        mock_loader.get_item_volume_24h.return_value = 100000
         mock_loader.get_item_volume_1h.return_value = 50000
 
-        # buy_price (110) > current_high (105) - should be blocked
-        row = self._make_row(buy_price=110, current_high=105)
+        # buy_price (5500) > current_high (5250) - should be blocked
+        row = self._make_row(buy_price=5500, current_high=5250)
         candidate = engine._build_candidate(
             row, max_capital=1000000, pred_age_seconds=60
         )
@@ -1508,7 +1515,7 @@ class TestInstantFillBlocking:
 
         mock_loader.get_item_buy_limit.return_value = 10000
         mock_loader.get_item_trend.return_value = "Stable"
-        mock_loader.get_item_volume_24h.return_value = None
+        mock_loader.get_item_volume_24h.return_value = 100000
         mock_loader.get_item_volume_1h.return_value = 50000
 
         # current_high is None - should fail closed
@@ -1525,7 +1532,7 @@ class TestInstantFillBlocking:
 
         mock_loader.get_item_buy_limit.return_value = 10000
         mock_loader.get_item_trend.return_value = "Stable"
-        mock_loader.get_item_volume_24h.return_value = None
+        mock_loader.get_item_volume_24h.return_value = 100000
         mock_loader.get_item_volume_1h.return_value = 50000
 
         # current_high is NaN - should fail closed
