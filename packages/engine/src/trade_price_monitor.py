@@ -6,9 +6,8 @@ active trade sell prices and dispatching alerts when significant drops are detec
 
 import asyncio
 import math
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Callable, Optional
 
 from .alert_dispatcher import (
     AlertDispatcher,

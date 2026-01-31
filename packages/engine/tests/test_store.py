@@ -4,8 +4,6 @@ import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 
-import pytest
-
 from src.store import RecommendationStore
 
 
