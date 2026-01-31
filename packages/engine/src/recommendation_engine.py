@@ -97,6 +97,7 @@ class RecommendationEngine:
         self.loader = PredictionLoader(
             db_connection_string,
             pool_size=self.config.db_pool_size,
+            preferred_model_id=self.config.preferred_model_id,
         )
         self.store = RecommendationStore(ttl_seconds=900)
 
@@ -841,6 +842,12 @@ class RecommendationEngine:
                 f"Validation filters removed {filtered_count} invalid candidates "
                 f"({initial_count} -> {len(df)})"
             )
+
+        # Ensure prices are integers (OSRS prices are whole GP)
+        # Some models (e.g. PatchTST) write fractional prices to the DB
+        for col in ['buy_price', 'sell_price', 'current_high', 'current_low']:
+            if col in df.columns:
+                df[col] = df[col].astype(int)
 
         return df
 

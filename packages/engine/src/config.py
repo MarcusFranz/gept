@@ -198,6 +198,13 @@ class Config:
         default_factory=lambda: environ.get("RATE_LIMIT_OUTCOMES", "30/minute")
     )
 
+    # Model selection - filter predictions by model_id
+    # Set to a specific model_id (e.g., "patchtst_patchtst") to only serve that model's predictions
+    # Leave empty to serve predictions from any model (default, backwards compatible)
+    preferred_model_id: str = field(
+        default_factory=lambda: environ.get("PREFERRED_MODEL_ID", "")
+    )
+
     # Logging configuration
     # LOG_LEVEL: DEBUG, INFO, WARNING, ERROR (default: INFO)
     # LOG_FORMAT: json (for production), text (for local development)
