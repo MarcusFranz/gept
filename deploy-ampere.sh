@@ -155,14 +155,46 @@ deploy() {
         --exclude='*.egg-info' \
         "$SCRIPT_DIR/packages/engine/" "$SERVER:$deploy_dir/packages/engine/"
 
-    # Model package (exclude cloud training and Docker collectors)
+    # Model package (inference + collectors only - no training code)
+    # Uses --include/--exclude to whitelist only production files.
+    # Training code is archived locally in docs/archived-training/.
     rsync -avz --delete -e "ssh -i $SSH_KEY" \
+        --include='run_inference.py' \
+        --include='requirements.txt' \
+        --include='.gitignore' \
+        --include='CLAUDE.md' \
+        --include='README.md' \
+        --include='RECOMMENDATION_ENGINE.md' \
+        --include='DEVELOPER_SETUP.md' \
+        --include='deploy_ampere.sh' \
+        --include='rollback_ampere.sh' \
+        --include='deploy_collectors.sh' \
+        --include='rollback_collectors.sh' \
+        --include='src/' \
+        --include='src/__init__.py' \
+        --include='src/batch_predictor_multitarget.py' \
+        --include='src/feature_engine.py' \
+        --include='src/target_engine.py' \
+        --include='src/db_utils.py' \
+        --include='src/inference_config.py' \
+        --include='src/calibration.py' \
+        --include='src/catboost_config.py' \
+        --include='src/training_tier_config.py' \
+        --include='scripts/' \
+        --include='scripts/run_inference_cron.sh' \
+        --include='scripts/run_inference_fallback.sh' \
+        --include='scripts/run_inference_hydra.sh' \
+        --include='scripts/backup_database.sh' \
+        --include='scripts/check_collectors.sh' \
+        --include='scripts/ssh_tunnel.sh' \
+        --include='scripts/migrations/' \
+        --include='scripts/migrations/**' \
+        --include='collectors/' \
+        --include='collectors/**' \
         --exclude='__pycache__' \
         --exclude='*.pyc' \
-        --exclude='.git' \
-        --exclude='venv' \
         --exclude='*.egg-info' \
-        --exclude='cloud' \
+        --exclude='*' \
         "$SCRIPT_DIR/packages/model/" "$SERVER:$deploy_dir/packages/model/"
 
     # Shared package
