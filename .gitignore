@@ -42,6 +42,12 @@ Thumbs.db
 # Astro
 .astro/
 
+# Local experiments and configs
+learning/
+packages/model/configs/
+packages/model/experiments/
+packages/model/scripts/ssh_tunnel.sh
+
 # Models (large files)
 packages/model/models/
 !packages/model/models/.gitkeep
