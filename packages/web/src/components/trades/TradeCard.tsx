@@ -35,7 +35,7 @@ export function TradeCard(props: TradeCardProps) {
 
   return (
     <div
-      class={`trade-card ${props.expanded ? 'trade-card-expanded' : ''} ${props.alert ? 'trade-card-alert' : ''}`}
+      class={`trade-card ${props.expanded ? 'trade-card-expanded' : ''} ${(props.alert || props.trade.suggestedSellPrice) ? 'trade-card-alert' : ''}`}
       onClick={() => props.onClick()}
       role="button"
       tabIndex={0}
@@ -64,7 +64,7 @@ export function TradeCard(props: TradeCardProps) {
           {Math.round((Date.now() - props.trade.createdAt.getTime()) / (1000 * 60 * 60))}h in trade
         </span>
         <div class="trade-card-footer-right">
-          {props.alert && <span class="status-badge status-alert">Price alert</span>}
+          {(props.alert || props.trade.suggestedSellPrice) && <span class="status-badge status-alert">Price alert</span>}
           {getStatusBadge()}
           <button
             class="trade-card-cancel"
@@ -159,17 +159,23 @@ export function TradeCard(props: TradeCardProps) {
           display: flex;
           justify-content: space-between;
           align-items: center;
+          gap: 0.5rem;
         }
 
         .trade-card-footer-right {
           display: flex;
           align-items: center;
           gap: 0.5rem;
+          flex-shrink: 0;
         }
 
         .trade-card-time {
           font-size: var(--font-size-xs);
           color: var(--text-muted);
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          min-width: 0;
         }
 
         .trade-card-cancel {
@@ -178,6 +184,7 @@ export function TradeCard(props: TradeCardProps) {
           justify-content: center;
           width: 24px;
           height: 24px;
+          min-width: 24px;
           padding: 0;
           background: none;
           border: 1px solid var(--border);
@@ -186,6 +193,7 @@ export function TradeCard(props: TradeCardProps) {
           font-size: 1rem;
           line-height: 1;
           cursor: pointer;
+          flex-shrink: 0;
           transition: color var(--transition-fast), border-color var(--transition-fast), background var(--transition-fast);
         }
 
@@ -200,6 +208,7 @@ export function TradeCard(props: TradeCardProps) {
           font-weight: 600;
           padding: 0.125rem 0.5rem;
           border-radius: var(--radius-sm);
+          white-space: nowrap;
         }
 
         .status-check-in {

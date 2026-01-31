@@ -31,6 +31,8 @@ class TradePayload:
     profit: Optional[int] = None  # Only on TRADE_COMPLETED
     rec_id: Optional[str] = None  # Links to original recommendation
     model_id: Optional[str] = None  # Links to model that made recommendation
+    expected_hours: Optional[int] = None  # Trade's expected duration
+    created_at: Optional[datetime] = None  # When trade was created
 
 
 @dataclass
