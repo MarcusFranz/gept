@@ -913,8 +913,8 @@ class TestAPI:
             "timestamp": datetime(2026, 1, 9, 12, 15, 0, tzinfo=timezone.utc),
             "high": 2089,
             "low": 2015,
-            "high_volume": 1000,
-            "low_volume": 500,
+            "high_time": datetime(2026, 1, 9, 12, 14, 0, tzinfo=timezone.utc),
+            "low_time": datetime(2026, 1, 9, 12, 13, 0, tzinfo=timezone.utc),
         }
 
         response = test_client.get("/api/v1/recommendations/item/536/refresh")

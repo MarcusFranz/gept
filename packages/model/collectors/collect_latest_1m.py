@@ -38,7 +38,7 @@ DB_HOST = os.getenv("DB_HOST", "host.docker.internal")
 DB_PORT = os.getenv("DB_PORT", "5432")
 DB_NAME = os.getenv("DB_NAME", "osrs_data")
 DB_USER = os.getenv("DB_USER", "osrs_user")
-DB_PASS = os.getenv("DB_PASS", "osrs_pass")
+DB_PASS = os.environ["DB_PASS"]  # Required — crash at startup if missing
 
 METRICS_PORT = int(os.getenv("METRICS_PORT", "9103"))
 COLLECTION_INTERVAL = int(os.getenv("COLLECTION_INTERVAL", "60"))  # 1 minute

@@ -32,12 +32,13 @@ export const auth = betterAuth({
     sendResetPassword: async ({ user, url }) => {
       // TODO: Integrate with email service (SendGrid, Resend, etc.)
 
-      // In development, we'll use a simple approach
-      // The URL will be available in the server logs
       if (process.env.NODE_ENV === 'development') {
         console.log('\n=== PASSWORD RESET LINK ===');
         console.log(url);
         console.log('===========================\n');
+      } else {
+        // Production: log that a reset was requested (without the token/URL)
+        console.warn(`[Auth] Password reset requested for ${user.email} but no email service configured`);
       }
     },
   },

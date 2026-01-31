@@ -889,19 +889,19 @@ class PredictionLoader:
             return None
 
     def get_item_volume_1h(self, item_id: int) -> Optional[int]:
-        """Get last hour of trade volume from 1-minute data.
+        """Get last hour of trade volume from 5-minute data.
 
         Args:
             item_id: OSRS item ID
 
         Returns:
-            Total 1h volume (sum of high_volume + low_volume) or 0 if no data
+            Total 1h volume (sum of high_price_volume + low_price_volume) or 0 if no data
         """
         query = text(
             """
-            SELECT COALESCE(SUM(high_volume), 0)
-                   + COALESCE(SUM(low_volume), 0) as total_volume
-            FROM prices_1m
+            SELECT COALESCE(SUM(high_price_volume), 0)
+                   + COALESCE(SUM(low_price_volume), 0) as total_volume
+            FROM price_data_5min
             WHERE item_id = :item_id
               AND timestamp >= NOW() - INTERVAL '1 hour'
         """
@@ -972,9 +972,9 @@ class PredictionLoader:
         query = text(
             """
             SELECT item_id,
-                   COALESCE(SUM(high_volume), 0)
-                   + COALESCE(SUM(low_volume), 0) as total_volume
-            FROM prices_1m
+                   COALESCE(SUM(high_price_volume), 0)
+                   + COALESCE(SUM(low_price_volume), 0) as total_volume
+            FROM price_data_5min
             WHERE item_id = ANY(:item_ids)
               AND timestamp >= NOW() - INTERVAL '1 hour'
             GROUP BY item_id
@@ -1531,7 +1531,7 @@ class PredictionLoader:
             item_id: OSRS item ID
 
         Returns:
-            Dictionary with keys: timestamp, high, low, high_volume, low_volume
+            Dictionary with keys: timestamp, high, low, high_time, low_time
             Returns None if no data found
         """
         query = text(
@@ -1540,9 +1540,9 @@ class PredictionLoader:
                 timestamp,
                 high,
                 low,
-                high_volume,
-                low_volume
-            FROM prices_1m
+                high_time,
+                low_time
+            FROM prices_latest_1m
             WHERE item_id = :item_id
             ORDER BY timestamp DESC
             LIMIT 1
@@ -1560,8 +1560,8 @@ class PredictionLoader:
                 "timestamp": result[0],
                 "high": result[1],
                 "low": result[2],
-                "high_volume": result[3],
-                "low_volume": result[4],
+                "high_time": result[3],
+                "low_time": result[4],
             }
 
         except Exception as e:
