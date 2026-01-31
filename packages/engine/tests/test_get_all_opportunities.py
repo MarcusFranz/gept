@@ -3,10 +3,9 @@
 These tests establish a safety net before refactoring iterrows() to vectorized operations.
 """
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pandas as pd
-import pytest
 
 from src.recommendation_engine import RecommendationEngine
 
