@@ -1,18 +1,14 @@
 """Tests for Redis caching layer."""
 
 import os
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
 from src.cache import (
-    close_cache,
-    get_cached,
     get_capital_tier,
-    get_cache_stats,
     hash_query,
     init_cache,
-    set_cached,
 )
 
 
