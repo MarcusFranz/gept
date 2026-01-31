@@ -338,21 +338,20 @@ class OrderAdvisor:
         if predictions_df.empty:
             return None
 
-        # Find offset that achieves target fill prob
-        target_offset = None
-        target_prob = 0.0
+        # Find offset that achieves target fill prob (vectorized)
+        # Filter to rows meeting target fill probability
+        viable = predictions_df[predictions_df["fill_probability"] >= self.TARGET_FILL_PROB]
 
-        for _, row in predictions_df.iterrows():
-            if row["fill_probability"] >= self.TARGET_FILL_PROB:
-                if target_offset is None or row["offset_pct"] < target_offset:
-                    target_offset = row["offset_pct"]
-                    target_prob = row["fill_probability"]
-
-        if target_offset is None:
-            # Use best available
-            best = predictions_df.loc[predictions_df["fill_probability"].idxmax()]
-            target_offset = best["offset_pct"]
-            target_prob = best["fill_probability"]
+        if not viable.empty:
+            # Get row with minimum offset_pct among viable candidates
+            min_idx = viable["offset_pct"].idxmin()
+            target_offset = viable.loc[min_idx, "offset_pct"]
+            target_prob = viable.loc[min_idx, "fill_probability"]
+        else:
+            # Use best available (highest fill probability)
+            best_idx = predictions_df["fill_probability"].idxmax()
+            target_offset = predictions_df.loc[best_idx, "offset_pct"]
+            target_prob = predictions_df.loc[best_idx, "fill_probability"]
 
         # Calculate new price based on offset
         if order_type == "buy":
