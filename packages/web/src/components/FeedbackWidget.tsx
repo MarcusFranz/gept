@@ -167,8 +167,8 @@ export default function FeedbackWidget() {
           align-items: center;
           gap: var(--space-2);
           padding: var(--space-3) var(--space-4);
-          background: var(--accent);
-          color: var(--bg-primary);
+          background: var(--action);
+          color: var(--btn-text-dark);
           border: none;
           border-radius: var(--radius-full);
           font-weight: 600;
@@ -181,7 +181,7 @@ export default function FeedbackWidget() {
 
         .feedback-trigger:hover {
           transform: translateY(-2px);
-          box-shadow: 0 8px 24px rgba(139, 195, 74, 0.3);
+          box-shadow: 0 8px 24px rgba(201, 166, 107, 0.3);
         }
 
         .feedback-overlay {

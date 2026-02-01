@@ -50,7 +50,7 @@ export function CheckInBar(props: CheckInBarProps) {
           tabIndex={0}
         >
           <div
-            class="check-in-bar-fill"
+            class={`check-in-bar-fill check-in-fill-${props.phase}`}
             style={{ width: `${localProgress()}%` }}
           />
           <div
@@ -105,9 +105,16 @@ export function CheckInBar(props: CheckInBarProps) {
 
         .check-in-bar-fill {
           height: 100%;
-          background: linear-gradient(90deg, var(--accent), var(--accent-hover));
           border-radius: 12px;
           transition: width 0.15s ease-out;
+        }
+
+        .check-in-fill-buying {
+          background: var(--phase-buy);
+        }
+
+        .check-in-fill-selling {
+          background: var(--phase-sell);
         }
 
         .check-in-bar-handle {
@@ -124,7 +131,7 @@ export function CheckInBar(props: CheckInBarProps) {
 
         .check-in-done-btn {
           padding: 0.5rem 1rem;
-          background: var(--success);
+          background: var(--action);
           color: var(--btn-text-dark);
           border: none;
           border-radius: var(--radius-md);

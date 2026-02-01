@@ -132,7 +132,7 @@ export function HomePage(props: HomePageProps) {
 
         .nav-tab-active,
         .nav-tab-active:hover {
-          background: var(--accent);
+          background: var(--action);
           color: var(--btn-text-dark);
         }
 
