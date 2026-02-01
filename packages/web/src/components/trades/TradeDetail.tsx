@@ -141,7 +141,6 @@ export function TradeDetail(props: TradeDetailProps) {
           <Sparkline
             highs={priceHistory()!.highs}
             lows={priceHistory()!.lows}
-            predictedPrice={props.trade.sellPrice}
             width={280}
             height={48}
           />
