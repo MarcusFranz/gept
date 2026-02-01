@@ -6,7 +6,7 @@ import { CheckInBar } from './CheckInBar';
 import { GuidancePrompt } from './GuidancePrompt';
 import { AlertBanner } from './AlertBanner';
 import { Sparkline } from '../Sparkline';
-import { fetchPriceHistory } from '../../lib/price-history';
+import { fetchPriceHistory, type PriceHistoryData } from '../../lib/price-history';
 
 interface TradeDetailProps {
   trade: TradeViewModel;
@@ -21,11 +21,11 @@ interface TradeDetailProps {
 }
 
 export function TradeDetail(props: TradeDetailProps) {
-  const [priceHistory, setPriceHistory] = createSignal<number[] | null>(null);
+  const [priceHistory, setPriceHistory] = createSignal<PriceHistoryData | null>(null);
 
   onMount(() => {
-    fetchPriceHistory(props.trade.itemId).then(prices => {
-      if (prices) setPriceHistory(prices);
+    fetchPriceHistory(props.trade.itemId).then(data => {
+      if (data) setPriceHistory(data);
     });
   });
   const [loading, setLoading] = createSignal(false);
@@ -139,7 +139,8 @@ export function TradeDetail(props: TradeDetailProps) {
       <Show when={priceHistory()}>
         <div class="trade-detail-sparkline">
           <Sparkline
-            prices={priceHistory()!}
+            highs={priceHistory()!.highs}
+            lows={priceHistory()!.lows}
             predictedPrice={props.trade.sellPrice}
             width={280}
             height={48}
