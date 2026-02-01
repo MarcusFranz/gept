@@ -1,16 +1,25 @@
 // Shared price history fetcher with module-level cache
 
-const priceHistoryCache = new Map<number, number[]>();
+export interface PriceHistoryData {
+  highs: number[];
+  lows: number[];
+}
 
-export async function fetchPriceHistory(itemId: number): Promise<number[] | null> {
+const priceHistoryCache = new Map<number, PriceHistoryData>();
+
+export async function fetchPriceHistory(itemId: number): Promise<PriceHistoryData | null> {
   if (priceHistoryCache.has(itemId)) return priceHistoryCache.get(itemId)!;
   try {
     const res = await fetch(`/api/items/price-history/${itemId}`);
     if (!res.ok) return null;
     const data = await res.json();
-    if (data.success && data.data?.prices?.length) {
-      priceHistoryCache.set(itemId, data.data.prices);
-      return data.data.prices;
+    if (data.success && data.data?.highs?.length && data.data?.lows?.length) {
+      const result: PriceHistoryData = {
+        highs: data.data.highs,
+        lows: data.data.lows,
+      };
+      priceHistoryCache.set(itemId, result);
+      return result;
     }
     return null;
   } catch {
