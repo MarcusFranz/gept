@@ -40,7 +40,7 @@ export const POST: APIRoute = async ({ request }) => {
         quantity: trade.quantity,
         recId: trade.rec_id || null,
         modelId: trade.model_id || null,
-        expectedHours: trade.expected_hours || null,
+        expectedHours: trade.expected_hours ?? null,
         createdAt: trade.created_at ? new Date(trade.created_at).toISOString() : null
       });
       dispatched++;

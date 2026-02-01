@@ -562,13 +562,13 @@ export const feedbackRepo = {
         ${feedback.message || null},
         ${feedback.email || null},
         ${rec?.id || null},
-        ${rec?.itemId || null},
+        ${rec?.itemId ?? null},
         ${rec?.item || null},
-        ${rec?.buyPrice || null},
-        ${rec?.sellPrice || null},
-        ${rec?.quantity || null},
-        ${rec?.expectedProfit || null},
-        ${rec?.confidence || null},
+        ${rec?.buyPrice ?? null},
+        ${rec?.sellPrice ?? null},
+        ${rec?.quantity ?? null},
+        ${rec?.expectedProfit ?? null},
+        ${rec?.confidence ?? null},
         ${rec?.modelId || null}
       )
     `;
