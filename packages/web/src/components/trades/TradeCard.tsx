@@ -4,7 +4,7 @@ import type { TradeViewModel } from '../../lib/trade-types';
 import type { UpdateRecommendation } from '../../lib/types';
 import Tooltip from '../Tooltip';
 import { Sparkline } from '../Sparkline';
-import { fetchPriceHistory } from '../../lib/price-history';
+import { fetchPriceHistory, type PriceHistoryData } from '../../lib/price-history';
 
 interface TradeCardProps {
   trade: TradeViewModel;
@@ -15,11 +15,11 @@ interface TradeCardProps {
 }
 
 export function TradeCard(props: TradeCardProps) {
-  const [priceHistory, setPriceHistory] = createSignal<number[] | null>(null);
+  const [priceHistory, setPriceHistory] = createSignal<PriceHistoryData | null>(null);
 
   onMount(() => {
-    fetchPriceHistory(props.trade.itemId).then(prices => {
-      if (prices) setPriceHistory(prices);
+    fetchPriceHistory(props.trade.itemId).then(data => {
+      if (data) setPriceHistory(data);
     });
   });
 
@@ -68,7 +68,8 @@ export function TradeCard(props: TradeCardProps) {
       {priceHistory() && (
         <div class="trade-card-sparkline">
           <Sparkline
-            prices={priceHistory()!}
+            highs={priceHistory()!.highs}
+            lows={priceHistory()!.lows}
             predictedPrice={props.trade.sellPrice}
             width={160}
             height={28}
