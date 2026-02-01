@@ -12,13 +12,14 @@ See docs/calibration_analysis.md for the analysis that derived these thresholds.
 from typing import Tuple
 
 # Probability bounds (from calibration_analysis.md)
-# Predictions outside these bounds indicate model calibration failures
-MAX_PROBABILITY = 0.30  # 30% - predictions above this are broken
+# Upper bound prevents runaway overconfidence from miscalibrated models.
+# For high-volume items on short windows, fill probs of 0.40-0.50 are realistic.
+MAX_PROBABILITY = 0.50  # 50% - cap for raw model output
 MIN_PROBABILITY = 0.001  # 0.1% - minimum meaningful probability
 
 # Calibrated probability bounds
 # Calibration layer uses a lower max to leave headroom below MAX_PROBABILITY
-CALIBRATED_MAX = 0.25  # 25% - calibration output cap (below MAX_PROBABILITY)
+CALIBRATED_MAX = 0.45  # 45% - calibration output cap (below MAX_PROBABILITY)
 CALIBRATED_MIN = MIN_PROBABILITY  # Same minimum
 
 
@@ -43,19 +44,22 @@ def clip_probability(prob: float) -> Tuple[float, bool]:
 
 # AUC confidence thresholds (Issue #70)
 # These thresholds determine prediction confidence based on model AUC performance.
-# Derived from historical model performance analysis.
-# - HIGH: Models with strong discriminative ability (AUC >= 0.75)
-# - MEDIUM: Models with moderate discriminative ability (AUC >= 0.65)
-# - LOW: Models with weak discriminative ability (AUC < 0.65)
-HIGH_AUC_THRESHOLD = 0.75  # AUC >= 0.75 for high confidence
-MEDIUM_AUC_THRESHOLD = 0.65  # AUC >= 0.65 for medium confidence
-LOW_AUC_THRESHOLD = 0.55  # AUC >= 0.55 for low confidence (vs very_low)
+# Calibrated to the actual AUC distribution of trained models — OSRS market
+# prediction is noisy, so domain-appropriate thresholds are lower than typical
+# medical/fraud ML benchmarks.  Aligned with training tier config:
+#   Tier A (daily):  AUC >= 0.58   → expect HIGH confidence
+#   Tier B (3-day):  AUC >= 0.54   → expect MEDIUM confidence
+#   Tier C/D:        AUC <  0.54   → LOW confidence
+HIGH_AUC_THRESHOLD = 0.60  # AUC >= 0.60 for high confidence
+MEDIUM_AUC_THRESHOLD = 0.54  # AUC >= 0.54 for medium confidence
+LOW_AUC_THRESHOLD = 0.52  # AUC >= 0.52 for low confidence (vs very_low)
 DEFAULT_AUC = 0.5  # Default AUC when model performance unknown (random baseline)
 
 # Brier score thresholds for confidence tiers (used in predictor.py)
 # Lower Brier scores indicate better calibration
-HIGH_BRIER_THRESHOLD = 0.15  # Brier <= 0.15 for high confidence
-MEDIUM_BRIER_THRESHOLD = 0.25  # Brier <= 0.25 for medium confidence
+# Relaxed to match domain-appropriate AUC thresholds above
+HIGH_BRIER_THRESHOLD = 0.20  # Brier <= 0.20 for high confidence
+MEDIUM_BRIER_THRESHOLD = 0.30  # Brier <= 0.30 for medium confidence
 
 
 def get_confidence_tier(auc: float, default_auc: float = DEFAULT_AUC) -> str:
@@ -110,8 +114,8 @@ def clip_calibrated_probability(prob: float) -> Tuple[float, bool]:
     Clip calibrated probability to valid bounds.
 
     Used after calibration layer to enforce tighter bounds than raw predictions.
-    Calibration output is capped at CALIBRATED_MAX (0.25) to leave headroom
-    below MAX_PROBABILITY (0.30).
+    Calibration output is capped at CALIBRATED_MAX (0.45) to leave headroom
+    below MAX_PROBABILITY (0.50).
 
     Args:
         prob: Calibrated probability value

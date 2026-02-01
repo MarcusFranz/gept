@@ -62,10 +62,12 @@ export function OpportunityCard(props: OpportunityCardProps) {
         <span>·</span>
         <span>{formatHours(opp().expectedHours)} hold</span>
         <span>·</span>
-        <Tooltip text="High = fill probability ≥ 80% · Medium = ≥ 60% · Low = < 60%">
-          <span class={`confidence-badge badge-${(opp().confidence ?? 'medium') === 'high' ? 'success' : (opp().confidence ?? 'medium') === 'medium' ? 'warning' : 'danger'}`}>
-            {(opp().confidence ?? 'medium').charAt(0).toUpperCase() + (opp().confidence ?? 'medium').slice(1)}
-          </span>
+        <Tooltip text="Model prediction confidence based on historical accuracy">
+          {(() => {
+            const conf = opp().confidence ?? 'medium';
+            const badge = { high: 'success', medium: 'warning', low: 'danger' }[conf] ?? 'warning';
+            return <span class={`confidence-badge badge-${badge}`}>{conf.charAt(0).toUpperCase() + conf.slice(1)}</span>;
+          })()}
         </Tooltip>
       </div>
 

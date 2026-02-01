@@ -35,7 +35,7 @@ export function OpportunityBrowser(props: OpportunityBrowserProps) {
       if (saved) {
         setFilters(JSON.parse(saved));
       }
-    } catch {}
+    } catch (err) { console.warn('[OpportunityBrowser] Failed to load saved filters:', err); }
   });
 
   // Fetch opportunities with server-side filtering
