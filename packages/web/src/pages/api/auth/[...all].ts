@@ -42,7 +42,7 @@ export const ALL: APIRoute = async (ctx) => {
       }
 
       // Check if this is a password reset request
-      if (pathname.endsWith('/forget-password')) {
+      if (pathname.endsWith('/request-password-reset')) {
         const body = await clonedRequest.json().catch(() => ({}));
         const email = body.email?.toLowerCase() || '';
 
