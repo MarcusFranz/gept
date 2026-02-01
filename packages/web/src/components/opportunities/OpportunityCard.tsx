@@ -28,6 +28,20 @@ export function OpportunityCard(props: OpportunityCardProps) {
     return amount.toLocaleString() + ' gp';
   };
 
+  const getChipColorClass = (chip: { label: string; type: string }) => {
+    const label = chip.label.toLowerCase();
+    if (label.includes('confidence')) return 'chip-confidence';
+    if (label.includes('volume')) return 'chip-volume';
+    if (label.includes('fill') || label.includes('quick')) return 'chip-speed';
+    if (label.includes('trending up')) return 'chip-trend-up';
+    if (label.includes('trending down')) return 'chip-trend-down';
+    if (label.includes('hold') || label.includes('longer')) return 'chip-time';
+    // Fallback to type-based
+    if (chip.type === 'positive') return 'chip-trend-up';
+    if (chip.type === 'negative') return 'chip-trend-down';
+    return 'chip-time';
+  };
+
   const formatHours = (hours: number) => {
     if (hours < 1) return `~${Math.round(hours * 60)}min`;
     return `~${hours.toFixed(1)}h`;
@@ -85,7 +99,7 @@ export function OpportunityCard(props: OpportunityCardProps) {
             <div class="opportunity-card-chips">
               <For each={opp().whyChips}>
                 {(chip) => (
-                  <span class={`chip chip-${chip.type}`}>
+                  <span class={`chip ${getChipColorClass(chip)}`}>
                     {chip.icon} {chip.label}
                   </span>
                 )}
@@ -250,17 +264,32 @@ export function OpportunityCard(props: OpportunityCardProps) {
           white-space: nowrap;
         }
 
-        .chip-positive {
+        .chip-confidence {
+          background: var(--chip-confidence-light);
+          color: var(--chip-confidence);
+        }
+
+        .chip-volume {
+          background: var(--chip-volume-light);
+          color: var(--chip-volume);
+        }
+
+        .chip-speed {
+          background: var(--chip-speed-light);
+          color: var(--chip-speed);
+        }
+
+        .chip-time {
+          background: var(--chip-time-light);
+          color: var(--chip-time);
+        }
+
+        .chip-trend-up {
           background: var(--success-light);
           color: var(--success);
         }
 
-        .chip-neutral {
-          background: var(--bg-tertiary);
-          color: var(--text-secondary);
-        }
-
-        .chip-negative {
+        .chip-trend-down {
           background: var(--danger-light);
           color: var(--danger);
         }
@@ -274,7 +303,7 @@ export function OpportunityCard(props: OpportunityCardProps) {
         .opportunity-card-cta {
           width: 100%;
           padding: 0.75rem;
-          background: var(--accent);
+          background: var(--action);
           color: var(--btn-text-dark);
           border: none;
           border-radius: var(--radius-md);
@@ -284,7 +313,7 @@ export function OpportunityCard(props: OpportunityCardProps) {
         }
 
         .opportunity-card-cta:hover:not(:disabled) {
-          background: var(--accent-hover);
+          background: var(--action-hover);
         }
 
         .opportunity-card-cta:disabled {

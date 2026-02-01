@@ -58,7 +58,7 @@ export function TradeCard(props: TradeCardProps) {
         <Tooltip text={`${props.trade.phase === 'buying' ? 'Buy' : 'Sell'} progress: ${Math.round(props.trade.progress)}%`} position="top">
           <div class="trade-card-bar">
             <div
-              class="trade-card-bar-fill"
+              class={`trade-card-bar-fill bar-fill-${props.trade.phase}`}
               style={{ width: `${props.trade.progress}%` }}
             />
           </div>
@@ -127,13 +127,13 @@ export function TradeCard(props: TradeCardProps) {
         }
 
         .phase-buying {
-          background: var(--gold-light);
-          color: var(--gold);
+          background: var(--phase-buy-light);
+          color: var(--phase-buy);
         }
 
         .phase-selling {
-          background: var(--success-light);
-          color: var(--success);
+          background: var(--phase-sell-light);
+          color: var(--phase-sell);
         }
 
         .trade-card-progress {
@@ -158,8 +158,15 @@ export function TradeCard(props: TradeCardProps) {
 
         .trade-card-bar-fill {
           height: 100%;
-          background: var(--accent);
           transition: width 0.3s ease;
+        }
+
+        .bar-fill-buying {
+          background: var(--phase-buy);
+        }
+
+        .bar-fill-selling {
+          background: var(--phase-sell);
         }
 
         .trade-card-profit {

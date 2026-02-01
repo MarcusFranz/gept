@@ -266,7 +266,7 @@ export function TradeList(props: TradeListProps) {
         .trade-list-cta {
           margin-top: 1rem;
           padding: 0.75rem 1.5rem;
-          background: var(--accent);
+          background: var(--action);
           color: var(--btn-text-dark);
           border: none;
           border-radius: var(--radius-lg);
@@ -275,7 +275,7 @@ export function TradeList(props: TradeListProps) {
         }
 
         .trade-list-cta:hover {
-          background: var(--accent-hover);
+          background: var(--action-hover);
         }
 
         .trade-list-items {
