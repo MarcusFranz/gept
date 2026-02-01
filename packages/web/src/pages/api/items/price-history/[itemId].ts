@@ -44,12 +44,15 @@ export const GET: APIRoute = async ({ params, locals }) => {
   }
 
   try {
-    const redisCacheKey = cacheKey(KEY.ITEM_PRICE, 'history', itemId.toString());
+    const redisCacheKey = cacheKey(KEY.ITEM_PRICE, 'history:v2', itemId.toString());
 
     // Try cache first
     let data: PriceHistoryCache | null = null;
     try {
-      data = await cache.get<PriceHistoryCache>(redisCacheKey);
+      const cached = await cache.get<PriceHistoryCache>(redisCacheKey);
+      if (cached && Array.isArray(cached.highs) && Array.isArray(cached.lows)) {
+        data = cached;
+      }
     } catch (err) {
       console.warn('[PriceHistory] Cache read failed:', (err as Error)?.message);
     }

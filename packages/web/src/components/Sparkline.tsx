@@ -37,7 +37,10 @@ export function Sparkline(props: SparklineProps) {
 
     const w = width();
     const h = height();
-    const xStep = (w - padding * 2) / (len - 1);
+    // Reserve 15% of width for prediction projection when prediction exists
+    const hasPred = props.predictedPrice != null;
+    const historyWidth = hasPred ? (w - padding * 2) * 0.85 : (w - padding * 2);
+    const xStep = historyWidth / (len - 1);
 
     const toY = (val: number) => padding + (1 - (val - min) / range) * (h - padding * 2);
 
