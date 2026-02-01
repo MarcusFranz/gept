@@ -85,7 +85,7 @@ export function OpportunityCard(props: OpportunityCardProps) {
           <Sparkline
             highs={priceHistory()!.highs}
             lows={priceHistory()!.lows}
-            predictedPrice={opp().sellPrice}
+
             width={props.expanded ? 280 : 160}
             height={props.expanded ? 40 : 28}
           />
