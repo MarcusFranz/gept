@@ -8,6 +8,9 @@ import pandas as pd
 from sqlalchemy import create_engine, text
 from sqlalchemy.pool import QueuePool
 
+from .config import Config
+from .wiki_api import get_wiki_api_client
+
 logger = logging.getLogger(__name__)
 
 
@@ -314,13 +317,20 @@ class PredictionLoader:
     and filters them based on user constraints.
     """
 
-    def __init__(self, db_connection_string: str, pool_size: int = 5, preferred_model_id: str = ""):
+    def __init__(
+        self,
+        db_connection_string: str,
+        pool_size: int = 5,
+        preferred_model_id: str = "",
+        config: Optional[Config] = None,
+    ):
         """Initialize database connection.
 
         Args:
             db_connection_string: PostgreSQL connection string
             pool_size: Connection pool size
             preferred_model_id: If set, only serve predictions from this model_id
+            config: Application config (created from env vars if not provided)
         """
         self.engine = create_engine(
             db_connection_string,
@@ -330,6 +340,7 @@ class PredictionLoader:
             pool_pre_ping=True,
         )
         self.preferred_model_id = preferred_model_id
+        self.config = config or Config()
         if preferred_model_id:
             logger.info(f"Model filter active: preferred_model_id={preferred_model_id}")
 
@@ -767,11 +778,7 @@ class PredictionLoader:
         Returns:
             Buy limit from Wiki API or None if not available
         """
-        from .config import Config
-        from .wiki_api import get_wiki_api_client
-
-        config = Config()
-        if not config.wiki_api_enabled:
+        if not self.config.wiki_api_enabled:
             return None
 
         try:
@@ -856,11 +863,7 @@ class PredictionLoader:
         Returns:
             Tuple of (dict mapping item_id to buy_limit, set of unfound item_ids)
         """
-        from .config import Config
-        from .wiki_api import get_wiki_api_client
-
-        config = Config()
-        if not config.wiki_api_enabled:
+        if not self.config.wiki_api_enabled:
             return {}, set(item_ids)
 
         result: dict[int, int] = {}
