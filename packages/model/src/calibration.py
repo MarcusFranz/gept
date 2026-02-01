@@ -9,7 +9,7 @@ in multi-target CatBoost models. Based on calibration analysis showing models ar
 Architecture:
 - 11 hour-bucket groups (pools offsets within each bucket)
 - Isotonic regression per group (handles non-linear miscalibration)
-- Calibrated values capped at CALIBRATED_MAX (0.25)
+- Calibrated values capped at CALIBRATED_MAX (from inference_config)
 
 Usage:
     # Load calibration for a model
@@ -26,9 +26,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional
 
-# Calibration bounds (must be below MAX_PROBABILITY=0.30)
-CALIBRATED_MAX = 0.25
-CALIBRATED_MIN = 0.001
+# Import calibration bounds from inference_config (single source of truth)
+from inference_config import CALIBRATED_MAX, CALIBRATED_MIN
 
 
 @dataclass

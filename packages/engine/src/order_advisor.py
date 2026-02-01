@@ -256,7 +256,8 @@ class OrderAdvisor:
             return self.DEFAULT_HOUR_WINDOW
 
         # Get the most common hour offset with reasonable fill prob
-        reasonable = predictions_df[predictions_df["fill_probability"] >= 0.3]
+        # Top ~20% of probability range (cap is 0.50) for hour window estimation
+        reasonable = predictions_df[predictions_df["fill_probability"] >= 0.4]
         if reasonable.empty:
             reasonable = predictions_df
 

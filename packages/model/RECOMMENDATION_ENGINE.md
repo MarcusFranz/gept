@@ -137,7 +137,7 @@ SELECT
 FROM predictions
 WHERE time = (SELECT MAX(time) FROM predictions)
   AND fill_probability >= 0.05      -- At least 5% chance
-  AND fill_probability < 0.30       -- Filter broken predictions
+  AND fill_probability < 0.50       -- Filter overconfident predictions
   AND expected_value > 0.01         -- At least 1% expected profit
 ORDER BY expected_value DESC
 LIMIT 20;
@@ -173,7 +173,7 @@ SELECT
 FROM predictions
 WHERE time = (SELECT MAX(time) FROM predictions)
   AND hour_offset <= 4
-  AND fill_probability BETWEEN 0.05 AND 0.30
+  AND fill_probability BETWEEN 0.05 AND 0.50
 ORDER BY expected_value DESC
 LIMIT 10;
 ```
@@ -297,7 +297,8 @@ The `fill_probability` represents:
 - `< 0.01`: Very unlikely to fill, not actionable
 - `0.05 - 0.15`: Moderate opportunity, worth considering
 - `0.15 - 0.30`: Strong signal, high priority
-- `> 0.30`: Model is likely overconfident, filter these out
+- `0.30 - 0.50`: Very strong signal (high-volume items, short windows)
+- `> 0.50`: Model is likely overconfident, capped at 0.50
 
 ### Expected Value
 
@@ -373,7 +374,7 @@ def get_top_opportunities(min_ev=0.005, max_hour=12, limit=20):
                     confidence
                 FROM predictions
                 WHERE time = (SELECT MAX(time) FROM predictions)
-                  AND fill_probability BETWEEN 0.03 AND 0.30
+                  AND fill_probability BETWEEN 0.03 AND 0.50
                   AND expected_value >= %s
                   AND hour_offset <= %s
                 ORDER BY expected_value DESC
@@ -469,7 +470,7 @@ async function getTopOpportunities(
       confidence
     FROM predictions
     WHERE time = (SELECT MAX(time) FROM predictions)
-      AND fill_probability BETWEEN 0.03 AND 0.30
+      AND fill_probability BETWEEN 0.03 AND 0.50
       AND expected_value >= $1
       AND hour_offset <= $2
     ORDER BY expected_value DESC

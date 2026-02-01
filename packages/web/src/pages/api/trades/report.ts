@@ -74,7 +74,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
       model_id: modelId || null,
       status: 'completed',
       expected_profit: expectedProfit ?? null,
-      confidence: confidence || null,
+      confidence: confidence ?? null,
       fill_probability: fillProbability ?? null,
       expected_hours: expectedHours ?? null
     });
