@@ -240,13 +240,13 @@ export function TradeDetail(props: TradeDetailProps) {
         }
 
         .phase-buying {
-          background: var(--gold-light);
-          color: var(--gold);
+          background: var(--phase-buy-light);
+          color: var(--phase-buy);
         }
 
         .phase-selling {
-          background: var(--success-light);
-          color: var(--success);
+          background: var(--phase-sell-light);
+          color: var(--phase-sell);
         }
 
         .trade-detail-prices-exact {
@@ -346,7 +346,7 @@ export function TradeDetail(props: TradeDetailProps) {
         .trade-detail-submit {
           width: 100%;
           padding: 0.625rem;
-          background: var(--accent);
+          background: var(--action);
           color: var(--btn-text-dark);
           border: none;
           border-radius: var(--radius-md);
@@ -356,7 +356,7 @@ export function TradeDetail(props: TradeDetailProps) {
         }
 
         .trade-detail-submit:hover:not(:disabled) {
-          background: var(--accent-hover);
+          background: var(--action-hover);
         }
 
         .trade-detail-submit:disabled {
