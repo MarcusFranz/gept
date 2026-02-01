@@ -1,5 +1,5 @@
 // packages/web/src/components/trades/TradeCard.tsx
-import { createResource } from 'solid-js';
+import { createSignal, onMount } from 'solid-js';
 import type { TradeViewModel } from '../../lib/trade-types';
 import type { UpdateRecommendation } from '../../lib/types';
 import Tooltip from '../Tooltip';
@@ -15,7 +15,13 @@ interface TradeCardProps {
 }
 
 export function TradeCard(props: TradeCardProps) {
-  const [priceHistory] = createResource(() => props.trade.itemId, fetchPriceHistory);
+  const [priceHistory, setPriceHistory] = createSignal<number[] | null>(null);
+
+  onMount(() => {
+    fetchPriceHistory(props.trade.itemId).then(prices => {
+      if (prices) setPriceHistory(prices);
+    });
+  });
 
   const formatGold = (amount: number) => {
     if (amount >= 1_000_000) {

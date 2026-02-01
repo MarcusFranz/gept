@@ -27,6 +27,7 @@ export const TTL = {
   RECOMMENDATIONS: 30,     // 30 seconds - personalized, short cache
   OPPORTUNITIES: 45,       // 45 seconds - shared data, changes every 5 min
   USER_SETTINGS: 300,      // 5 minutes - user settings
+  PRICE_HISTORY: 300,      // 5 minutes - sparkline price charts
 } as const;
 
 // Key prefixes for organization
