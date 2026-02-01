@@ -152,6 +152,7 @@ export function TradeDetail(props: TradeDetailProps) {
       ) : (
         <CheckInBar
           progress={pendingProgress() ?? props.trade.progress}
+          phase={props.trade.phase}
           onProgressChange={handleProgressChange}
           onDone={handleDone}
           disabled={loading()}
