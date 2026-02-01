@@ -9,8 +9,6 @@ import { addToast, removeToast } from '../ToastContainer';
 
 interface TradeListProps {
   initialTrades: ActiveTrade[];
-  availableCapital: number;
-  totalCapital: number;
   onNavigateToOpportunities: () => void;
   alerts?: Map<string, UpdateRecommendation>;
   onAcceptAlert?: (tradeId: string, newSellPrice: number) => void;

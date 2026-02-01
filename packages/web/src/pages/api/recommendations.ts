@@ -60,10 +60,8 @@ export const GET: APIRoute = async ({ locals, request }) => {
       excludedItems.push(...additionalExcludes);
     }
 
-    // Get available capital (use override if provided)
-    const tiedCapital = await activeTradesRepo.getTiedCapital(userId);
-    const baseCapital = capitalOverride ? parseInt(capitalOverride, 10) : user.capital;
-    const availableCapital = Math.max(0, baseCapital - tiedCapital);
+    // Use capital override if provided, otherwise use a large default (capital filtering is now done in opportunities)
+    const capital = capitalOverride ? parseInt(capitalOverride, 10) : 1_000_000_000;
 
     // Use override settings or fall back to user's saved settings
     const effectiveStyle = styleOverride || user.style;
@@ -74,7 +72,7 @@ export const GET: APIRoute = async ({ locals, request }) => {
     const skipCache = url.searchParams.get('fresh') === '1';
 
     // Build cache key based on effective settings (use exact capital for accuracy)
-    const redisCacheKey = cacheKey(KEY.RECS, userId, availableCapital.toString(), effectiveStyle, effectiveRisk, effectiveMargin);
+    const redisCacheKey = cacheKey(KEY.RECS, userId, capital.toString(), effectiveStyle, effectiveRisk, effectiveMargin);
 
     // Try Redis cache first (unless fresh=1 requested)
     let recommendations: Awaited<ReturnType<typeof getRecommendations>> | null = null;
@@ -90,7 +88,7 @@ export const GET: APIRoute = async ({ locals, request }) => {
     if (!recommendations) {
       // Fetch from prediction API
       recommendations = await getRecommendations(userId, {
-        capital: availableCapital,
+        capital: capital,
         style: effectiveStyle,
         risk: effectiveRisk,
         margin: effectiveMargin,

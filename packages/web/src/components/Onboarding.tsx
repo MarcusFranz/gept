@@ -1,19 +1,16 @@
-import { createSignal, createEffect, Show, For } from 'solid-js';
-import { capitalPresets } from '../lib/types';
+import { createSignal, Show, For } from 'solid-js';
 
 interface OnboardingProps {
-  onComplete: (capital: number) => void;
+  onComplete: () => void;
   onSkip: () => void;
 }
 
-type Step = 'welcome' | 'capital' | 'recommendation' | 'slots' | 'ready';
+type Step = 'welcome' | 'recommendation' | 'slots' | 'ready';
 
-const STEPS: Step[] = ['welcome', 'capital', 'recommendation', 'slots', 'ready'];
+const STEPS: Step[] = ['welcome', 'recommendation', 'slots', 'ready'];
 
 export default function Onboarding(props: OnboardingProps) {
   const [currentStep, setCurrentStep] = createSignal<Step>('welcome');
-  const [selectedCapital, setSelectedCapital] = createSignal(20_000_000);
-  const [customCapital, setCustomCapital] = createSignal('');
 
   const stepIndex = () => STEPS.indexOf(currentStep());
 
@@ -32,16 +29,7 @@ export default function Onboarding(props: OnboardingProps) {
   };
 
   const complete = () => {
-    const capital = customCapital()
-      ? parseInt(customCapital().replace(/[^0-9]/g, ''), 10) * 1_000_000
-      : selectedCapital();
-    props.onComplete(capital);
-  };
-
-  const formatCapital = (value: number) => {
-    if (value >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(1)}B`;
-    if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(0)}M`;
-    return value.toLocaleString();
+    props.onComplete();
   };
 
   return (
@@ -76,60 +64,6 @@ export default function Onboarding(props: OnboardingProps) {
               <button class="btn btn-primary btn-lg" onClick={next}>
                 Get Started
               </button>
-            </div>
-          </div>
-        </Show>
-
-        {/* Capital Step */}
-        <Show when={currentStep() === 'capital'}>
-          <div class="onboarding-step">
-            <div class="step-icon capital-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="10"/>
-                <path d="M12 6v12M6 12h12"/>
-              </svg>
-            </div>
-            <h2>How much GP do you have?</h2>
-            <p>
-              Select your starting capital. This helps us find flips that fit your budget.
-            </p>
-
-            <div class="capital-presets">
-              <For each={capitalPresets}>
-                {(preset) => (
-                  <button
-                    class={`capital-preset ${selectedCapital() === preset.value ? 'active' : ''}`}
-                    onClick={() => {
-                      setSelectedCapital(preset.value);
-                      setCustomCapital('');
-                    }}
-                  >
-                    {preset.label}
-                  </button>
-                )}
-              </For>
-            </div>
-
-            <div class="capital-custom">
-              <label>Or enter a custom amount (in millions):</label>
-              <input
-                type="text"
-                placeholder="e.g., 75"
-                value={customCapital()}
-                onInput={(e) => {
-                  setCustomCapital(e.currentTarget.value);
-                  setSelectedCapital(0);
-                }}
-              />
-            </div>
-
-            <p class="step-note">
-              Selected: <strong>{formatCapital(customCapital() ? parseInt(customCapital().replace(/[^0-9]/g, ''), 10) * 1_000_000 || 0 : selectedCapital())} GP</strong>
-            </p>
-
-            <div class="step-actions">
-              <button class="btn btn-ghost" onClick={prev}>Back</button>
-              <button class="btn btn-primary" onClick={next}>Continue</button>
             </div>
           </div>
         </Show>
@@ -384,72 +318,6 @@ export default function Onboarding(props: OnboardingProps) {
         .btn-ghost:hover {
           background: var(--bg-hover);
           color: var(--text-primary);
-        }
-
-        /* Capital Step */
-        .capital-presets {
-          display: flex;
-          flex-wrap: wrap;
-          gap: var(--space-2);
-          justify-content: center;
-          margin-bottom: var(--space-4);
-        }
-
-        .capital-preset {
-          padding: var(--space-2) var(--space-4);
-          background: var(--bg-secondary);
-          border: 2px solid var(--border);
-          border-radius: var(--radius-md);
-          color: var(--text-primary);
-          font-weight: 600;
-          cursor: pointer;
-          transition: all var(--transition-fast);
-        }
-
-        .capital-preset:hover {
-          border-color: var(--accent);
-        }
-
-        .capital-preset.active {
-          border-color: var(--accent);
-          background: var(--accent-light);
-          color: var(--accent);
-        }
-
-        .capital-custom {
-          margin-bottom: var(--space-3);
-        }
-
-        .capital-custom label {
-          display: block;
-          font-size: var(--font-size-sm);
-          color: var(--text-muted);
-          margin-bottom: var(--space-2);
-        }
-
-        .capital-custom input {
-          width: 120px;
-          padding: var(--space-2) var(--space-3);
-          border: 1px solid var(--border);
-          border-radius: var(--radius-md);
-          background: var(--bg-secondary);
-          color: var(--text-primary);
-          text-align: center;
-          font-size: var(--font-size-base);
-        }
-
-        .capital-custom input:focus {
-          outline: none;
-          border-color: var(--accent);
-        }
-
-        .step-note {
-          font-size: var(--font-size-sm);
-          color: var(--text-muted);
-        }
-
-        .step-note strong {
-          color: var(--gold);
         }
 
         /* Recommendation Step */
