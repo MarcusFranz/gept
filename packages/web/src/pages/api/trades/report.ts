@@ -63,20 +63,20 @@ export const POST: APIRoute = async ({ request, locals }) => {
     // Create history entry
     const entry = await tradeHistoryRepo.create({
       user_id: userId,
-      item_id: itemId || null,
+      item_id: itemId ?? null,
       item_name: itemName,
-      buy_price: buyPrice || null,
-      sell_price: sellPrice || null,
-      quantity: quantity || null,
+      buy_price: buyPrice ?? null,
+      sell_price: sellPrice ?? null,
+      quantity: quantity ?? null,
       profit,
       notes: notes || null,
       rec_id: recId || null,
       model_id: modelId || null,
       status: 'completed',
-      expected_profit: expectedProfit || null,
+      expected_profit: expectedProfit ?? null,
       confidence: confidence || null,
-      fill_probability: fillProbability || null,
-      expected_hours: expectedHours || null
+      fill_probability: fillProbability ?? null,
+      expected_hours: expectedHours ?? null
     });
 
     // Report to ML API (non-blocking) if we have all the data

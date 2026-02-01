@@ -147,11 +147,11 @@ export const POST: APIRoute = async ({ request, locals }) => {
       quantity,
       rec_id: recId || null,
       model_id: modelId || null,
-      expected_hours: expectedHours || undefined,
+      expected_hours: expectedHours ?? undefined,
       suggested_sell_price: null,
       confidence: confidence || null,
-      fill_probability: fillProbability || null,
-      expected_profit: expectedProfit || null
+      fill_probability: fillProbability ?? null,
+      expected_profit: expectedProfit ?? null
     });
 
     // Dispatch webhook to ML engine (fire-and-forget)
@@ -163,7 +163,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
       quantity,
       recId: recId || null,
       modelId: modelId || null,
-      expectedHours: trade.expected_hours || null,
+      expectedHours: trade.expected_hours ?? null,
       createdAt: trade.created_at ? new Date(trade.created_at).toISOString() : null
     });
 

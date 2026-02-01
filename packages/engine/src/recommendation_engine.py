@@ -947,7 +947,9 @@ class RecommendationEngine:
             df['is_multi_limit'] = False
 
         # Step 4: Calculate max quantity by capital
-        df['max_qty_by_capital'] = (max_capital // df['buy_price']).fillna(0).astype(int)
+        qty_raw = (max_capital // df['buy_price']).fillna(0)
+        qty_raw[~np.isfinite(qty_raw)] = 0
+        df['max_qty_by_capital'] = qty_raw.astype(int)
 
         # Step 5: Take minimum of capital-based and limit-based
         df['max_quantity'] = df[['max_qty_by_capital', 'effective_limit']].min(axis=1)  # type: ignore[call-overload]
@@ -2283,7 +2285,6 @@ class RecommendationEngine:
         # Defence in depth: sanitize any remaining NaN/inf values that would
         # break JSON serialization or Pydantic validation.  Pandas .to_dict()
         # converts NaN to float('nan') which is not valid JSON.
-        import math
         for opp in opportunities:
             for key, val in opp.items():
                 if isinstance(val, float) and (math.isnan(val) or math.isinf(val)):

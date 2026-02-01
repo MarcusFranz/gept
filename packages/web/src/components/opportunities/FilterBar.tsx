@@ -28,7 +28,7 @@ export function FilterBar(props: FilterBarProps) {
     // Persist to localStorage
     try {
       localStorage.setItem(FILTER_STORAGE_KEY, JSON.stringify(newFilters));
-    } catch {}
+    } catch (err) { console.warn('[FilterBar] Failed to persist preferences:', err); }
   };
 
   return (
@@ -65,7 +65,7 @@ export function FilterBar(props: FilterBarProps) {
               props.onChange({});
               try {
                 localStorage.removeItem(FILTER_STORAGE_KEY);
-              } catch {}
+              } catch (err) { console.warn('[FilterBar] Failed to clear preferences:', err); }
             }}
           >
             Clear
