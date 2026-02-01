@@ -1,5 +1,5 @@
 // packages/web/src/components/trades/TradeDetail.tsx
-import { createSignal, createResource, Show } from 'solid-js';
+import { createSignal, onMount, Show } from 'solid-js';
 import type { TradeViewModel, Guidance } from '../../lib/trade-types';
 import type { UpdateRecommendation } from '../../lib/types';
 import { CheckInBar } from './CheckInBar';
@@ -21,7 +21,13 @@ interface TradeDetailProps {
 }
 
 export function TradeDetail(props: TradeDetailProps) {
-  const [priceHistory] = createResource(() => props.trade.itemId, fetchPriceHistory);
+  const [priceHistory, setPriceHistory] = createSignal<number[] | null>(null);
+
+  onMount(() => {
+    fetchPriceHistory(props.trade.itemId).then(prices => {
+      if (prices) setPriceHistory(prices);
+    });
+  });
   const [loading, setLoading] = createSignal(false);
   const [guidance, setGuidance] = createSignal<Guidance | undefined>(undefined);
   const [pendingProgress, setPendingProgress] = createSignal<number | undefined>(undefined);
