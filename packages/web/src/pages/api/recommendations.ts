@@ -96,7 +96,7 @@ export const GET: APIRoute = async ({ locals, request }) => {
       }, requestedSlots);
 
       // Cache for 30 seconds (fire and forget)
-      cache.set(redisCacheKey, recommendations, TTL.RECOMMENDATIONS).catch(() => {});
+      cache.set(redisCacheKey, recommendations, TTL.RECOMMENDATIONS).catch((err) => { console.warn('[Recommendations] Cache write failed:', err?.message); });
     }
 
     // Filter out excluded items (active trades + skipped)

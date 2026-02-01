@@ -25,8 +25,8 @@ export default function OnboardingWrapper(props: OnboardingWrapperProps) {
           setShowOnboarding(true);
         }
       }
-    } catch {
-      // On error, just show the main content
+    } catch (err) {
+      console.warn('[Onboarding] Failed to load settings:', err);
     } finally {
       setLoading(false);
     }
@@ -42,8 +42,8 @@ export default function OnboardingWrapper(props: OnboardingWrapperProps) {
           tutorialCompleted: true
         })
       });
-    } catch {
-      // Continue even if save fails
+    } catch (err) {
+      console.warn('[Onboarding] Failed to save completion:', err);
     }
 
     setShowOnboarding(false);
@@ -57,8 +57,8 @@ export default function OnboardingWrapper(props: OnboardingWrapperProps) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ tutorialCompleted: true })
       });
-    } catch {
-      // Continue even if save fails
+    } catch (err) {
+      console.warn('[Onboarding] Failed to save skip:', err);
     }
 
     setShowOnboarding(false);

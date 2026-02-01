@@ -505,3 +505,129 @@ class TestGetAllOpportunities:
                 raise AssertionError(
                     f"Opportunity dict is not JSON-serializable: {e}\n{opp}"
                 )
+
+    def test_zero_buy_price_filtered_without_crash(self):
+        """Verify items with buy_price=0 are filtered out without raising OverflowError.
+
+        Regression test: floor-division by zero produces inf, and .astype(int)
+        on inf raises OverflowError. The isfinite guard must catch this.
+        """
+        mock_loader = MagicMock()
+
+        predictions_df = pd.DataFrame([
+            {
+                "item_id": 100,
+                "item_name": "Zero price item",
+                "buy_price": 0,
+                "sell_price": 200,
+                "fill_probability": 0.25,
+                "expected_value": 0.015,
+                "hour_offset": 12,
+                "confidence": "high",
+            },
+            {
+                "item_id": 200,
+                "item_name": "Valid item",
+                "buy_price": 100,
+                "sell_price": 200,
+                "fill_probability": 0.25,
+                "expected_value": 0.015,
+                "hour_offset": 12,
+                "confidence": "high",
+            },
+        ])
+        mock_loader.get_best_prediction_per_item.return_value = predictions_df
+        mock_loader.get_item_buy_limit.return_value = 25000
+        mock_loader.get_item_volume_24h.return_value = 1000000
+        mock_loader.get_item_trend.return_value = "Stable"
+        _configure_batch_mocks(mock_loader)
+
+        engine = RecommendationEngine(db_connection_string="postgresql://test:test@localhost/test")
+        engine.loader = mock_loader
+        opportunities = engine.get_all_opportunities()
+
+        # Item 100 (buy_price=0) should be filtered by the df[col] > 0 guard
+        assert all(opp["item_id"] != 100 for opp in opportunities)
+        # Item 200 should still be present
+        assert any(opp["item_id"] == 200 for opp in opportunities)
+
+    def test_nan_volume_explicitly_sanitized(self):
+        """Verify explicit float('nan') volume is sanitized to None.
+
+        Regression test: when a volume lookup returns NaN (e.g. from pandas),
+        the output must contain None (not NaN) so Pydantic Optional[int]
+        validates and JSON serialization succeeds.
+        """
+        import math
+
+        mock_loader = MagicMock()
+
+        predictions_df = pd.DataFrame([{
+            "item_id": 554,
+            "item_name": "Fire rune",
+            "buy_price": 100,
+            "sell_price": 200,
+            "fill_probability": 0.25,
+            "expected_value": 0.015,
+            "hour_offset": 12,
+            "confidence": "high",
+        }])
+        mock_loader.get_best_prediction_per_item.return_value = predictions_df
+        mock_loader.get_item_buy_limit.return_value = 25000
+        mock_loader.get_item_trend.return_value = "Stable"
+
+        # Return explicit NaN for volume (not just missing key)
+        mock_loader.get_item_volume_24h.return_value = float("nan")
+        _configure_batch_mocks(mock_loader)
+
+        engine = RecommendationEngine(db_connection_string="postgresql://test:test@localhost/test")
+        engine.loader = mock_loader
+        opportunities = engine.get_all_opportunities()
+
+        # Item may be filtered by liquidity check (NaN volume → no volume data).
+        # Key assertion: no returned opportunity contains NaN volume.
+        for opp in opportunities:
+            vol = opp.get("volume_24h")
+            if vol is not None:
+                assert not math.isnan(vol), f"volume_24h contains NaN: {vol}"
+                assert not math.isinf(vol), f"volume_24h contains inf: {vol}"
+
+    def test_inf_fill_probability_sanitized(self):
+        """Verify inf values in predictions are caught by the sanitization layers.
+
+        Regression test: if upstream data contains inf, the defence-in-depth
+        sanitizer must replace it with None so JSON serialization succeeds.
+        """
+        import json
+        import math
+
+        mock_loader = MagicMock()
+
+        predictions_df = pd.DataFrame([{
+            "item_id": 554,
+            "item_name": "Fire rune",
+            "buy_price": 100,
+            "sell_price": 200,
+            "fill_probability": float("inf"),
+            "expected_value": 0.015,
+            "hour_offset": 12,
+            "confidence": "high",
+        }])
+        mock_loader.get_best_prediction_per_item.return_value = predictions_df
+        mock_loader.get_item_buy_limit.return_value = 25000
+        mock_loader.get_item_volume_24h.return_value = 1000000
+        mock_loader.get_item_trend.return_value = "Stable"
+        _configure_batch_mocks(mock_loader)
+
+        engine = RecommendationEngine(db_connection_string="postgresql://test:test@localhost/test")
+        engine.loader = mock_loader
+        opportunities = engine.get_all_opportunities()
+
+        # Item should be filtered by isfinite guard on required columns,
+        # but if anything slips through, no NaN/inf should be in output.
+        for opp in opportunities:
+            for key, val in opp.items():
+                if isinstance(val, float):
+                    assert not math.isnan(val), f"{key} contains NaN"
+                    assert not math.isinf(val), f"{key} contains inf"
+            json.dumps(opp)  # Must be JSON-serializable

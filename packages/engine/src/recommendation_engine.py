@@ -947,7 +947,9 @@ class RecommendationEngine:
             df['is_multi_limit'] = False
 
         # Step 4: Calculate max quantity by capital
-        df['max_qty_by_capital'] = (max_capital // df['buy_price']).fillna(0).astype(int)
+        qty_raw = (max_capital // df['buy_price']).fillna(0)
+        qty_raw[~np.isfinite(qty_raw)] = 0
+        df['max_qty_by_capital'] = qty_raw.astype(int)
 
         # Step 5: Take minimum of capital-based and limit-based
         df['max_quantity'] = df[['max_qty_by_capital', 'effective_limit']].min(axis=1)  # type: ignore[call-overload]
@@ -2220,7 +2222,12 @@ class RecommendationEngine:
         df['trend'] = df['item_id'].map(trends).fillna('Stable')
 
         # Quantity calculation (vectorized)
-        df['max_qty_by_capital'] = (default_capital // df['buy_price']).fillna(0).astype(int)
+        # Replace non-finite results (inf from 0-price edge cases) before int cast.
+        # .fillna(0) only handles NaN; np.isinf catches inf from floor-division.
+        qty_raw = default_capital // df['buy_price']
+        qty_raw = qty_raw.fillna(0)
+        qty_raw[~np.isfinite(qty_raw)] = 0
+        df['max_qty_by_capital'] = qty_raw.astype(int)
         df['max_quantity'] = df[['buy_limit', 'max_qty_by_capital']].min(axis=1)  # type: ignore[call-overload]
 
         # Filter out zero quantity (vectorized)
@@ -2235,7 +2242,10 @@ class RecommendationEngine:
 
         # Expected profit and capital (vectorized)
         df['capital_required'] = df['buy_price'] * df['max_quantity']
-        df['expected_profit'] = (df['profit_per_unit'] * df['max_quantity'] * df['fill_probability']).astype(int)
+        exp_profit = df['profit_per_unit'] * df['max_quantity'] * df['fill_probability']
+        exp_profit = exp_profit.fillna(0)
+        exp_profit[~np.isfinite(exp_profit)] = 0
+        df['expected_profit'] = exp_profit.astype(int)
 
         # Icon URLs (vectorized)
         df['icon_url'] = df['item_id'].apply(
@@ -2275,7 +2285,6 @@ class RecommendationEngine:
         # Defence in depth: sanitize any remaining NaN/inf values that would
         # break JSON serialization or Pydantic validation.  Pandas .to_dict()
         # converts NaN to float('nan') which is not valid JSON.
-        import math
         for opp in opportunities:
             for key, val in opp.items():
                 if isinstance(val, float) and (math.isnan(val) or math.isinf(val)):
