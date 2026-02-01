@@ -113,6 +113,24 @@ else
     echo "  ✗ Redis — container may still be starting"
 fi
 
+# ── 7. Shell Profile ──────────────────────────
+echo ""
+echo "→ Configuring shell profile..."
+
+# Export web env vars so process.env picks them up (Astro server-side code)
+# Also activate the engine venv by default
+cat >> ~/.bashrc << 'PROFILEEOF'
+
+# GePT Codespace environment
+set -a
+[ -f /workspaces/gept/packages/web/.env.local ] && source /workspaces/gept/packages/web/.env.local
+[ -f /workspaces/gept/packages/engine/.env ] && source /workspaces/gept/packages/engine/.env
+set +a
+[ -f /workspaces/gept/packages/engine/.venv/bin/activate ] && source /workspaces/gept/packages/engine/.venv/bin/activate
+cd /workspaces/gept
+PROFILEEOF
+echo "  ✓ ~/.bashrc updated (env vars + venv auto-activated)"
+
 # ── Done ─────────────────────────────────────
 echo ""
 echo "=========================================="
@@ -120,7 +138,7 @@ echo "  Setup complete!"
 echo "=========================================="
 echo ""
 echo "  Start the engine:"
-echo "    cd packages/engine && source .venv/bin/activate"
+echo "    cd packages/engine"
 echo "    uvicorn src.api:app --host 0.0.0.0 --port 8000 --reload"
 echo ""
 echo "  Start the web frontend:"
