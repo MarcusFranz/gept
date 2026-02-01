@@ -296,7 +296,7 @@ export function OpportunityBrowser(props: OpportunityBrowserProps) {
 
         .opportunity-browser-empty button {
           margin-top: 1rem;
-          background: var(--accent);
+          background: var(--action);
           color: var(--btn-text-dark);
           border: none;
           padding: 0.5rem 1rem;
