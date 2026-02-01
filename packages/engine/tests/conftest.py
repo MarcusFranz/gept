@@ -1,11 +1,30 @@
 """Test fixtures for the prediction engine."""
 
 import json
+import os
 from datetime import datetime, timezone
+from unittest.mock import patch
 
 import numpy as np
 import pandas as pd
 import pytest
+
+
+@pytest.fixture(autouse=True)
+def _clear_api_key():
+    """Ensure API key auth is bypassed in tests.
+
+    Without this, tests fail in environments (e.g. codespaces) where
+    INTERNAL_API_KEY is set for production use. We patch both the
+    config singleton and os.environ to handle module reloads.
+    """
+    import src.config as config_module
+
+    original = config_module.config.internal_api_key
+    config_module.config.internal_api_key = ""
+    with patch.dict(os.environ, {"INTERNAL_API_KEY": ""}, clear=False):
+        yield
+    config_module.config.internal_api_key = original
 
 
 @pytest.fixture
