@@ -147,7 +147,6 @@ curl "http://localhost:8000/api/v1/recommendations?style=active&capital=10000000
   "capitalRequired": 2450000,
   "expectedProfit": 22500,
   "confidence": "high",
-  "volumeTier": "High",
   "trend": "Stable"
 }
 ```
@@ -218,7 +217,6 @@ interface Recommendation {
   capitalRequired: number;
   expectedProfit: number;
   confidence: 'high' | 'medium' | 'low';
-  volumeTier: string;   // High/Medium/Low
   trend: string;        // Rising/Stable/Falling
 }
 ```
