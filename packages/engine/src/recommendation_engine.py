@@ -2093,7 +2093,7 @@ class RecommendationEngine:
 
         # Fill probability
         fill_prob = candidate.get("fill_probability", 0)
-        if fill_prob >= 0.9:
+        if fill_prob >= 0.30:
             chips.append({"icon": "⚡", "label": "Fast fill", "type": "positive"})
 
         # Trend
@@ -2132,7 +2132,7 @@ class RecommendationEngine:
             List of opportunity dicts with item details, prices, profits, etc.
         """
         # Use generous default thresholds for browsing
-        min_fill_prob = 0.1  # Lower threshold since model outputs range 0-0.3
+        min_fill_prob = 0.1  # Lower threshold since model outputs range 0-0.5
         min_ev = 0.003  # Low EV threshold for broad results
         max_hour = 48  # Include all time horizons
         candidate_limit = 500  # Get a large pool of candidates

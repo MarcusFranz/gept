@@ -36,6 +36,7 @@ from .alert_dispatcher import AlertDispatcher
 from .recommendation_engine import RecommendationEngine
 from .trade_events import TradeEvent, TradeEventHandler, TradeEventType, TradePayload
 from .trade_price_monitor import TradePriceMonitor
+from .schema import RecommendationFeedback, TradeOutcomes
 from .webhook import WebhookSignatureError, verify_webhook_signature
 
 # Configure structured logging before creating logger
@@ -2105,11 +2106,12 @@ async def report_trade_outcome(
         )
 
     # Insert into outcome database (gept_bot, separate from predictions osrs_data)
+    T = TradeOutcomes
     query = text(
-        """
-        INSERT INTO trade_outcomes (
-            user_id_hash, rec_id, item_id, item_name,
-            buy_price, sell_price, quantity, actual_profit, reported_at
+        f"""
+        INSERT INTO {T.TABLE} (
+            {T.USER_ID_HASH}, {T.REC_ID}, {T.ITEM_ID}, {T.ITEM_NAME},
+            {T.BUY_PRICE}, {T.SELL_PRICE}, {T.QUANTITY}, {T.ACTUAL_PROFIT}, {T.REPORTED_AT}
         ) VALUES (
             :user_id_hash, :rec_id, :item_id, :item_name,
             :buy_price, :sell_price, :quantity, :actual_profit, :reported_at
@@ -2200,21 +2202,22 @@ async def get_user_stats(
         prev_start = None
         prev_end = None
 
+    T = TradeOutcomes
     try:
         with outcome_db_engine.connect() as conn:
             # Query current period stats
             if start_date:
                 stats_query = text(
-                    """
+                    f"""
                     SELECT
                         COUNT(*) as total_trades,
-                        COALESCE(SUM(actual_profit), 0) as total_profit,
-                        COALESCE(SUM(CASE WHEN actual_profit > 0 THEN 1 ELSE 0 END), 0)
+                        COALESCE(SUM({T.ACTUAL_PROFIT}), 0) as total_profit,
+                        COALESCE(SUM(CASE WHEN {T.ACTUAL_PROFIT} > 0 THEN 1 ELSE 0 END), 0)
                             as winning_trades
-                    FROM trade_outcomes
-                    WHERE user_id_hash = :user_id_hash
-                        AND reported_at >= :start_date
-                        AND reported_at < :end_date
+                    FROM {T.TABLE}
+                    WHERE {T.USER_ID_HASH} = :user_id_hash
+                        AND {T.REPORTED_AT} >= :start_date
+                        AND {T.REPORTED_AT} < :end_date
                     """
                 )
                 result = conn.execute(
@@ -2227,14 +2230,14 @@ async def get_user_stats(
                 )
             else:
                 stats_query = text(
-                    """
+                    f"""
                     SELECT
                         COUNT(*) as total_trades,
-                        COALESCE(SUM(actual_profit), 0) as total_profit,
-                        COALESCE(SUM(CASE WHEN actual_profit > 0 THEN 1 ELSE 0 END), 0)
+                        COALESCE(SUM({T.ACTUAL_PROFIT}), 0) as total_profit,
+                        COALESCE(SUM(CASE WHEN {T.ACTUAL_PROFIT} > 0 THEN 1 ELSE 0 END), 0)
                             as winning_trades
-                    FROM trade_outcomes
-                    WHERE user_id_hash = :user_id_hash
+                    FROM {T.TABLE}
+                    WHERE {T.USER_ID_HASH} = :user_id_hash
                     """
                 )
                 result = conn.execute(
@@ -2253,13 +2256,13 @@ async def get_user_stats(
             if total_trades > 0:
                 if start_date:
                     best_query = text(
-                        """
-                        SELECT item_name, actual_profit
-                        FROM trade_outcomes
-                        WHERE user_id_hash = :user_id_hash
-                            AND reported_at >= :start_date
-                            AND reported_at < :end_date
-                        ORDER BY actual_profit DESC
+                        f"""
+                        SELECT {T.ITEM_NAME}, {T.ACTUAL_PROFIT}
+                        FROM {T.TABLE}
+                        WHERE {T.USER_ID_HASH} = :user_id_hash
+                            AND {T.REPORTED_AT} >= :start_date
+                            AND {T.REPORTED_AT} < :end_date
+                        ORDER BY {T.ACTUAL_PROFIT} DESC
                         LIMIT 1
                         """
                     )
@@ -2273,11 +2276,11 @@ async def get_user_stats(
                     )
                 else:
                     best_query = text(
-                        """
-                        SELECT item_name, actual_profit
-                        FROM trade_outcomes
-                        WHERE user_id_hash = :user_id_hash
-                        ORDER BY actual_profit DESC
+                        f"""
+                        SELECT {T.ITEM_NAME}, {T.ACTUAL_PROFIT}
+                        FROM {T.TABLE}
+                        WHERE {T.USER_ID_HASH} = :user_id_hash
+                        ORDER BY {T.ACTUAL_PROFIT} DESC
                         LIMIT 1
                         """
                     )
@@ -2294,13 +2297,13 @@ async def get_user_stats(
             if total_trades > 0:
                 if start_date:
                     worst_query = text(
-                        """
-                        SELECT item_name, actual_profit
-                        FROM trade_outcomes
-                        WHERE user_id_hash = :user_id_hash
-                            AND reported_at >= :start_date
-                            AND reported_at < :end_date
-                        ORDER BY actual_profit ASC
+                        f"""
+                        SELECT {T.ITEM_NAME}, {T.ACTUAL_PROFIT}
+                        FROM {T.TABLE}
+                        WHERE {T.USER_ID_HASH} = :user_id_hash
+                            AND {T.REPORTED_AT} >= :start_date
+                            AND {T.REPORTED_AT} < :end_date
+                        ORDER BY {T.ACTUAL_PROFIT} ASC
                         LIMIT 1
                         """
                     )
@@ -2314,11 +2317,11 @@ async def get_user_stats(
                     )
                 else:
                     worst_query = text(
-                        """
-                        SELECT item_name, actual_profit
-                        FROM trade_outcomes
-                        WHERE user_id_hash = :user_id_hash
-                        ORDER BY actual_profit ASC
+                        f"""
+                        SELECT {T.ITEM_NAME}, {T.ACTUAL_PROFIT}
+                        FROM {T.TABLE}
+                        WHERE {T.USER_ID_HASH} = :user_id_hash
+                        ORDER BY {T.ACTUAL_PROFIT} ASC
                         LIMIT 1
                         """
                     )
@@ -2334,16 +2337,16 @@ async def get_user_stats(
             comparison = None
             if prev_start and prev_end:
                 prev_query = text(
-                    """
+                    f"""
                     SELECT
                         COUNT(*) as total_trades,
-                        COALESCE(SUM(actual_profit), 0) as total_profit,
-                        COALESCE(SUM(CASE WHEN actual_profit > 0 THEN 1 ELSE 0 END), 0)
+                        COALESCE(SUM({T.ACTUAL_PROFIT}), 0) as total_profit,
+                        COALESCE(SUM(CASE WHEN {T.ACTUAL_PROFIT} > 0 THEN 1 ELSE 0 END), 0)
                             as winning_trades
-                    FROM trade_outcomes
-                    WHERE user_id_hash = :user_id_hash
-                        AND reported_at >= :start_date
-                        AND reported_at < :end_date
+                    FROM {T.TABLE}
+                    WHERE {T.USER_ID_HASH} = :user_id_hash
+                        AND {T.REPORTED_AT} >= :start_date
+                        AND {T.REPORTED_AT} < :end_date
                     """
                 )
                 prev_result = conn.execute(
@@ -2451,18 +2454,19 @@ async def submit_feedback(
             )
 
     # Insert into feedback table
+    F = RecommendationFeedback
     query = text(
-        """
-        INSERT INTO recommendation_feedback (
-            user_id_hash, rec_id, item_id, item_name,
-            feedback_type, side, notes, recommended_price,
-            actual_price, submitted_at
+        f"""
+        INSERT INTO {F.TABLE} (
+            {F.USER_ID_HASH}, {F.REC_ID}, {F.ITEM_ID}, {F.ITEM_NAME},
+            {F.FEEDBACK_TYPE}, {F.SIDE}, {F.NOTES}, {F.RECOMMENDED_PRICE},
+            {F.ACTUAL_PRICE}, {F.SUBMITTED_AT}
         ) VALUES (
             :user_id_hash, :rec_id, :item_id, :item_name,
             :feedback_type, :side, :notes, :recommended_price,
             :actual_price, :submitted_at
         )
-        RETURNING id
+        RETURNING {F.ID}
         """
     )
 
@@ -2541,18 +2545,19 @@ async def get_feedback_analytics(
     try:
         with outcome_db_engine.connect() as conn:
             # Build base query with optional filters
-            date_filter = "AND submitted_at >= :start_date" if start_date else ""
-            item_filter = "AND item_id = :item_id" if item_id else ""
+            F = RecommendationFeedback
+            date_filter = f"AND {F.SUBMITTED_AT} >= :start_date" if start_date else ""
+            item_filter = f"AND {F.ITEM_ID} = :item_id" if item_id else ""
 
             # Get total count and by-type breakdown
             type_query = text(
                 f"""
                 SELECT
-                    feedback_type,
+                    {F.FEEDBACK_TYPE},
                     COUNT(*) as count
-                FROM recommendation_feedback
+                FROM {F.TABLE}
                 WHERE 1=1 {date_filter} {item_filter}
-                GROUP BY feedback_type
+                GROUP BY {F.FEEDBACK_TYPE}
                 ORDER BY count DESC
                 """
             )
@@ -2584,12 +2589,12 @@ async def get_feedback_analytics(
             top_items_query = text(
                 f"""
                 SELECT
-                    item_id,
-                    item_name,
+                    {F.ITEM_ID},
+                    {F.ITEM_NAME},
                     COUNT(*) as count
-                FROM recommendation_feedback
+                FROM {F.TABLE}
                 WHERE 1=1 {date_filter}
-                GROUP BY item_id, item_name
+                GROUP BY {F.ITEM_ID}, {F.ITEM_NAME}
                 ORDER BY count DESC
                 LIMIT 10
                 """

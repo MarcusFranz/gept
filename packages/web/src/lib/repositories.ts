@@ -186,7 +186,7 @@ export const activeTradesRepo = {
 
     await sql`
       INSERT INTO active_trades (id, user_id, item_id, item_name, buy_price, sell_price, quantity, rec_id, model_id, phase, progress, next_check_in, expected_hours, confidence, fill_probability, expected_profit)
-      VALUES (${id}, ${trade.user_id}, ${trade.item_id}, ${trade.item_name}, ${trade.buy_price}, ${trade.sell_price}, ${trade.quantity}, ${trade.rec_id || null}, ${trade.model_id || null}, 'buying', 0, ${nextCheckIn.toISOString()}, ${expectedHours}, ${trade.confidence || null}, ${trade.fill_probability ?? null}, ${trade.expected_profit ?? null})
+      VALUES (${id}, ${trade.user_id}, ${trade.item_id}, ${trade.item_name}, ${trade.buy_price}, ${trade.sell_price}, ${trade.quantity}, ${trade.rec_id || null}, ${trade.model_id || null}, 'buying', 0, ${nextCheckIn.toISOString()}, ${expectedHours}, ${trade.confidence ?? null}, ${trade.fill_probability ?? null}, ${trade.expected_profit ?? null})
     `;
     return (await this.findById(id))!;
   },
@@ -344,7 +344,7 @@ export const tradeHistoryRepo = {
     const id = generateId();
     await sql`
       INSERT INTO trade_history (id, user_id, item_id, item_name, buy_price, sell_price, quantity, profit, notes, rec_id, model_id, status, expected_profit, confidence, fill_probability, expected_hours)
-      VALUES (${id}, ${trade.user_id}, ${trade.item_id ?? null}, ${trade.item_name}, ${trade.buy_price ?? null}, ${trade.sell_price ?? null}, ${trade.quantity ?? null}, ${trade.profit}, ${trade.notes || null}, ${trade.rec_id || null}, ${trade.model_id || null}, ${trade.status || 'completed'}, ${trade.expected_profit ?? null}, ${trade.confidence || null}, ${trade.fill_probability ?? null}, ${trade.expected_hours ?? null})
+      VALUES (${id}, ${trade.user_id}, ${trade.item_id ?? null}, ${trade.item_name}, ${trade.buy_price ?? null}, ${trade.sell_price ?? null}, ${trade.quantity ?? null}, ${trade.profit}, ${trade.notes || null}, ${trade.rec_id || null}, ${trade.model_id || null}, ${trade.status || 'completed'}, ${trade.expected_profit ?? null}, ${trade.confidence ?? null}, ${trade.fill_probability ?? null}, ${trade.expected_hours ?? null})
     `;
     const result = await sql<TradeHistory>`SELECT * FROM trade_history WHERE id = ${id}`;
     return result[0];
