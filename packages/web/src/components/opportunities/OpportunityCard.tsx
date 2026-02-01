@@ -1,6 +1,7 @@
 // packages/web/src/components/opportunities/OpportunityCard.tsx
 import { Show, For } from 'solid-js';
 import type { Opportunity } from '../../lib/trade-types';
+import Tooltip from '../Tooltip';
 
 interface OpportunityCardProps {
   opportunity: Opportunity;
@@ -43,11 +44,15 @@ export function OpportunityCard(props: OpportunityCardProps) {
       </div>
 
       <div class="opportunity-card-meta">
-        <span>{formatGold(opp().buyPrice)} → {formatGold(opp().sellPrice)}</span>
+        <span>Buy {formatGold(opp().buyPrice)} → Sell {formatGold(opp().sellPrice)}</span>
         <span>·</span>
-        <span>{formatHours(opp().expectedHours)}</span>
+        <span>{formatHours(opp().expectedHours)} hold</span>
         <span>·</span>
-        <span>{opp().confidence}</span>
+        <Tooltip text="High = fill probability ≥ 80% · Medium = ≥ 60% · Low = < 60%">
+          <span class={`confidence-badge badge-${opp().confidence === 'high' ? 'success' : opp().confidence === 'medium' ? 'warning' : 'danger'}`}>
+            {opp().confidence.charAt(0).toUpperCase() + opp().confidence.slice(1)}
+          </span>
+        </Tooltip>
       </div>
 
       <Show when={props.expanded}>
@@ -152,10 +157,19 @@ export function OpportunityCard(props: OpportunityCardProps) {
 
         .opportunity-card-meta {
           display: flex;
+          align-items: center;
           gap: 0.5rem;
           margin-top: 0.25rem;
           font-size: var(--font-size-sm);
           color: var(--text-secondary);
+        }
+
+        .confidence-badge {
+          font-size: var(--font-size-xs);
+          font-weight: 600;
+          padding: 0.0625rem 0.375rem;
+          border-radius: var(--radius-sm);
+          cursor: default;
         }
 
         .opportunity-card-details {
