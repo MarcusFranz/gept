@@ -21,6 +21,7 @@
     "astro": "^5.16.9",
     "better-auth": "^1.4.13",
     "pg": "^8.17.1",
+    "resend": "^4.1.0",
     "solid-js": "^1.9.10"
   },
   "devDependencies": {},

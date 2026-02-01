@@ -9,6 +9,13 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.pool import QueuePool
 
 from .config import Config
+from .schema import (
+    Items,
+    ModelRegistry,
+    Predictions,
+    PriceData5Min,
+    PricesLatest1M,
+)
 from .wiki_api import get_wiki_api_client
 
 logger = logging.getLogger(__name__)
@@ -347,8 +354,11 @@ class PredictionLoader:
     def _max_time_subquery(self) -> str:
         """Return the MAX(time) subquery, scoped to preferred model if configured."""
         if self.preferred_model_id:
-            return "(SELECT MAX(time) FROM predictions WHERE model_id = :preferred_model_id)"
-        return "(SELECT MAX(time) FROM predictions)"
+            return (
+                f"(SELECT MAX({Predictions.TIME}) FROM {Predictions.TABLE}"
+                f" WHERE {Predictions.MODEL_ID} = :preferred_model_id)"
+            )
+        return f"(SELECT MAX({Predictions.TIME}) FROM {Predictions.TABLE})"
 
     def _inject_model_params(self, params: dict) -> dict:
         """Add preferred_model_id to params dict if configured."""
@@ -393,10 +403,11 @@ class PredictionLoader:
             DataFrame with predictions sorted by expected_value descending
         """
         # Build query with filters
+        P = Predictions
         conditions = [
-            f"time = {self._max_time_subquery()}",
-            "fill_probability >= :min_fill_prob",
-            "expected_value >= :min_ev",
+            f"{P.TIME} = {self._max_time_subquery()}",
+            f"{P.FILL_PROBABILITY} >= :min_fill_prob",
+            f"{P.EXPECTED_VALUE} >= :min_ev",
         ]
 
         params = {
@@ -407,11 +418,11 @@ class PredictionLoader:
         self._inject_model_params(params)
 
         if max_hour_offset:
-            conditions.append("hour_offset <= :max_hour_offset")
+            conditions.append(f"{P.HOUR_OFFSET} <= :max_hour_offset")
             params["max_hour_offset"] = max_hour_offset
 
         if item_ids:
-            conditions.append("item_id = ANY(:item_ids)")
+            conditions.append(f"{P.ITEM_ID} = ANY(:item_ids)")
             params["item_ids"] = item_ids
 
         where_clause = " AND ".join(conditions)
@@ -419,21 +430,21 @@ class PredictionLoader:
         query = text(
             f"""
             SELECT
-                item_id,
-                item_name,
-                hour_offset,
-                offset_pct,
-                fill_probability,
-                expected_value,
-                buy_price,
-                sell_price,
-                current_high,
-                current_low,
-                confidence,
-                time as prediction_time
-            FROM predictions
+                {P.ITEM_ID},
+                {P.ITEM_NAME},
+                {P.HOUR_OFFSET},
+                {P.OFFSET_PCT},
+                {P.FILL_PROBABILITY},
+                {P.EXPECTED_VALUE},
+                {P.BUY_PRICE},
+                {P.SELL_PRICE},
+                {P.CURRENT_HIGH},
+                {P.CURRENT_LOW},
+                {P.CONFIDENCE},
+                {P.TIME} as prediction_time
+            FROM {P.TABLE}
             WHERE {where_clause}
-            ORDER BY expected_value DESC
+            ORDER BY {P.EXPECTED_VALUE} DESC
             LIMIT :limit
         """
         )
@@ -461,25 +472,26 @@ class PredictionLoader:
         Returns:
             DataFrame with all hour_offset/offset_pct combinations for the item
         """
+        P = Predictions
         query = text(
             f"""
             SELECT
-                item_id,
-                item_name,
-                hour_offset,
-                offset_pct,
-                fill_probability,
-                expected_value,
-                buy_price,
-                sell_price,
-                current_high,
-                current_low,
-                confidence,
-                time as prediction_time
-            FROM predictions
-            WHERE time = {self._max_time_subquery()}
-              AND item_id = :item_id
-            ORDER BY hour_offset, offset_pct
+                {P.ITEM_ID},
+                {P.ITEM_NAME},
+                {P.HOUR_OFFSET},
+                {P.OFFSET_PCT},
+                {P.FILL_PROBABILITY},
+                {P.EXPECTED_VALUE},
+                {P.BUY_PRICE},
+                {P.SELL_PRICE},
+                {P.CURRENT_HIGH},
+                {P.CURRENT_LOW},
+                {P.CONFIDENCE},
+                {P.TIME} as prediction_time
+            FROM {P.TABLE}
+            WHERE {P.TIME} = {self._max_time_subquery()}
+              AND {P.ITEM_ID} = :item_id
+            ORDER BY {P.HOUR_OFFSET}, {P.OFFSET_PCT}
         """
         )
 
@@ -520,19 +532,22 @@ class PredictionLoader:
         Returns:
             DataFrame with one row per item (best configuration)
         """
+        P = Predictions
+        V = PriceData5Min
+
         # Build hour filter for both min and max (using parameterized queries)
         hour_filter = ""
         if min_hour_offset:
-            hour_filter += " AND p.hour_offset >= :min_hour_offset"
+            hour_filter += f" AND p.{P.HOUR_OFFSET} >= :min_hour_offset"
         if max_hour_offset:
-            hour_filter += " AND p.hour_offset <= :max_hour_offset"
+            hour_filter += f" AND p.{P.HOUR_OFFSET} <= :max_hour_offset"
 
         # Build offset filter
         offset_filter = ""
         if min_offset_pct is not None:
-            offset_filter += " AND p.offset_pct >= :min_offset_pct"
+            offset_filter += f" AND p.{P.OFFSET_PCT} >= :min_offset_pct"
         if max_offset_pct is not None:
-            offset_filter += " AND p.offset_pct <= :max_offset_pct"
+            offset_filter += f" AND p.{P.OFFSET_PCT} <= :max_offset_pct"
 
         # Build volume filter with price-tiered thresholds
         # High-value items naturally have lower volume, so we apply carve-outs:
@@ -542,11 +557,11 @@ class PredictionLoader:
         # - Other items: use configured min_volume_24h
         volume_filter = ""
         if min_volume_24h is not None and min_volume_24h > 0:
-            volume_filter = """
+            volume_filter = f"""
                 AND COALESCE(v.total_volume, 0) >= CASE
-                    WHEN COALESCE(p.buy_price, 0) > 100000000 THEN 100
-                    WHEN COALESCE(p.buy_price, 0) > 10000000 THEN 500
-                    WHEN COALESCE(p.buy_price, 0) > 1000000 THEN LEAST(:min_volume_24h, 2000)
+                    WHEN COALESCE(p.{P.BUY_PRICE}, 0) > 100000000 THEN 100
+                    WHEN COALESCE(p.{P.BUY_PRICE}, 0) > 10000000 THEN 500
+                    WHEN COALESCE(p.{P.BUY_PRICE}, 0) > 1000000 THEN LEAST(:min_volume_24h, 2000)
                     ELSE :min_volume_24h
                 END"""
 
@@ -561,41 +576,41 @@ class PredictionLoader:
                     SELECT item_id, total_volume FROM mv_volume_24h
                 ),"""
             else:
-                volume_cte = """
+                volume_cte = f"""
                 WITH volume_24h AS (
-                    SELECT item_id,
-                           COALESCE(SUM(high_price_volume), 0)
-                           + COALESCE(SUM(low_price_volume), 0) as total_volume
-                    FROM price_data_5min
-                    WHERE timestamp >= NOW() - INTERVAL '24 hours'
-                    GROUP BY item_id
+                    SELECT {V.ITEM_ID},
+                           COALESCE(SUM({V.HIGH_PRICE_VOLUME}), 0)
+                           + COALESCE(SUM({V.LOW_PRICE_VOLUME}), 0) as total_volume
+                    FROM {V.TABLE}
+                    WHERE {V.TIMESTAMP} >= NOW() - INTERVAL '24 hours'
+                    GROUP BY {V.ITEM_ID}
                 ),"""
             query = text(
                 f"""
                 {volume_cte}
                 ranked AS (
                     SELECT
-                        p.item_id,
-                        p.item_name,
-                        p.hour_offset,
-                        p.offset_pct,
-                        p.fill_probability,
-                        p.expected_value,
-                        p.buy_price,
-                        p.sell_price,
-                        p.current_high,
-                        p.current_low,
-                        p.confidence,
-                        p.time as prediction_time,
+                        p.{P.ITEM_ID},
+                        p.{P.ITEM_NAME},
+                        p.{P.HOUR_OFFSET},
+                        p.{P.OFFSET_PCT},
+                        p.{P.FILL_PROBABILITY},
+                        p.{P.EXPECTED_VALUE},
+                        p.{P.BUY_PRICE},
+                        p.{P.SELL_PRICE},
+                        p.{P.CURRENT_HIGH},
+                        p.{P.CURRENT_LOW},
+                        p.{P.CONFIDENCE},
+                        p.{P.TIME} as prediction_time,
                         COALESCE(v.total_volume, 0) as volume_24h,
                         ROW_NUMBER() OVER (
-                            PARTITION BY p.item_id ORDER BY p.expected_value DESC
+                            PARTITION BY p.{P.ITEM_ID} ORDER BY p.{P.EXPECTED_VALUE} DESC
                         ) as rn
-                    FROM predictions p
-                    LEFT JOIN volume_24h v ON v.item_id = p.item_id
-                    WHERE p.time = {self._max_time_subquery()}
-                      AND p.fill_probability >= :min_fill_prob
-                      AND p.expected_value >= :min_ev
+                    FROM {P.TABLE} p
+                    LEFT JOIN volume_24h v ON v.{V.ITEM_ID} = p.{P.ITEM_ID}
+                    WHERE p.{P.TIME} = {self._max_time_subquery()}
+                      AND p.{P.FILL_PROBABILITY} >= :min_fill_prob
+                      AND p.{P.EXPECTED_VALUE} >= :min_ev
                       {hour_filter}
                       {offset_filter}
                       {volume_filter}
@@ -603,7 +618,7 @@ class PredictionLoader:
                 SELECT *
                 FROM ranked
                 WHERE rn = 1
-                ORDER BY expected_value DESC
+                ORDER BY {P.EXPECTED_VALUE} DESC
                 LIMIT :limit
             """
             )
@@ -613,33 +628,33 @@ class PredictionLoader:
                 f"""
                 WITH ranked AS (
                     SELECT
-                        p.item_id,
-                        p.item_name,
-                        p.hour_offset,
-                        p.offset_pct,
-                        p.fill_probability,
-                        p.expected_value,
-                        p.buy_price,
-                        p.sell_price,
-                        p.current_high,
-                        p.current_low,
-                        p.confidence,
-                        p.time as prediction_time,
+                        p.{P.ITEM_ID},
+                        p.{P.ITEM_NAME},
+                        p.{P.HOUR_OFFSET},
+                        p.{P.OFFSET_PCT},
+                        p.{P.FILL_PROBABILITY},
+                        p.{P.EXPECTED_VALUE},
+                        p.{P.BUY_PRICE},
+                        p.{P.SELL_PRICE},
+                        p.{P.CURRENT_HIGH},
+                        p.{P.CURRENT_LOW},
+                        p.{P.CONFIDENCE},
+                        p.{P.TIME} as prediction_time,
                         0 as volume_24h,
                         ROW_NUMBER() OVER (
-                            PARTITION BY p.item_id ORDER BY p.expected_value DESC
+                            PARTITION BY p.{P.ITEM_ID} ORDER BY p.{P.EXPECTED_VALUE} DESC
                         ) as rn
-                    FROM predictions p
-                    WHERE p.time = {self._max_time_subquery()}
-                      AND p.fill_probability >= :min_fill_prob
-                      AND p.expected_value >= :min_ev
+                    FROM {P.TABLE} p
+                    WHERE p.{P.TIME} = {self._max_time_subquery()}
+                      AND p.{P.FILL_PROBABILITY} >= :min_fill_prob
+                      AND p.{P.EXPECTED_VALUE} >= :min_ev
                       {hour_filter}
                       {offset_filter}
                 )
                 SELECT *
                 FROM ranked
                 WHERE rn = 1
-                ORDER BY expected_value DESC
+                ORDER BY {P.EXPECTED_VALUE} DESC
                 LIMIT :limit
             """
             )
@@ -683,10 +698,13 @@ class PredictionLoader:
             Most recent prediction timestamp, or None if no data
         """
         if self.preferred_model_id:
-            query = text("SELECT MAX(time) FROM predictions WHERE model_id = :preferred_model_id")
+            query = text(
+                f"SELECT MAX({Predictions.TIME}) FROM {Predictions.TABLE}"
+                f" WHERE {Predictions.MODEL_ID} = :preferred_model_id"
+            )
             params = {"preferred_model_id": self.preferred_model_id}
         else:
-            query = text("SELECT MAX(time) FROM predictions")
+            query = text(f"SELECT MAX({Predictions.TIME}) FROM {Predictions.TABLE}")
             params = {}
 
         try:
@@ -750,10 +768,10 @@ class PredictionLoader:
             Buy limit from database or None if not found
         """
         query = text(
-            """
-            SELECT buy_limit
-            FROM items
-            WHERE item_id = :item_id
+            f"""
+            SELECT {Items.BUY_LIMIT}
+            FROM {Items.TABLE}
+            WHERE {Items.ITEM_ID} = :item_id
         """
         )
 
@@ -832,11 +850,11 @@ class PredictionLoader:
 
         # Use ANY array for efficient IN clause
         query = text(
-            """
-            SELECT item_id, buy_limit
-            FROM items
-            WHERE item_id = ANY(:item_ids)
-              AND buy_limit IS NOT NULL
+            f"""
+            SELECT {Items.ITEM_ID}, {Items.BUY_LIMIT}
+            FROM {Items.TABLE}
+            WHERE {Items.ITEM_ID} = ANY(:item_ids)
+              AND {Items.BUY_LIMIT} IS NOT NULL
         """
         )
 
@@ -894,18 +912,19 @@ class PredictionLoader:
         Returns:
             Total 24h volume (0 if no data), or None on query failure
         """
+        V = PriceData5Min
         if self._matview_exists("mv_volume_24h"):
             query = text(
                 "SELECT total_volume FROM mv_volume_24h WHERE item_id = :item_id"
             )
         else:
             query = text(
-                """
-                SELECT COALESCE(SUM(high_price_volume), 0)
-                       + COALESCE(SUM(low_price_volume), 0) as total_volume
-                FROM price_data_5min
-                WHERE item_id = :item_id
-                  AND timestamp >= NOW() - INTERVAL '24 hours'
+                f"""
+                SELECT COALESCE(SUM({V.HIGH_PRICE_VOLUME}), 0)
+                       + COALESCE(SUM({V.LOW_PRICE_VOLUME}), 0) as total_volume
+                FROM {V.TABLE}
+                WHERE {V.ITEM_ID} = :item_id
+                  AND {V.TIMESTAMP} >= NOW() - INTERVAL '24 hours'
             """
             )
 
@@ -930,18 +949,19 @@ class PredictionLoader:
         Returns:
             Total 1h volume (0 if no data), or None on query failure
         """
+        V = PriceData5Min
         if self._matview_exists("mv_volume_1h"):
             query = text(
                 "SELECT total_volume FROM mv_volume_1h WHERE item_id = :item_id"
             )
         else:
             query = text(
-                """
-                SELECT COALESCE(SUM(high_price_volume), 0)
-                       + COALESCE(SUM(low_price_volume), 0) as total_volume
-                FROM price_data_5min
-                WHERE item_id = :item_id
-                  AND timestamp >= NOW() - INTERVAL '1 hour'
+                f"""
+                SELECT COALESCE(SUM({V.HIGH_PRICE_VOLUME}), 0)
+                       + COALESCE(SUM({V.LOW_PRICE_VOLUME}), 0) as total_volume
+                FROM {V.TABLE}
+                WHERE {V.ITEM_ID} = :item_id
+                  AND {V.TIMESTAMP} >= NOW() - INTERVAL '1 hour'
             """
             )
 
@@ -971,6 +991,7 @@ class PredictionLoader:
         if not item_ids:
             return {}
 
+        V = PriceData5Min
         if self._matview_exists("mv_volume_24h"):
             query = text(
                 """
@@ -981,14 +1002,14 @@ class PredictionLoader:
             )
         else:
             query = text(
-                """
-                SELECT item_id,
-                       COALESCE(SUM(high_price_volume), 0)
-                       + COALESCE(SUM(low_price_volume), 0) as total_volume
-                FROM price_data_5min
-                WHERE item_id = ANY(:item_ids)
-                  AND timestamp >= NOW() - INTERVAL '24 hours'
-                GROUP BY item_id
+                f"""
+                SELECT {V.ITEM_ID},
+                       COALESCE(SUM({V.HIGH_PRICE_VOLUME}), 0)
+                       + COALESCE(SUM({V.LOW_PRICE_VOLUME}), 0) as total_volume
+                FROM {V.TABLE}
+                WHERE {V.ITEM_ID} = ANY(:item_ids)
+                  AND {V.TIMESTAMP} >= NOW() - INTERVAL '24 hours'
+                GROUP BY {V.ITEM_ID}
             """
             )
 
@@ -1016,6 +1037,7 @@ class PredictionLoader:
         if not item_ids:
             return {}
 
+        V = PriceData5Min
         if self._matview_exists("mv_volume_1h"):
             query = text(
                 """
@@ -1026,14 +1048,14 @@ class PredictionLoader:
             )
         else:
             query = text(
-                """
-                SELECT item_id,
-                       COALESCE(SUM(high_price_volume), 0)
-                       + COALESCE(SUM(low_price_volume), 0) as total_volume
-                FROM price_data_5min
-                WHERE item_id = ANY(:item_ids)
-                  AND timestamp >= NOW() - INTERVAL '1 hour'
-                GROUP BY item_id
+                f"""
+                SELECT {V.ITEM_ID},
+                       COALESCE(SUM({V.HIGH_PRICE_VOLUME}), 0)
+                       + COALESCE(SUM({V.LOW_PRICE_VOLUME}), 0) as total_volume
+                FROM {V.TABLE}
+                WHERE {V.ITEM_ID} = ANY(:item_ids)
+                  AND {V.TIMESTAMP} >= NOW() - INTERVAL '1 hour'
+                GROUP BY {V.ITEM_ID}
             """
             )
 
@@ -1059,13 +1081,14 @@ class PredictionLoader:
         Returns:
             List of dicts with 'timestamp' and 'price' (midpoint) keys
         """
+        V = PriceData5Min
         query = text(
-            """
-            SELECT timestamp, avg_high_price, avg_low_price
-            FROM price_data_5min
-            WHERE item_id = :item_id
-              AND timestamp >= NOW() - make_interval(hours => :hours)
-            ORDER BY timestamp ASC
+            f"""
+            SELECT {V.TIMESTAMP}, {V.AVG_HIGH_PRICE}, {V.AVG_LOW_PRICE}
+            FROM {V.TABLE}
+            WHERE {V.ITEM_ID} = :item_id
+              AND {V.TIMESTAMP} >= NOW() - make_interval(hours => :hours)
+            ORDER BY {V.TIMESTAMP} ASC
             LIMIT :limit
         """
         )
@@ -1110,13 +1133,14 @@ class PredictionLoader:
         Returns:
             List of dicts with 'timestamp', 'high', 'low', 'avgHigh', 'avgLow' keys
         """
+        V = PriceData5Min
         query = text(
-            """
-            SELECT timestamp, high_price, low_price, avg_high_price, avg_low_price
-            FROM price_data_5min
-            WHERE item_id = :item_id
-              AND timestamp >= NOW() - make_interval(hours => :hours)
-            ORDER BY timestamp ASC
+            f"""
+            SELECT {V.TIMESTAMP}, {V.HIGH_PRICE}, {V.LOW_PRICE}, {V.AVG_HIGH_PRICE}, {V.AVG_LOW_PRICE}
+            FROM {V.TABLE}
+            WHERE {V.ITEM_ID} = :item_id
+              AND {V.TIMESTAMP} >= NOW() - make_interval(hours => :hours)
+            ORDER BY {V.TIMESTAMP} ASC
             LIMIT :limit
         """
         )
@@ -1176,12 +1200,13 @@ class PredictionLoader:
         Returns:
             'Rising', 'Falling', or 'Stable'
         """
+        V = PriceData5Min
         query = text(
-            """
-            SELECT avg_high_price, avg_low_price
-            FROM price_data_5min
-            WHERE item_id = :item_id
-            ORDER BY timestamp DESC
+            f"""
+            SELECT {V.AVG_HIGH_PRICE}, {V.AVG_LOW_PRICE}
+            FROM {V.TABLE}
+            WHERE {V.ITEM_ID} = :item_id
+            ORDER BY {V.TIMESTAMP} DESC
             LIMIT 4
         """
         )
@@ -1237,25 +1262,26 @@ class PredictionLoader:
             return {}
 
         # Fetch last 4 hours of prices for all items at once
+        V = PriceData5Min
         query = text(
-            """
+            f"""
             WITH ranked_prices AS (
                 SELECT
-                    item_id,
-                    avg_high_price,
-                    avg_low_price,
-                    timestamp,
+                    {V.ITEM_ID},
+                    {V.AVG_HIGH_PRICE},
+                    {V.AVG_LOW_PRICE},
+                    {V.TIMESTAMP},
                     ROW_NUMBER() OVER (
-                        PARTITION BY item_id ORDER BY timestamp DESC
+                        PARTITION BY {V.ITEM_ID} ORDER BY {V.TIMESTAMP} DESC
                     ) as rn
-                FROM price_data_5min
-                WHERE item_id = ANY(:item_ids)
-                  AND timestamp >= NOW() - INTERVAL '4 hours'
+                FROM {V.TABLE}
+                WHERE {V.ITEM_ID} = ANY(:item_ids)
+                  AND {V.TIMESTAMP} >= NOW() - INTERVAL '4 hours'
             )
-            SELECT item_id, avg_high_price, avg_low_price, rn
+            SELECT {V.ITEM_ID}, {V.AVG_HIGH_PRICE}, {V.AVG_LOW_PRICE}, rn
             FROM ranked_prices
             WHERE rn IN (1, 4)
-            ORDER BY item_id, rn
+            ORDER BY {V.ITEM_ID}, rn
         """
         )
 
@@ -1372,22 +1398,23 @@ class PredictionLoader:
         # Expand acronym if recognized
         expanded_query = expand_acronym(query)
 
+        P = Predictions
         sql = text(
             f"""
-            SELECT item_id, item_name
+            SELECT {P.ITEM_ID}, {P.ITEM_NAME}
             FROM (
-                SELECT DISTINCT item_id, item_name
-                FROM predictions
-                WHERE time = {self._max_time_subquery()}
-                  AND LOWER(item_name) LIKE LOWER(:query)
+                SELECT DISTINCT {P.ITEM_ID}, {P.ITEM_NAME}
+                FROM {P.TABLE}
+                WHERE {P.TIME} = {self._max_time_subquery()}
+                  AND LOWER({P.ITEM_NAME}) LIKE LOWER(:query)
             ) AS items
             ORDER BY
                 CASE
-                    WHEN LOWER(item_name) = LOWER(:exact) THEN 0
-                    WHEN LOWER(item_name) LIKE LOWER(:starts) THEN 1
+                    WHEN LOWER({P.ITEM_NAME}) = LOWER(:exact) THEN 0
+                    WHEN LOWER({P.ITEM_NAME}) LIKE LOWER(:starts) THEN 1
                     ELSE 2
                 END,
-                item_name
+                {P.ITEM_NAME}
             LIMIT :limit
         """
         )
@@ -1418,11 +1445,12 @@ class PredictionLoader:
         Returns:
             Set of model_ids that are currently active
         """
+        M = ModelRegistry
         query = text(
-            """
-            SELECT model_id
-            FROM model_registry
-            WHERE status = 'ACTIVE'
+            f"""
+            SELECT {M.MODEL_ID}
+            FROM {M.TABLE}
+            WHERE {M.STATUS} = 'ACTIVE'
         """
         )
 
@@ -1443,11 +1471,12 @@ class PredictionLoader:
         Returns:
             Model status string or None if not found
         """
+        M = ModelRegistry
         query = text(
-            """
-            SELECT status
-            FROM model_registry
-            WHERE model_id = :model_id
+            f"""
+            SELECT {M.STATUS}
+            FROM {M.TABLE}
+            WHERE {M.MODEL_ID} = :model_id
         """
         )
 
@@ -1473,23 +1502,24 @@ class PredictionLoader:
         Returns:
             List of model dicts with model_id, status, mean_auc, trained_at
         """
+        M = ModelRegistry
         if status_filter:
             query = text(
-                """
-                SELECT model_id, item_id, status, mean_auc, trained_at
-                FROM model_registry
-                WHERE item_id = :item_id AND status = :status
-                ORDER BY trained_at DESC
+                f"""
+                SELECT {M.MODEL_ID}, {M.ITEM_ID}, {M.STATUS}, {M.MEAN_AUC}, {M.TRAINED_AT}
+                FROM {M.TABLE}
+                WHERE {M.ITEM_ID} = :item_id AND {M.STATUS} = :status
+                ORDER BY {M.TRAINED_AT} DESC
             """
             )
             params = {"item_id": item_id, "status": status_filter}
         else:
             query = text(
-                """
-                SELECT model_id, item_id, status, mean_auc, trained_at
-                FROM model_registry
-                WHERE item_id = :item_id
-                ORDER BY trained_at DESC
+                f"""
+                SELECT {M.MODEL_ID}, {M.ITEM_ID}, {M.STATUS}, {M.MEAN_AUC}, {M.TRAINED_AT}
+                FROM {M.TABLE}
+                WHERE {M.ITEM_ID} = :item_id
+                ORDER BY {M.TRAINED_AT} DESC
             """
             )
             params = {"item_id": item_id}
@@ -1529,11 +1559,12 @@ class PredictionLoader:
         Returns:
             Dict with counts by status
         """
+        M = ModelRegistry
         query = text(
-            """
-            SELECT status, COUNT(*) as count
-            FROM model_registry
-            GROUP BY status
+            f"""
+            SELECT {M.STATUS}, COUNT(*) as count
+            FROM {M.TABLE}
+            GROUP BY {M.STATUS}
         """
         )
 
@@ -1564,11 +1595,12 @@ class PredictionLoader:
         Returns:
             Set of item_ids with active models
         """
+        M = ModelRegistry
         query = text(
-            """
-            SELECT DISTINCT item_id
-            FROM model_registry
-            WHERE status = 'ACTIVE'
+            f"""
+            SELECT DISTINCT {M.ITEM_ID}
+            FROM {M.TABLE}
+            WHERE {M.STATUS} = 'ACTIVE'
         """
         )
 
@@ -1590,17 +1622,18 @@ class PredictionLoader:
             Dictionary with keys: timestamp, high, low, high_time, low_time
             Returns None if no data found
         """
+        L = PricesLatest1M
         query = text(
-            """
+            f"""
             SELECT
-                timestamp,
-                high,
-                low,
-                high_time,
-                low_time
-            FROM prices_latest_1m
-            WHERE item_id = :item_id
-            ORDER BY timestamp DESC
+                {L.TIMESTAMP},
+                {L.HIGH},
+                {L.LOW},
+                {L.HIGH_TIME},
+                {L.LOW_TIME}
+            FROM {L.TABLE}
+            WHERE {L.ITEM_ID} = :item_id
+            ORDER BY {L.TIMESTAMP} DESC
             LIMIT 1
         """
         )
@@ -1637,25 +1670,26 @@ class PredictionLoader:
         if not item_ids:
             return pd.DataFrame()
 
+        P = Predictions
         query = text(
             f"""
             SELECT
-                item_id,
-                item_name,
-                hour_offset,
-                offset_pct,
-                fill_probability,
-                expected_value,
-                buy_price,
-                sell_price,
-                current_high,
-                current_low,
-                confidence,
-                time as prediction_time
-            FROM predictions
-            WHERE time = {self._max_time_subquery()}
-              AND item_id = ANY(:item_ids)
-            ORDER BY item_id, hour_offset, offset_pct
+                {P.ITEM_ID},
+                {P.ITEM_NAME},
+                {P.HOUR_OFFSET},
+                {P.OFFSET_PCT},
+                {P.FILL_PROBABILITY},
+                {P.EXPECTED_VALUE},
+                {P.BUY_PRICE},
+                {P.SELL_PRICE},
+                {P.CURRENT_HIGH},
+                {P.CURRENT_LOW},
+                {P.CONFIDENCE},
+                {P.TIME} as prediction_time
+            FROM {P.TABLE}
+            WHERE {P.TIME} = {self._max_time_subquery()}
+              AND {P.ITEM_ID} = ANY(:item_ids)
+            ORDER BY {P.ITEM_ID}, {P.HOUR_OFFSET}, {P.OFFSET_PCT}
         """
         )
 
