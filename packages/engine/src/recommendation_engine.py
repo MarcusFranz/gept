@@ -556,7 +556,6 @@ class RecommendationEngine:
                 "capitalRequired": capital_used,
                 "expectedProfit": expected_profit,
                 "confidence": cand["confidence"],
-                "volumeTier": cand["volume_tier"],
                 "trend": cand["trend"],
                 "expectedHours": cand["hour_offset"],
                 "fillProbability": round(fill_prob, 4),
@@ -1036,7 +1035,6 @@ class RecommendationEngine:
         - tax_per_unit: GE tax per unit (2% with floor and cap)
         - profit_per_unit: Profit after tax
         - confidence: Adjusted confidence based on prediction freshness
-        - volume_tier: Volume tier based on spread
         - crowding_capacity: Concurrent user limit based on volume
         - trend: Market trend (pre-fetched)
         - volume_24h, volume_1h: Trading volumes (pre-fetched)
@@ -1091,13 +1089,7 @@ class RecommendationEngine:
             df['current_low'] = df['current_low'].where(df['current_low'] != 0, df['buy_price'])
             df['_spread_pct'] = (df['current_high'] - df['current_low']) / df['current_low']
 
-        # 5. Volume tier (vectorized _determine_volume_tier logic)
-        df['volume_tier'] = 'Low'  # Default
-        df.loc[df['_spread_pct'] < 0.05, 'volume_tier'] = 'Medium'
-        df.loc[df['_spread_pct'] < 0.02, 'volume_tier'] = 'High'
-        df.loc[df['_spread_pct'] < 0.01, 'volume_tier'] = 'Very High'
-
-        # 6. Volumes (if not already mapped)
+        # 5. Volumes (if not already mapped)
         if 'volume_24h' not in df.columns:
             df['volume_24h'] = df['item_id'].map(volumes_24h)
         if 'volume_1h' not in df.columns:
@@ -1205,15 +1197,16 @@ class RecommendationEngine:
         no_fill_prob = 1 - fill_prob
         penalty += no_fill_prob * 0.5  # 50% of (1 - fill_prob) as base penalty
 
-        # Factor 2: Volume tier penalty
-        volume_tier = candidate.get("volume_tier", "Medium")
-        volume_penalties = {
-            "Very High": 0.0,
-            "High": 0.05,
-            "Medium": 0.12,
-            "Low": 0.25,
-        }
-        penalty += volume_penalties.get(volume_tier, 0.12)
+        # Factor 2: Spread-based liquidity penalty
+        spread_pct = candidate.get("_spread_pct", 0.05)
+        if spread_pct < 0.01:
+            penalty += 0.0
+        elif spread_pct < 0.02:
+            penalty += 0.05
+        elif spread_pct < 0.05:
+            penalty += 0.12
+        else:
+            penalty += 0.25
 
         # Factor 3: Crowding capacity utilization
         crowding_capacity = candidate.get("crowding_capacity")
@@ -1536,7 +1529,6 @@ class RecommendationEngine:
                 "capitalRequired": opt["capital_used"],
                 "expectedProfit": opt["expected_profit"],
                 "confidence": cand["confidence"],
-                "volumeTier": cand["volume_tier"],
                 "trend": cand["trend"],
                 "expectedHours": cand["hour_offset"],
                 "fillProbability": round(fill_prob, 4),
@@ -2031,17 +2023,23 @@ class RecommendationEngine:
         Format: "{trend} trend, {volume} volume, {hour_offset}h window"
 
         Args:
-            candidate: Candidate dict with trend, volume_tier, and hour_offset
+            candidate: Candidate dict with trend, volume_24h, and hour_offset
 
         Returns:
             Reason string explaining the recommendation
         """
         trend = candidate.get("trend", "Stable")
-        volume_tier = candidate.get("volume_tier", "Medium")
         hour_offset = candidate.get("hour_offset", 4)
 
-        # Normalize volume tier to lowercase for readability
-        volume_desc = volume_tier.lower() if volume_tier else "medium"
+        vol_24h = candidate.get("volume_24h", 0) or 0
+        if vol_24h > 100000:
+            volume_desc = "very high"
+        elif vol_24h > 50000:
+            volume_desc = "high"
+        elif vol_24h > 10000:
+            volume_desc = "medium"
+        else:
+            volume_desc = "low"
 
         return f"{trend} trend, {volume_desc} volume, {hour_offset}h window"
 
@@ -2066,19 +2064,12 @@ class RecommendationEngine:
         elif conf == "medium":
             chips.append({"icon": "🎯", "label": "Med confidence", "type": "neutral"})
 
-        # Volume (use volume_24h if available, otherwise fall back to volume_tier)
-        vol_24h = candidate.get("volume_24h", 0)
-        if vol_24h and vol_24h > 100000:
+        # Volume
+        vol_24h = candidate.get("volume_24h", 0) or 0
+        if vol_24h > 100000:
             chips.append({"icon": "🔥", "label": "High volume", "type": "positive"})
-        elif vol_24h and vol_24h > 10000:
+        elif vol_24h > 10000:
             chips.append({"icon": "📊", "label": "Good volume", "type": "neutral"})
-        else:
-            # Fall back to volume tier
-            volume_tier = candidate.get("volume_tier", "")
-            if volume_tier in ("Very High", "High"):
-                chips.append({"icon": "🔥", "label": "High volume", "type": "positive"})
-            elif volume_tier == "Medium":
-                chips.append({"icon": "📊", "label": "Good volume", "type": "neutral"})
 
         # Fill probability
         fill_prob = candidate.get("fill_probability", 0)
@@ -2209,9 +2200,6 @@ class RecommendationEngine:
             lambda item_id: f"https://secure.runescape.com/m=itemdb_oldschool/obj_big.gif?id={item_id}"
         )
 
-        # Volume tier (vectorized)
-        df['volume_tier'] = df['volume_24h'].apply(lambda v: self._volume_to_tier(v) if v else None)
-
         # Spread percentage (vectorized)
         df['_spread_pct'] = (df['sell_price'] - df['buy_price']) / df['buy_price']
 
@@ -2225,7 +2213,7 @@ class RecommendationEngine:
             'item_id', 'item_name', 'icon_url', 'buy_price', 'sell_price',
             'max_quantity', 'capital_required', 'expected_profit', 'hour_offset',
             'confidence', 'fill_probability_rounded', 'expected_value_rounded',
-            'volume_24h', 'trend', 'category', 'volume_tier', '_spread_pct'
+            'volume_24h', 'trend', 'category', '_spread_pct'
         ]].rename(columns={
             'fill_probability_rounded': 'fill_probability',
             'expected_value_rounded': 'expected_value',
@@ -2244,18 +2232,6 @@ class RecommendationEngine:
 
         logger.info(f"Generated {len(opportunities)} opportunities for browsing")
         return opportunities
-
-    def _volume_to_tier(self, volume_24h: Optional[int]) -> Optional[str]:
-        """Convert 24h volume to tier string for why chips."""
-        if volume_24h is None:
-            return None
-        if volume_24h > 100000:
-            return "Very High"
-        if volume_24h > 50000:
-            return "High"
-        if volume_24h > 10000:
-            return "Medium"
-        return "Low"
 
     def get_recommendation_by_id(self, rec_id: str) -> Optional[dict]:
         """Get recommendation by its ID.
@@ -2473,10 +2449,7 @@ class RecommendationEngine:
         expected_profit = int(candidate["profit_per_unit"] * max_quantity * fill_prob)
 
         # Build reason text
-        volume_desc = candidate["volume_tier"]
-        trend_desc = candidate["trend"]
-        hour_desc = f"{candidate['hour_offset']}h window"
-        reason = f"{trend_desc} trend, {volume_desc.lower()} volume, {hour_desc}"
+        reason = self._build_reason(candidate)
 
         recommendation = {
             "id": self._generate_stable_id(item_id),
@@ -2488,7 +2461,6 @@ class RecommendationEngine:
             "capitalRequired": capital_used,
             "expectedProfit": expected_profit,
             "confidence": candidate["confidence"],
-            "volumeTier": candidate["volume_tier"],
             "trend": candidate["trend"],
             "expectedHours": candidate["hour_offset"],
             "reason": reason,

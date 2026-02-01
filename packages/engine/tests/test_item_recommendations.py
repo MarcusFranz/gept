@@ -48,7 +48,7 @@ class TestItemRecommendations:
             "confidence": "medium",
             "fillProbability": 0.12,
             "fillConfidence": "Good",
-            "volumeTier": "Very High",
+
             "trend": "Stable",
             "expectedHours": 4,
             "reason": "Stable trend, very high volume, 4h window",
@@ -98,7 +98,7 @@ class TestItemRecommendations:
             "confidence": "high",
             "fillProbability": 0.18,
             "fillConfidence": "Strong",
-            "volumeTier": "Very High",
+
             "trend": "Stable",
             "expectedHours": 2,
         }
@@ -176,7 +176,7 @@ class TestItemRecommendations:
             "confidence": "medium",
             "fillProbability": 0.12,
             "fillConfidence": "Good",
-            "volumeTier": "Very High",
+
             "trend": "Stable",
             "expectedHours": 4,
             "reason": "Stable trend, very high volume, 4h window",
@@ -224,7 +224,7 @@ class TestItemRecommendations:
             "confidence": "medium",
             "fillProbability": 0.12,
             "fillConfidence": "Good",
-            "volumeTier": "Very High",
+
             "trend": "Stable",
             "expectedHours": 4,
         }
@@ -366,7 +366,7 @@ class TestItemRecommendations:
             "confidence": "medium",
             "fillProbability": 0.12,
             "fillConfidence": "Good",
-            "volumeTier": "Very High",
+
             "trend": "Stable",
             "expectedHours": 4,
         }
