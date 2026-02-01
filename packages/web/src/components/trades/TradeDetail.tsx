@@ -174,7 +174,9 @@ export function TradeDetail(props: TradeDetailProps) {
         <div class="trade-detail-stat">
           <span class="stat-label">Time in trade</span>
           <span class="stat-value">
-            {timeInTradeMinutes()} min
+            {timeInTradeMinutes() >= 60
+              ? `${Math.floor(timeInTradeMinutes() / 60)}h ${timeInTradeMinutes() % 60}m`
+              : `${timeInTradeMinutes()}m`}
           </span>
         </div>
         <div class="trade-detail-stat">
