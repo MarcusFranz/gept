@@ -135,7 +135,7 @@ class TestAPI:
                 "confidence": "high",
                 "fillProbability": 0.12,
                 "fillConfidence": "Good",
-                "volumeTier": "High",
+
                 "trend": "Stable",
             }
         ]
@@ -172,7 +172,7 @@ class TestAPI:
                 "confidence": "high",
                 "fillProbability": 0.12,
                 "fillConfidence": "Good",
-                "volumeTier": "High",
+
                 "trend": "Stable",
                 "reason": "Stable trend, high volume, 4h window",
                 "isRecommended": True,
@@ -228,7 +228,7 @@ class TestAPI:
                 "fillConfidence": "Strong",
                 "trend": "Stable",
                 "expectedHours": 2,
-                "volumeTier": "Very High",
+
                 "reason": "High volume, stable prices",
             }
         ]
@@ -3928,7 +3928,7 @@ class TestReturnAllRecommendations:
                 "confidence": "high",
                 "fillProbability": 0.12,
                 "fillConfidence": "Good",
-                "volumeTier": "High",
+
                 "trend": "Stable",
             }
         ]
@@ -3969,7 +3969,7 @@ class TestReturnAllRecommendations:
                 "confidence": "high",
                 "fillProbability": 0.12,
                 "fillConfidence": "Good",
-                "volumeTier": "High",
+
                 "trend": "Stable",
                 "_score": 0.0842,
             },
@@ -3986,7 +3986,7 @@ class TestReturnAllRecommendations:
                 "confidence": "high",
                 "fillProbability": 0.15,
                 "fillConfidence": "Strong",
-                "volumeTier": "High",
+
                 "trend": "Stable",
                 "_score": 0.0925,
             },
@@ -4033,7 +4033,7 @@ class TestReturnAllRecommendations:
                 "confidence": "high",
                 "fillProbability": 0.12,
                 "fillConfidence": "Good",
-                "volumeTier": "High",
+
                 "trend": "Stable",
                 "_score": 0.0842,
             }
@@ -4101,7 +4101,7 @@ class TestReturnAllRecommendations:
                 "confidence": "high",
                 "fillProbability": 0.10,
                 "fillConfidence": "Good",
-                "volumeTier": "High",
+
                 "trend": "Stable",
                 "_score": 0.05 + i * 0.01,
             }
@@ -4164,7 +4164,7 @@ class TestReturnAllRecommendations:
                 "confidence": "high",
                 "fillProbability": 0.12,
                 "fillConfidence": "Good",
-                "volumeTier": "High",
+
                 "trend": "Stable",
             }
         ]

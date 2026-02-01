@@ -639,8 +639,8 @@ class TestRecommendationEngine:
             else:
                 assert len(rec["stagedBuys"]) == 2
 
-    def test_recommendations_include_volume_tier_and_trend(self, mock_engine):
-        """Test that recommendations include volumeTier, trend, and fill fields."""
+    def test_recommendations_include_trend_and_fill_fields(self, mock_engine):
+        """Test that recommendations include trend and fill fields."""
         engine, mock_loader = mock_engine
 
         predictions_df = pd.DataFrame(
@@ -681,7 +681,6 @@ class TestRecommendationEngine:
         rec = recommendations[0]
 
         # Check required fields
-        assert "volumeTier" in rec
         assert "trend" in rec
         assert rec["trend"] == "Rising"
 
@@ -1093,28 +1092,28 @@ class TestRiskAdjustedScoring:
         # Long horizon should increase penalty
         assert penalty_long > penalty_short
 
-    def test_fill_risk_penalty_low_volume(self, mock_engine):
-        """Test that low volume increases fill risk penalty."""
+    def test_fill_risk_penalty_wide_spread(self, mock_engine):
+        """Test that wide spread increases fill risk penalty."""
         engine, _ = mock_engine
 
-        candidate_high = {
+        candidate_tight = {
             "fill_probability": 0.15,
-            "volume_tier": "High",
+            "_spread_pct": 0.005,
             "crowding_capacity": None,
             "hour_offset": 4,
         }
-        candidate_low = {
+        candidate_wide = {
             "fill_probability": 0.15,
-            "volume_tier": "Low",
+            "_spread_pct": 0.10,
             "crowding_capacity": 10,
             "hour_offset": 4,
         }
 
-        penalty_high = engine._calculate_fill_risk_penalty(candidate_high, "medium")
-        penalty_low = engine._calculate_fill_risk_penalty(candidate_low, "medium")
+        penalty_tight = engine._calculate_fill_risk_penalty(candidate_tight, "medium")
+        penalty_wide = engine._calculate_fill_risk_penalty(candidate_wide, "medium")
 
-        # Low volume should increase fill risk penalty
-        assert penalty_low > penalty_high
+        # Wide spread should increase fill risk penalty
+        assert penalty_wide > penalty_tight
 
     def test_fill_risk_penalty_low_fill_probability(self, mock_engine):
         """Test that low fill probability increases fill risk penalty."""
@@ -1122,13 +1121,13 @@ class TestRiskAdjustedScoring:
 
         candidate_high_prob = {
             "fill_probability": 0.25,
-            "volume_tier": "Medium",
+            "_spread_pct": 0.03,
             "crowding_capacity": None,
             "hour_offset": 4,
         }
         candidate_low_prob = {
             "fill_probability": 0.05,
-            "volume_tier": "Medium",
+            "_spread_pct": 0.03,
             "crowding_capacity": None,
             "hour_offset": 4,
         }
@@ -1147,13 +1146,13 @@ class TestRiskAdjustedScoring:
 
         candidate_unlimited = {
             "fill_probability": 0.15,
-            "volume_tier": "High",
+            "_spread_pct": 0.015,
             "crowding_capacity": None,  # Unlimited
             "hour_offset": 4,
         }
         candidate_tight = {
             "fill_probability": 0.15,
-            "volume_tier": "High",
+            "_spread_pct": 0.015,
             "crowding_capacity": 10,  # Tight limit
             "hour_offset": 4,
         }
@@ -1177,7 +1176,6 @@ class TestRiskAdjustedScoring:
             "hour_offset": 12,
             "_spread_pct": 0.02,
             "fill_probability": 0.10,
-            "volume_tier": "Medium",
             "crowding_capacity": 20,
         }
         base_profit = 10000
@@ -1203,9 +1201,8 @@ class TestRiskAdjustedScoring:
             "sell_price": 1100,  # Large required move
             "trend": "Falling",  # Downtrend
             "hour_offset": 48,  # Very long horizon
-            "_spread_pct": 0.01,  # Small spread makes required move seem larger
+            "_spread_pct": 0.10,  # Wide spread
             "fill_probability": 0.03,  # Very low fill prob
-            "volume_tier": "Low",  # Low volume
             "crowding_capacity": 10,  # Tight crowding
         }
         base_profit = 10000
@@ -2618,7 +2615,6 @@ class TestPortfolioOptimizer:
                 "fill_probability": 0.10,
                 "expected_value": 0.008,
                 "confidence": "medium",
-                "volume_tier": "Medium",
                 "crowding_capacity": None,
                 "trend": "Stable",
                 "volume_24h": None,
@@ -3013,25 +3009,25 @@ class TestPortfolioOptimizer:
         # Test with all fields present
         candidate = {
             "trend": "Rising",
-            "volume_tier": "High",
+            "volume_24h": 60000,
             "hour_offset": 8,
         }
         reason = engine._build_reason(candidate)
         assert reason == "Rising trend, high volume, 8h window"
 
-        # Test with Stable trend
+        # Test with medium volume
         candidate = {
             "trend": "Stable",
-            "volume_tier": "Medium",
+            "volume_24h": 20000,
             "hour_offset": 4,
         }
         reason = engine._build_reason(candidate)
         assert reason == "Stable trend, medium volume, 4h window"
 
-        # Test with "Very High" volume tier (two words)
+        # Test with very high volume
         candidate = {
             "trend": "Falling",
-            "volume_tier": "Very High",
+            "volume_24h": 200000,
             "hour_offset": 24,
         }
         reason = engine._build_reason(candidate)
@@ -3040,7 +3036,7 @@ class TestPortfolioOptimizer:
         # Test with default values when fields are missing
         candidate = {}
         reason = engine._build_reason(candidate)
-        assert reason == "Stable trend, medium volume, 4h window"
+        assert reason == "Stable trend, low volume, 4h window"
 
     def test_recommendations_include_reason_and_is_recommended(self, mock_engine):
         """Test that get_recommendations returns reason and isRecommended fields."""

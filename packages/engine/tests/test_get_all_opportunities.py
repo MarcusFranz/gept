@@ -114,7 +114,7 @@ class TestGetAllOpportunities:
             "item_id", "item_name", "icon_url", "buy_price", "sell_price",
             "quantity", "capital_required", "expected_profit", "expected_hours",
             "confidence", "fill_probability", "expected_value", "volume_24h",
-            "trend", "category", "hour_offset", "volume_tier"
+            "trend", "category", "hour_offset"
         ]
         for field in required_fields:
             assert field in opp, f"Missing required field: {field}"
@@ -342,37 +342,6 @@ class TestGetAllOpportunities:
 
         # Should be filtered by liquidity check
         assert opportunities == []
-
-    def test_includes_volume_tier_metadata(self):
-        """Verify volume_tier is correctly computed and included."""
-        mock_loader = MagicMock()
-
-        predictions_df = pd.DataFrame([{
-            "item_id": 554,
-            "item_name": "Fire rune",
-            "buy_price": 100,
-            "sell_price": 200,
-            "fill_probability": 0.25,
-            "expected_value": 0.015,
-            "hour_offset": 12,
-            "confidence": "high",
-        }])
-        mock_loader.get_best_prediction_per_item.return_value = predictions_df
-
-        mock_loader.get_item_buy_limit.return_value = 25000
-        mock_loader.get_item_volume_24h.return_value = 1000000  # High volume to pass liquidity filter
-        mock_loader.get_item_trend.return_value = "Rising"
-        _configure_batch_mocks(mock_loader)
-
-        mock_db_connection = "postgresql://test:test@localhost/test"
-        engine = RecommendationEngine(db_connection_string=mock_db_connection)
-        engine.loader = mock_loader
-        opportunities = engine.get_all_opportunities()
-
-        assert len(opportunities) == 1
-        assert "volume_tier" in opportunities[0]
-        # Volume tier should be a string or None
-        assert isinstance(opportunities[0]["volume_tier"], (str, type(None)))
 
     def test_handles_missing_item_name_gracefully(self):
         """Verify fallback item name when item_name is missing."""
