@@ -5,7 +5,8 @@ const PREDICTION_API = import.meta.env.PREDICTION_API;
 const API_KEY = import.meta.env.PREDICTION_API_KEY;
 
 interface PriceHistoryCache {
-  prices: number[];
+  highs: number[];
+  lows: number[];
   trend: string;
 }
 
@@ -43,12 +44,16 @@ export const GET: APIRoute = async ({ params, locals }) => {
   }
 
   try {
-    const redisCacheKey = cacheKey(KEY.ITEM_PRICE, 'history', itemId.toString());
+    const redisCacheKey = cacheKey(KEY.ITEM_PRICE, 'history:v2', itemId.toString());
 
     // Try cache first
     let data: PriceHistoryCache | null = null;
     try {
-      data = await cache.get<PriceHistoryCache>(redisCacheKey);
+      const cached = await cache.get<PriceHistoryCache>(redisCacheKey);
+      // Validate cache shape (ignore stale v1 entries with 'prices' instead of 'highs')
+      if (cached && Array.isArray(cached.highs) && Array.isArray(cached.lows)) {
+        data = cached;
+      }
     } catch (err) {
       console.warn('[PriceHistory] Cache read failed:', (err as Error)?.message);
     }
@@ -69,13 +74,17 @@ export const GET: APIRoute = async ({ params, locals }) => {
 
       const raw = await engineRes.json();
 
-      // Simplify extended price points to midpoint array for sparklines
-      const prices: number[] = (raw.history ?? []).map(
-        (pt: { high: number; low: number }) => Math.round((pt.high + pt.low) / 2)
-      );
+      const history = raw.history ?? [];
+      const highs: number[] = history
+        .map((pt: { high: number }) => Math.round(pt.high))
+        .filter((v: number) => !isNaN(v));
+      const lows: number[] = history
+        .map((pt: { low: number }) => Math.round(pt.low))
+        .filter((v: number) => !isNaN(v));
 
       data = {
-        prices,
+        highs,
+        lows,
         trend: raw.trend ?? 'Stable',
       };
 
