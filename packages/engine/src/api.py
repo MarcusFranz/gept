@@ -1529,6 +1529,10 @@ async def browse_opportunities(
         items = []
         for opp in paginated:
             chips = engine.generate_why_chips(opp)
+            # Defence in depth: coerce volume_24h to int|None so Pydantic
+            # never receives a float NaN for an Optional[int] field.
+            raw_vol = opp.get("volume_24h")
+            safe_vol = None if raw_vol is None else int(raw_vol)
             items.append(
                 OpportunityResponse(
                     id=f"opp-{opp['item_id']}",
@@ -1543,7 +1547,7 @@ async def browse_opportunities(
                     expected_hours=opp["expected_hours"],
                     confidence=opp["confidence"],
                     fill_probability=opp["fill_probability"],
-                    volume_24h=opp.get("volume_24h"),
+                    volume_24h=safe_vol,
                     trend=opp.get("trend"),
                     why_chips=[WhyChip(**c) for c in chips],
                     category=opp.get("category"),

@@ -7,8 +7,6 @@ import { OpportunityCard } from './OpportunityCard';
 import { addToast } from '../ToastContainer';
 
 interface OpportunityBrowserProps {
-  availableCapital: number;
-  totalCapital: number;
   activeTradeItemIds: number[];
   onTradeAdded: () => void;
   onNavigateToTrades: () => void;
@@ -60,7 +58,7 @@ export function OpportunityBrowser(props: OpportunityBrowserProps) {
           profitMax: f.profitMax,
           timeMax: f.timeMax,
           confidence: f.confidence,
-          capitalMax: f.capitalMax || props.availableCapital,
+          capitalMax: f.capitalMax,
           category: f.category,
           limit: 30,
           offset: append ? opportunities().length : 0
@@ -167,7 +165,6 @@ export function OpportunityBrowser(props: OpportunityBrowserProps) {
       <FilterBar
         filters={filters()}
         onChange={setFilters}
-        availableCapital={props.availableCapital}
       />
 
       <Show when={!wikiWarningDismissed()}>

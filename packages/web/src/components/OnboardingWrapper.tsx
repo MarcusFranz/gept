@@ -32,14 +32,13 @@ export default function OnboardingWrapper(props: OnboardingWrapperProps) {
     }
   });
 
-  const handleComplete = async (capital: number) => {
+  const handleComplete = async () => {
     try {
-      // Save capital and mark tutorial as completed
+      // Mark tutorial as completed
       await fetch('/api/settings', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          capital,
           tutorialCompleted: true
         })
       });
@@ -48,9 +47,6 @@ export default function OnboardingWrapper(props: OnboardingWrapperProps) {
     }
 
     setShowOnboarding(false);
-
-    // Reload to refresh recommendations with new capital
-    window.location.reload();
   };
 
   const handleSkip = async () => {
