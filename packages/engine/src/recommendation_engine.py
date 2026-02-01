@@ -771,15 +771,19 @@ class RecommendationEngine:
                 f"({initial_count} -> {len(df)})"
             )
 
-        # Drop rows with non-finite prices (NaN/inf from model inference gaps)
+        # Drop rows with non-finite or zero prices (NaN/inf from model inference gaps,
+        # zero prices cause inf on division)
         price_cols = [col for col in ['buy_price', 'sell_price', 'current_high', 'current_low'] if col in df.columns]
         if price_cols:
             initial = len(df)
             df = df.dropna(subset=price_cols)
             import numpy as np
             df = df[np.isfinite(df[price_cols]).all(axis=1)]
+            for col in ['buy_price', 'sell_price']:
+                if col in df.columns:
+                    df = df[df[col] > 0]
             if len(df) < initial:
-                logger.warning(f"Dropped {initial - len(df)} rows with non-finite prices")
+                logger.warning(f"Dropped {initial - len(df)} rows with non-finite/zero prices")
 
         # Ensure prices are integers (OSRS prices are whole GP)
         # Some models (e.g. PatchTST) write fractional prices to the DB
@@ -2162,7 +2166,7 @@ class RecommendationEngine:
         # Build opportunity list (vectorized)
         df = predictions_df.copy()
 
-        # Drop rows with non-finite values in critical columns before type conversion
+        # Drop rows with non-finite or zero values in critical columns before type conversion
         import numpy as np
         required_cols = ['item_id', 'buy_price', 'sell_price', 'fill_probability', 'expected_value', 'hour_offset']
         present_cols = [c for c in required_cols if c in df.columns]
@@ -2171,8 +2175,12 @@ class RecommendationEngine:
         numeric_cols = [c for c in present_cols if df[c].dtype.kind in ('f', 'i')]
         if numeric_cols:
             df = df[np.isfinite(df[numeric_cols]).all(axis=1)]
+        # Filter zero prices (division by zero produces inf downstream)
+        for col in ['buy_price', 'sell_price']:
+            if col in df.columns:
+                df = df[df[col] > 0]
         if len(df) < initial:
-            logger.warning(f"Dropped {initial - len(df)} rows with non-finite values in opportunities")
+            logger.warning(f"Dropped {initial - len(df)} rows with non-finite/zero values in opportunities")
         if df.empty:
             return []
 
