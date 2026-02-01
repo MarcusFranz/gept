@@ -49,8 +49,8 @@ export function OpportunityCard(props: OpportunityCardProps) {
         <span>{formatHours(opp().expectedHours)} hold</span>
         <span>·</span>
         <Tooltip text="High = fill probability ≥ 80% · Medium = ≥ 60% · Low = < 60%">
-          <span class={`confidence-badge badge-${opp().confidence === 'high' ? 'success' : opp().confidence === 'medium' ? 'warning' : 'danger'}`}>
-            {opp().confidence.charAt(0).toUpperCase() + opp().confidence.slice(1)}
+          <span class={`confidence-badge badge-${(opp().confidence ?? 'medium') === 'high' ? 'success' : (opp().confidence ?? 'medium') === 'medium' ? 'warning' : 'danger'}`}>
+            {(opp().confidence ?? 'medium').charAt(0).toUpperCase() + (opp().confidence ?? 'medium').slice(1)}
           </span>
         </Tooltip>
       </div>
@@ -81,15 +81,17 @@ export function OpportunityCard(props: OpportunityCardProps) {
             <span class="profit-value">+{formatGold(opp().expectedProfit)}</span>
           </div>
 
-          <div class="opportunity-card-chips">
-            <For each={opp().whyChips}>
-              {(chip) => (
-                <span class={`chip chip-${chip.type}`}>
-                  {chip.icon} {chip.label}
-                </span>
-              )}
-            </For>
-          </div>
+          <Show when={opp().whyChips?.length}>
+            <div class="opportunity-card-chips">
+              <For each={opp().whyChips}>
+                {(chip) => (
+                  <span class={`chip chip-${chip.type}`}>
+                    {chip.icon} {chip.label}
+                  </span>
+                )}
+              </For>
+            </div>
+          </Show>
 
           <Show when={opp().volume24h}>
             <div class="opportunity-card-volume">
