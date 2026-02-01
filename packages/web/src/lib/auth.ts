@@ -1,5 +1,6 @@
 import { betterAuth } from 'better-auth';
 import { Pool } from 'pg';
+import { Resend } from 'resend';
 
 // Validate required environment variables
 if (!process.env.DATABASE_URL) {
@@ -30,15 +31,45 @@ export const auth = betterAuth({
     enabled: true,
     minPasswordLength: 8,
     sendResetPassword: async ({ user, url }) => {
-      // TODO: Integrate with email service (SendGrid, Resend, etc.)
+      // Dev fallback: log to console when no Resend API key is configured
+      if (!process.env.RESEND_API_KEY) {
+        if (process.env.NODE_ENV === 'development') {
+          console.log('\n=== PASSWORD RESET LINK ===');
+          console.log(url);
+          console.log('===========================\n');
+        } else {
+          console.warn(`[Auth] Password reset requested for ${user.email} but RESEND_API_KEY is not configured`);
+        }
+        return;
+      }
 
-      if (process.env.NODE_ENV === 'development') {
-        console.log('\n=== PASSWORD RESET LINK ===');
-        console.log(url);
-        console.log('===========================\n');
-      } else {
-        // Production: log that a reset was requested (without the token/URL)
-        console.warn(`[Auth] Password reset requested for ${user.email} but no email service configured`);
+      const resend = new Resend(process.env.RESEND_API_KEY);
+      const fromAddress = process.env.EMAIL_FROM || 'GePT <noreply@gept.gg>';
+
+      const { error } = await resend.emails.send({
+        from: fromAddress,
+        to: user.email,
+        subject: 'Reset your GePT password',
+        html: `
+          <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
+            <h2>Password Reset</h2>
+            <p>You requested a password reset for your GePT account.</p>
+            <p>
+              <a href="${url}" style="display: inline-block; padding: 12px 24px; background: #2563eb; color: #fff; text-decoration: none; border-radius: 6px;">
+                Reset Password
+              </a>
+            </p>
+            <p style="color: #666; font-size: 14px;">
+              If you didn't request this, you can safely ignore this email.
+              This link will expire shortly.
+            </p>
+          </div>
+        `,
+      });
+
+      if (error) {
+        console.error(`[Auth] Failed to send password reset email to ${user.email}:`, error);
+        throw new Error('Failed to send password reset email');
       }
     },
   },
