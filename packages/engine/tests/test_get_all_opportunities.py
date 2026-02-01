@@ -402,3 +402,105 @@ class TestGetAllOpportunities:
         assert len(opportunities) == 1
         expected_url = "https://secure.runescape.com/m=itemdb_oldschool/obj_big.gif?id=554"
         assert opportunities[0]["icon_url"] == expected_url
+
+    def test_missing_volume_returns_none_not_nan(self):
+        """Verify items with no 24h volume get volume_24h=None, not float NaN.
+
+        Regression test: pandas .map() produces NaN for missing keys.
+        Pydantic's Optional[int] cannot validate float NaN, causing a 500
+        when the API tries to serialize the response.
+        """
+        mock_loader = MagicMock()
+
+        predictions_df = pd.DataFrame([
+            {
+                "item_id": 100,
+                "item_name": "Active item",
+                "buy_price": 100,
+                "sell_price": 200,
+                "fill_probability": 0.25,
+                "expected_value": 0.015,
+                "hour_offset": 12,
+                "confidence": "high",
+            },
+            {
+                "item_id": 200,
+                "item_name": "No-volume item",
+                "buy_price": 100,
+                "sell_price": 200,
+                "fill_probability": 0.25,
+                "expected_value": 0.015,
+                "hour_offset": 12,
+                "confidence": "high",
+            },
+        ])
+        mock_loader.get_best_prediction_per_item.return_value = predictions_df
+
+        # Item 100 has volume, item 200 does not
+        mock_loader.get_item_buy_limit.return_value = 25000
+        mock_loader.get_item_trend.return_value = "Stable"
+
+        def volume_side_effect(item_id):
+            if item_id == 100:
+                return 1000000
+            return None  # Item 200 has no volume data
+
+        mock_loader.get_item_volume_24h.side_effect = volume_side_effect
+        _configure_batch_mocks(mock_loader)
+
+        mock_db_connection = "postgresql://test:test@localhost/test"
+        engine = RecommendationEngine(db_connection_string=mock_db_connection)
+        engine.loader = mock_loader
+        opportunities = engine.get_all_opportunities()
+
+        # Find the no-volume item (item 200 filtered by liquidity if no volume,
+        # so we check that ALL returned opportunities have clean volume_24h)
+        import math
+        for opp in opportunities:
+            vol = opp.get("volume_24h")
+            assert vol is None or isinstance(vol, int), (
+                f"volume_24h must be None or int, got {type(vol).__name__}: {vol}"
+            )
+            if isinstance(vol, float):
+                assert not math.isnan(vol), "volume_24h must not be NaN"
+
+    def test_no_nan_or_inf_in_output(self):
+        """Verify no NaN or inf values leak into opportunity dicts.
+
+        Defence-in-depth test: even if upstream data has bad values,
+        the output dicts must be JSON-serializable (no NaN/inf floats).
+        """
+        import json
+        mock_loader = MagicMock()
+
+        predictions_df = pd.DataFrame([{
+            "item_id": 554,
+            "item_name": "Fire rune",
+            "buy_price": 100,
+            "sell_price": 200,
+            "fill_probability": 0.25,
+            "expected_value": 0.015,
+            "hour_offset": 12,
+            "confidence": "high",
+        }])
+        mock_loader.get_best_prediction_per_item.return_value = predictions_df
+
+        mock_loader.get_item_buy_limit.return_value = 25000
+        mock_loader.get_item_volume_24h.return_value = 1000000
+        mock_loader.get_item_trend.return_value = "Stable"
+        _configure_batch_mocks(mock_loader)
+
+        mock_db_connection = "postgresql://test:test@localhost/test"
+        engine = RecommendationEngine(db_connection_string=mock_db_connection)
+        engine.loader = mock_loader
+        opportunities = engine.get_all_opportunities()
+
+        assert len(opportunities) >= 1
+        # Every opportunity dict must be JSON-serializable
+        for opp in opportunities:
+            try:
+                json.dumps(opp)
+            except (ValueError, TypeError) as e:
+                raise AssertionError(
+                    f"Opportunity dict is not JSON-serializable: {e}\n{opp}"
+                )

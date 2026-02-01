@@ -9,8 +9,6 @@ import { addToast } from './ToastContainer';
 interface HomePageProps {
   user: { id: string; email: string };
   initialTrades: ActiveTrade[];
-  userCapital: number;
-  tiedCapital: number;
 }
 
 type Tab = 'trades' | 'opportunities';
@@ -18,11 +16,8 @@ type Tab = 'trades' | 'opportunities';
 export function HomePage(props: HomePageProps) {
   const [activeTab, setActiveTab] = createSignal<Tab>('trades');
   const [trades, setTrades] = createSignal(props.initialTrades);
-  const [tiedCapital, setTiedCapital] = createSignal(props.tiedCapital);
 
   const { alerts, dismissAlert } = useAlerts();
-
-  const availableCapital = () => Math.max(0, props.userCapital - tiedCapital());
 
   // Active trade item IDs (for filtering opportunities)
   const activeTradeItemIds = () => trades().map(t => t.item_id);
@@ -35,12 +30,6 @@ export function HomePage(props: HomePageProps) {
       const data = await res.json();
       if (data.success) {
         setTrades(data.data);
-        // Recalculate tied capital
-        const tied = data.data.reduce(
-          (sum: number, t: ActiveTrade) => sum + t.buy_price * t.quantity,
-          0
-        );
-        setTiedCapital(tied);
       }
     } catch (err) {
       console.error('Failed to refresh trades:', err);
@@ -88,8 +77,6 @@ export function HomePage(props: HomePageProps) {
         <Show when={activeTab() === 'trades'}>
           <TradeList
             initialTrades={trades()}
-            availableCapital={availableCapital()}
-            totalCapital={props.userCapital}
             onNavigateToOpportunities={() => setActiveTab('opportunities')}
             alerts={alerts()}
             onAcceptAlert={handleAcceptAlert}
@@ -99,8 +86,6 @@ export function HomePage(props: HomePageProps) {
 
         <Show when={activeTab() === 'opportunities'}>
           <OpportunityBrowser
-            availableCapital={availableCapital()}
-            totalCapital={props.userCapital}
             activeTradeItemIds={activeTradeItemIds()}
             onTradeAdded={handleTradeAdded}
             onNavigateToTrades={() => setActiveTab('trades')}

@@ -5,7 +5,6 @@ import { FILTER_STORAGE_KEY } from '../../lib/trade-types';
 interface FilterBarProps {
   filters: OpportunityFilters;
   onChange: (filters: OpportunityFilters) => void;
-  availableCapital: number;
 }
 
 const timeOptions = [
@@ -32,15 +31,6 @@ export function FilterBar(props: FilterBarProps) {
     } catch {}
   };
 
-  const formatGold = (amount: number) => {
-    if (amount >= 1_000_000) {
-      return (amount / 1_000_000).toFixed(1) + 'M';
-    } else if (amount >= 1_000) {
-      return Math.round(amount / 1_000) + 'K';
-    }
-    return amount.toLocaleString();
-  };
-
   return (
     <div class="filter-bar">
       <div class="filter-bar-content">
@@ -49,7 +39,7 @@ export function FilterBar(props: FilterBarProps) {
           <input
             type="number"
             class="filter-input"
-            placeholder={`e.g. ${formatGold(props.availableCapital)}`}
+            placeholder="Filter by GP"
             value={props.filters.capitalMax || ''}
             onInput={(e) => updateFilter('capitalMax', e.currentTarget.value ? Number(e.currentTarget.value) : undefined)}
           />
