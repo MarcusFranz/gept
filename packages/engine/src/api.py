@@ -2,6 +2,7 @@
 
 import asyncio
 import hashlib
+import math
 import time
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
@@ -1532,7 +1533,7 @@ async def browse_opportunities(
             # Defence in depth: coerce volume_24h to int|None so Pydantic
             # never receives a float NaN for an Optional[int] field.
             raw_vol = opp.get("volume_24h")
-            safe_vol = None if raw_vol is None else int(raw_vol)
+            safe_vol = None if (raw_vol is None or (isinstance(raw_vol, float) and not math.isfinite(raw_vol))) else int(raw_vol)
             items.append(
                 OpportunityResponse(
                     id=f"opp-{opp['item_id']}",

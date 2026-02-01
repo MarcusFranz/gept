@@ -112,7 +112,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
       };
 
       // Cache the transformed response (fire and forget)
-      cache.set(redisCacheKey, responseData, TTL.OPPORTUNITIES).catch(() => {});
+      cache.set(redisCacheKey, responseData, TTL.OPPORTUNITIES).catch((err) => { console.warn('[Opportunities] Cache write failed:', err?.message); });
     }
 
     return new Response(JSON.stringify({
