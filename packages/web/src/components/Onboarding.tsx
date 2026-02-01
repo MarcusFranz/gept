@@ -300,13 +300,13 @@ export default function Onboarding(props: OnboardingProps) {
         }
 
         .btn-primary {
-          background: var(--accent);
-          color: var(--bg-primary);
+          background: var(--action);
+          color: var(--btn-text-dark);
           border: none;
         }
 
         .btn-primary:hover {
-          background: var(--accent-hover);
+          background: var(--action-hover);
         }
 
         .btn-ghost {
