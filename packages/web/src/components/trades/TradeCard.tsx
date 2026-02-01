@@ -1,6 +1,7 @@
 // packages/web/src/components/trades/TradeCard.tsx
 import type { TradeViewModel } from '../../lib/trade-types';
 import type { UpdateRecommendation } from '../../lib/types';
+import Tooltip from '../Tooltip';
 
 interface TradeCardProps {
   trade: TradeViewModel;
@@ -50,12 +51,14 @@ export function TradeCard(props: TradeCardProps) {
       </div>
 
       <div class="trade-card-progress">
-        <div class="trade-card-bar">
-          <div
-            class="trade-card-bar-fill"
-            style={{ width: `${props.trade.progress}%` }}
-          />
-        </div>
+        <Tooltip text={`${props.trade.phase === 'buying' ? 'Buy' : 'Sell'} progress: ${Math.round(props.trade.progress)}%`} position="top">
+          <div class="trade-card-bar">
+            <div
+              class="trade-card-bar-fill"
+              style={{ width: `${props.trade.progress}%` }}
+            />
+          </div>
+        </Tooltip>
         <span class="trade-card-profit">+{formatGold(props.trade.targetProfit)}</span>
       </div>
 
@@ -134,8 +137,13 @@ export function TradeCard(props: TradeCardProps) {
           margin-bottom: 0.5rem;
         }
 
-        .trade-card-bar {
+        .trade-card-progress .tooltip-wrapper {
           flex: 1;
+          min-width: 0;
+        }
+
+        .trade-card-bar {
+          width: 100%;
           height: 6px;
           background: var(--bg-tertiary);
           border-radius: var(--radius-sm);
