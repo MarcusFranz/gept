@@ -1,10 +1,12 @@
 // packages/web/src/components/trades/TradeDetail.tsx
-import { createSignal, Show } from 'solid-js';
+import { createSignal, createResource, Show } from 'solid-js';
 import type { TradeViewModel, Guidance } from '../../lib/trade-types';
 import type { UpdateRecommendation } from '../../lib/types';
 import { CheckInBar } from './CheckInBar';
 import { GuidancePrompt } from './GuidancePrompt';
 import { AlertBanner } from './AlertBanner';
+import { Sparkline } from '../Sparkline';
+import { fetchPriceHistory } from '../../lib/price-history';
 
 interface TradeDetailProps {
   trade: TradeViewModel;
@@ -19,6 +21,7 @@ interface TradeDetailProps {
 }
 
 export function TradeDetail(props: TradeDetailProps) {
+  const [priceHistory] = createResource(() => props.trade.itemId, fetchPriceHistory);
   const [loading, setLoading] = createSignal(false);
   const [guidance, setGuidance] = createSignal<Guidance | undefined>(undefined);
   const [pendingProgress, setPendingProgress] = createSignal<number | undefined>(undefined);
@@ -126,6 +129,17 @@ export function TradeDetail(props: TradeDetailProps) {
           </Show>
         </div>
       </div>
+
+      <Show when={priceHistory()}>
+        <div class="trade-detail-sparkline">
+          <Sparkline
+            prices={priceHistory()!}
+            predictedPrice={props.trade.sellPrice}
+            width={280}
+            height={48}
+          />
+        </div>
+      </Show>
 
       <div class="trade-detail-profit">
         Target profit: <strong>+{formatGold(props.trade.targetProfit)}</strong>
@@ -325,6 +339,10 @@ export function TradeDetail(props: TradeDetailProps) {
         .price-arrow {
           color: var(--text-muted);
           font-size: 1rem;
+        }
+
+        .trade-detail-sparkline {
+          margin: 0.5rem 0;
         }
 
         .trade-detail-profit {

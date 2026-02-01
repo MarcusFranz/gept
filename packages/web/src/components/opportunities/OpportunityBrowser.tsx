@@ -238,15 +238,16 @@ export function OpportunityBrowser(props: OpportunityBrowserProps) {
           onClick={() => fetchOpportunities(true)}
           disabled={loadingMore()}
         >
-          {loadingMore() ? 'Loading...' : 'Load more opportunities'}
+          {loadingMore() ? 'Loading...' : `Load more (${total() - visibleOpportunities().length} remaining)`}
         </button>
       </Show>
 
       <style>{`
         .opportunity-browser {
-          max-width: 600px;
+          max-width: 720px;
           margin: 0 auto;
           padding: 1rem;
+          padding-bottom: 5rem;
         }
 
         .opportunity-browser-count {
