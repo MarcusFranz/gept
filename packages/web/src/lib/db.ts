@@ -62,6 +62,9 @@ export interface ActiveTrade {
   actual_sell_price: number | null;
   expected_hours: number | null;
   suggested_sell_price: number | null;
+  confidence: string | null;
+  fill_probability: number | null;
+  expected_profit: number | null;
 }
 
 export interface TradeHistory {
@@ -77,6 +80,10 @@ export interface TradeHistory {
   rec_id: string | null;
   model_id: string | null;
   status: 'completed' | 'cancelled';
+  expected_profit?: number | null;
+  confidence?: string | null;
+  fill_probability?: number | null;
+  expected_hours?: number | null;
   created_at: Date;
 }
 

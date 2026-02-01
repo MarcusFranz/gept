@@ -16,7 +16,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 
     const userId = locals.user.id;
     const body = await request.json();
-    const { itemId, itemName, buyPrice, sellPrice, quantity, profit, notes, recId, modelId } = body;
+    const { itemId, itemName, buyPrice, sellPrice, quantity, profit, notes, recId, modelId, expectedProfit, confidence, fillProbability, expectedHours } = body;
 
     // Validate required fields
     if (!itemName || profit === undefined) {
@@ -72,7 +72,11 @@ export const POST: APIRoute = async ({ request, locals }) => {
       notes: notes || null,
       rec_id: recId || null,
       model_id: modelId || null,
-      status: 'completed'
+      status: 'completed',
+      expected_profit: expectedProfit || null,
+      confidence: confidence || null,
+      fill_probability: fillProbability || null,
+      expected_hours: expectedHours || null
     });
 
     // Report to ML API (non-blocking) if we have all the data
