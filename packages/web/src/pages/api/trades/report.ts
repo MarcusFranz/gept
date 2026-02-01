@@ -73,10 +73,10 @@ export const POST: APIRoute = async ({ request, locals }) => {
       rec_id: recId || null,
       model_id: modelId || null,
       status: 'completed',
-      expected_profit: expectedProfit || null,
-      confidence: confidence || null,
-      fill_probability: fillProbability || null,
-      expected_hours: expectedHours || null
+      expected_profit: expectedProfit ?? null,
+      confidence: confidence ?? null,
+      fill_probability: fillProbability ?? null,
+      expected_hours: expectedHours ?? null
     });
 
     // Report to ML API (non-blocking) if we have all the data

@@ -80,8 +80,8 @@ export const GET: APIRoute = async ({ locals, request }) => {
     if (!skipCache) {
       try {
         recommendations = await cache.get<Awaited<ReturnType<typeof getRecommendations>>>(redisCacheKey);
-      } catch {
-        // Continue without cache on Redis errors
+      } catch (err) {
+        console.warn('[Recommendations] Cache read failed:', (err as Error)?.message);
       }
     }
 
