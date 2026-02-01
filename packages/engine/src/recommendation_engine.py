@@ -91,6 +91,7 @@ class RecommendationEngine:
             db_connection_string,
             pool_size=self.config.db_pool_size,
             preferred_model_id=self.config.preferred_model_id,
+            config=self.config,
         )
         self.store = RecommendationStore(ttl_seconds=900)
 
