@@ -1201,9 +1201,8 @@ class TestRiskAdjustedScoring:
             "sell_price": 1100,  # Large required move
             "trend": "Falling",  # Downtrend
             "hour_offset": 48,  # Very long horizon
-            "_spread_pct": 0.01,  # Small spread makes required move seem larger
-            "fill_probability": 0.03,  # Very low fill prob
             "_spread_pct": 0.10,  # Wide spread
+            "fill_probability": 0.03,  # Very low fill prob
             "crowding_capacity": 10,  # Tight crowding
         }
         base_profit = 10000
