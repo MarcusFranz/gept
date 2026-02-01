@@ -171,20 +171,10 @@ export function TradeList(props: TradeListProps) {
     }
   });
 
-  const formatGold = (amount: number) => {
-    if (amount >= 1_000_000) {
-      return (amount / 1_000_000).toFixed(1) + 'M';
-    }
-    return Math.round(amount / 1_000) + 'K';
-  };
-
   return (
     <div class="trade-list">
       <header class="trade-list-header">
         <h1>My Trades</h1>
-        <span class="trade-list-capital">
-          Available: {formatGold(props.availableCapital)} / {formatGold(props.totalCapital)}
-        </span>
       </header>
 
       <Show when={error()}>
@@ -267,11 +257,6 @@ export function TradeList(props: TradeListProps) {
         .trade-list-header h1 {
           margin: 0;
           font-size: var(--font-size-2xl);
-        }
-
-        .trade-list-capital {
-          color: var(--text-secondary);
-          font-size: var(--font-size-sm);
         }
 
         .trade-list-empty {
