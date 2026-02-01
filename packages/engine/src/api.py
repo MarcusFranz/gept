@@ -438,9 +438,6 @@ class RecommendationResponse(BaseModel):
     fillConfidence: Literal["Strong", "Good", "Fair"]  # Human-readable confidence
     trend: Literal["Rising", "Stable", "Falling"]
     expectedHours: int  # Expected hours until trade completes
-    volumeTier: Optional[Literal["Very High", "High", "Medium", "Low"]] = (
-        None  # Deprecated: kept for backwards compatibility
-    )
     volume24h: Optional[int] = None  # Optional: actual 24h trade volume
     priceHistory: Optional[list[PriceHistoryPoint]] = (
         None  # Optional: for expanded view
