@@ -56,7 +56,7 @@ export const POST: APIRoute = async ({ params, locals }) => {
       const actualSellPrice = trade.actual_sell_price || trade.sell_price;
       const profit = (actualSellPrice - actualBuyPrice) * trade.quantity;
 
-      // Create history record
+      // Create history record (preserve prediction context from active trade)
       await tradeHistoryRepo.create({
         user_id: trade.user_id,
         item_id: trade.item_id,
@@ -68,7 +68,11 @@ export const POST: APIRoute = async ({ params, locals }) => {
         rec_id: trade.rec_id,
         model_id: trade.model_id,
         status: 'completed',
-        notes: null
+        notes: null,
+        expected_profit: trade.expected_profit,
+        confidence: trade.confidence,
+        fill_probability: trade.fill_probability,
+        expected_hours: trade.expected_hours
       });
 
       // Delete active trade

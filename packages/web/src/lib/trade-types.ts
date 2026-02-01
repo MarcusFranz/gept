@@ -104,6 +104,7 @@ export interface Opportunity {
   trend?: string;
   whyChips: WhyChip[];
   category?: string;
+  modelId?: string;
 }
 
 /** Response from the opportunities endpoint */

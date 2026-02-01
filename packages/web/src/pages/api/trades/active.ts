@@ -50,7 +50,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 
     const userId = locals.user.id;
     const body = await request.json();
-    const { itemId, itemName, buyPrice, sellPrice, quantity, recId, modelId, expectedHours } = body;
+    const { itemId, itemName, buyPrice, sellPrice, quantity, recId, modelId, expectedHours, confidence, fillProbability, expectedProfit } = body;
 
     // Validate required fields
     if (!itemId || !itemName || !buyPrice || !sellPrice || !quantity) {
@@ -147,7 +147,11 @@ export const POST: APIRoute = async ({ request, locals }) => {
       quantity,
       rec_id: recId || null,
       model_id: modelId || null,
-      expected_hours: expectedHours || undefined
+      expected_hours: expectedHours || undefined,
+      suggested_sell_price: null,
+      confidence: confidence || null,
+      fill_probability: fillProbability || null,
+      expected_profit: expectedProfit || null
     });
 
     // Dispatch webhook to ML engine (fire-and-forget)
