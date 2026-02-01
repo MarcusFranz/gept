@@ -80,7 +80,7 @@ export const GET: APIRoute = async ({ params, locals }) => {
       };
 
       // Cache for 5 minutes (prices update every ~5 min)
-      cache.set(redisCacheKey, data, TTL.ITEM_SEARCH).catch((err) => {
+      cache.set(redisCacheKey, data, TTL.PRICE_HISTORY).catch((err) => {
         console.warn('[PriceHistory] Cache write failed:', err?.message);
       });
     }
