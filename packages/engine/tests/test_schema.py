@@ -14,7 +14,7 @@ import os
 from typing import Optional
 
 import pytest
-from sqlalchemy import create_engine, inspect, text
+from sqlalchemy import create_engine, inspect
 
 from src.schema import (
     ALL_TABLES,
