@@ -2091,7 +2091,7 @@ class RecommendationEngine:
 
         # Fill probability
         fill_prob = candidate.get("fill_probability", 0)
-        if fill_prob >= 0.9:
+        if fill_prob >= 0.20:
             chips.append({"icon": "⚡", "label": "Fast fill", "type": "positive"})
 
         # Trend

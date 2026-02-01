@@ -297,7 +297,8 @@ The `fill_probability` represents:
 - `< 0.01`: Very unlikely to fill, not actionable
 - `0.05 - 0.15`: Moderate opportunity, worth considering
 - `0.15 - 0.30`: Strong signal, high priority
-- `> 0.30`: Model is likely overconfident, filter these out
+- `0.30 - 0.50`: Very strong signal (high-volume items, short windows)
+- `> 0.50`: Model is likely overconfident, capped at 0.50
 
 ### Expected Value
 

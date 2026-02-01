@@ -176,7 +176,7 @@ export function generateWhyChips(rec: Recommendation): WhyChip[] {
   }
 
   // Fill probability
-  if (rec.fillProbability >= 0.9) {
+  if (rec.fillProbability >= 0.20) {
     chips.push({ icon: '⚡', label: 'Fast fill', type: 'positive' });
   }
 
