@@ -50,7 +50,7 @@ ON predictions (item_id, time DESC);
 -- Index for recommendation queries
 CREATE INDEX IF NOT EXISTS idx_predictions_ev
 ON predictions (time, expected_value DESC)
-WHERE fill_probability BETWEEN 0.03 AND 0.30;
+WHERE fill_probability BETWEEN 0.03 AND 0.50;
 
 -- TimescaleDB hypertable (if using TimescaleDB)
 -- SELECT create_hypertable('predictions', 'time', if_not_exists => TRUE);

@@ -63,8 +63,8 @@ export const POST: APIRoute = async ({ request, locals }) => {
     let responseData: any = null;
     try {
       responseData = await cache.get(redisCacheKey);
-    } catch {
-      // Continue without cache on Redis errors
+    } catch (err) {
+      console.warn('[Opportunities] Cache read failed:', (err as Error)?.message);
     }
 
     if (!responseData) {
