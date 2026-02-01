@@ -771,11 +771,20 @@ class RecommendationEngine:
                 f"({initial_count} -> {len(df)})"
             )
 
+        # Drop rows with non-finite prices (NaN/inf from model inference gaps)
+        price_cols = [col for col in ['buy_price', 'sell_price', 'current_high', 'current_low'] if col in df.columns]
+        if price_cols:
+            initial = len(df)
+            df = df.dropna(subset=price_cols)
+            import numpy as np
+            df = df[np.isfinite(df[price_cols]).all(axis=1)]
+            if len(df) < initial:
+                logger.warning(f"Dropped {initial - len(df)} rows with non-finite prices")
+
         # Ensure prices are integers (OSRS prices are whole GP)
         # Some models (e.g. PatchTST) write fractional prices to the DB
-        for col in ['buy_price', 'sell_price', 'current_high', 'current_low']:
-            if col in df.columns:
-                df[col] = df[col].astype(int)
+        for col in price_cols:
+            df[col] = df[col].astype(int)
 
         return df
 
@@ -934,7 +943,7 @@ class RecommendationEngine:
             df['is_multi_limit'] = False
 
         # Step 4: Calculate max quantity by capital
-        df['max_qty_by_capital'] = (max_capital // df['buy_price']).astype(int)
+        df['max_qty_by_capital'] = (max_capital // df['buy_price']).fillna(0).astype(int)
 
         # Step 5: Take minimum of capital-based and limit-based
         df['max_quantity'] = df[['max_qty_by_capital', 'effective_limit']].min(axis=1)  # type: ignore[call-overload]
@@ -2152,6 +2161,20 @@ class RecommendationEngine:
 
         # Build opportunity list (vectorized)
         df = predictions_df.copy()
+
+        # Drop rows with non-finite values in critical columns before type conversion
+        import numpy as np
+        required_cols = ['item_id', 'buy_price', 'sell_price', 'fill_probability', 'expected_value', 'hour_offset']
+        present_cols = [c for c in required_cols if c in df.columns]
+        initial = len(df)
+        df = df.dropna(subset=present_cols)
+        numeric_cols = [c for c in present_cols if df[c].dtype.kind in ('f', 'i')]
+        if numeric_cols:
+            df = df[np.isfinite(df[numeric_cols]).all(axis=1)]
+        if len(df) < initial:
+            logger.warning(f"Dropped {initial - len(df)} rows with non-finite values in opportunities")
+        if df.empty:
+            return []
 
         # Type conversions (vectorized)
         df['item_id'] = df['item_id'].astype(int)
