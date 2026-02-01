@@ -71,7 +71,11 @@ export default function FlipCarousel(props: FlipCarouselProps) {
           sellPrice: rec.sellPrice,
           quantity: rec.quantity,
           recId: rec.id,
-          modelId: rec.modelId
+          modelId: rec.modelId,
+          expectedHours: rec.expectedHours,
+          confidence: rec.confidence,
+          fillProbability: rec.fillProbability,
+          expectedProfit: rec.expectedProfit
         })
       });
 

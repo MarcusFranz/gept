@@ -41,7 +41,7 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
     const body = await request.json();
     const { sellPrice, quantity, profit, notes } = body;
 
-    // Create history entry
+    // Create history entry (preserve prediction context from active trade)
     await tradeHistoryRepo.create({
       user_id: userId,
       item_id: trade.item_id,
@@ -53,7 +53,11 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
       notes: notes || null,
       rec_id: trade.rec_id,
       model_id: trade.model_id,
-      status: 'completed'
+      status: 'completed',
+      expected_profit: trade.expected_profit,
+      confidence: trade.confidence,
+      fill_probability: trade.fill_probability,
+      expected_hours: trade.expected_hours
     });
 
     // Report to ML API (non-blocking)

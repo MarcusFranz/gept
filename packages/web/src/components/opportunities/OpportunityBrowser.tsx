@@ -115,7 +115,11 @@ export function OpportunityBrowser(props: OpportunityBrowserProps) {
           sellPrice: opp.sellPrice,
           quantity: opp.quantity,
           recId: opp.id,
-          expectedHours: opp.expectedHours
+          expectedHours: opp.expectedHours,
+          modelId: opp.modelId,
+          confidence: opp.confidence,
+          fillProbability: opp.fillProbability,
+          expectedProfit: opp.expectedProfit
         })
       });
 

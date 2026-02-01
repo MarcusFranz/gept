@@ -102,7 +102,8 @@ export const POST: APIRoute = async ({ request, locals }) => {
           volume24h: item.volume_24h,
           trend: item.trend,
           whyChips: item.why_chips,
-          category: item.category
+          category: item.category,
+          modelId: item.model_id
         })),
         total: data.total,
         hasMore: data.has_more
