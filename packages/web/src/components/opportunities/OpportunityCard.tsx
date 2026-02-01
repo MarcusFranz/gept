@@ -1,5 +1,5 @@
 // packages/web/src/components/opportunities/OpportunityCard.tsx
-import { Show, For, createSignal, createResource } from 'solid-js';
+import { Show, For, createSignal, onMount } from 'solid-js';
 import type { Opportunity } from '../../lib/trade-types';
 import Tooltip from '../Tooltip';
 import { Sparkline } from '../Sparkline';
@@ -15,7 +15,13 @@ interface OpportunityCardProps {
 
 export function OpportunityCard(props: OpportunityCardProps) {
   const opp = () => props.opportunity;
-  const [priceHistory] = createResource(() => opp().itemId, fetchPriceHistory);
+  const [priceHistory, setPriceHistory] = createSignal<number[] | null>(null);
+
+  onMount(() => {
+    fetchPriceHistory(opp().itemId).then(prices => {
+      if (prices) setPriceHistory(prices);
+    });
+  });
 
   const formatGold = (amount: number) => {
     if (amount >= 1_000_000) {
