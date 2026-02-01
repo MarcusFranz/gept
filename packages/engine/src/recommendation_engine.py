@@ -1104,14 +1104,19 @@ class RecommendationEngine:
 
         # 5. Volumes (if not already mapped)
         if 'volume_24h' not in df.columns:
-            df['volume_24h'] = df['item_id'].map(volumes_24h)
+            raw_vol = df['item_id'].map(volumes_24h)
+            # Convert NaN→None and float→int so Pydantic Optional[int] validates cleanly.
+            # Must use pd.array(dtype=object) to prevent pandas coercing None→NaN.
+            df['volume_24h'] = pd.array(
+                [None if pd.isna(v) else int(v) for v in raw_vol], dtype=object
+            )
+        else:
+            # Sanitize pre-existing column the same way
+            df['volume_24h'] = pd.array(
+                [None if pd.isna(v) else int(v) for v in df['volume_24h']], dtype=object
+            )
         if 'volume_1h' not in df.columns:
             df['volume_1h'] = df['item_id'].map(volumes_1h).fillna(0)
-
-        # Convert NaN to None for volume_24h to match original behavior
-        # (NaN values become None in dict, which are then excluded from final recommendations)
-        import numpy as np  # type: ignore[import-untyped]
-        df['volume_24h'] = df['volume_24h'].replace({np.nan: None})
 
         # 7. Crowding capacity (vectorized _get_crowding_capacity logic)
         # None = unlimited, otherwise integer limit
@@ -2205,7 +2210,13 @@ class RecommendationEngine:
 
         # Batch lookups (vectorized)
         df['buy_limit'] = df['item_id'].map(buy_limits).fillna(10000).astype(int)
-        df['volume_24h'] = df['item_id'].map(volumes_24h)
+        raw_vol = df['item_id'].map(volumes_24h)
+        # Convert NaN→None and float→int so Pydantic Optional[int] validates cleanly.
+        # Must use pd.array(dtype=object) because Series.apply() on a float64 column
+        # silently coerces None back to NaN and int back to float.
+        df['volume_24h'] = pd.array(
+            [None if pd.isna(v) else int(v) for v in raw_vol], dtype=object
+        )
         df['trend'] = df['item_id'].map(trends).fillna('Stable')
 
         # Quantity calculation (vectorized)
@@ -2260,6 +2271,15 @@ class RecommendationEngine:
 
         # Convert to list of dicts
         opportunities = opportunities.to_dict('records')
+
+        # Defence in depth: sanitize any remaining NaN/inf values that would
+        # break JSON serialization or Pydantic validation.  Pandas .to_dict()
+        # converts NaN to float('nan') which is not valid JSON.
+        import math
+        for opp in opportunities:
+            for key, val in opp.items():
+                if isinstance(val, float) and (math.isnan(val) or math.isinf(val)):
+                    opp[key] = None
 
         logger.info(f"Generated {len(opportunities)} opportunities for browsing")
         return opportunities

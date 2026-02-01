@@ -24,7 +24,11 @@ export function TradeCard(props: TradeCardProps) {
   const getStatusBadge = () => {
     switch (props.trade.status) {
       case 'check_in':
-        return <span class="status-badge status-check-in">Check-in</span>;
+        return (
+          <Tooltip text="Tap to report how much of your GE offer has filled" position="bottom" delay={200}>
+            <span class="status-badge status-check-in">Check-in</span>
+          </Tooltip>
+        );
       case 'needs_attention':
         return <span class="status-badge status-attention">Needs attention</span>;
       case 'ready':
@@ -69,16 +73,18 @@ export function TradeCard(props: TradeCardProps) {
         <div class="trade-card-footer-right">
           {(props.alert || props.trade.suggestedSellPrice) && <span class="status-badge status-alert">Price alert</span>}
           {getStatusBadge()}
-          <button
-            class="trade-card-cancel"
-            onClick={(e) => {
-              e.stopPropagation();
-              props.onCancel();
-            }}
-            aria-label={`Cancel trade for ${props.trade.itemName}`}
-          >
-            ×
-          </button>
+          <Tooltip text="Cancel trade" position="bottom" delay={200}>
+            <button
+              class="trade-card-cancel"
+              onClick={(e) => {
+                e.stopPropagation();
+                props.onCancel();
+              }}
+              aria-label={`Cancel trade for ${props.trade.itemName}`}
+            >
+              ×
+            </button>
+          </Tooltip>
         </div>
       </div>
 

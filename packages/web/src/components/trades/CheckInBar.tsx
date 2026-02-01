@@ -3,6 +3,7 @@ import { createSignal, createEffect } from 'solid-js';
 
 interface CheckInBarProps {
   progress: number;
+  phase: 'buying' | 'selling';
   onProgressChange: (progress: number) => void;
   onDone: () => void;
   disabled?: boolean;
@@ -31,7 +32,11 @@ export function CheckInBar(props: CheckInBarProps) {
 
   return (
     <div class="check-in-bar-container">
-      <p class="check-in-prompt">How's your order?</p>
+      <p class="check-in-prompt">
+        {props.phase === 'buying'
+          ? 'How much of your buy offer has filled?'
+          : 'How much of your sell offer has filled?'}
+      </p>
 
       <div class="check-in-bar-wrapper">
         <div
@@ -65,7 +70,7 @@ export function CheckInBar(props: CheckInBarProps) {
 
       <div class="check-in-labels">
         <span>0%</span>
-        <span class="check-in-hint">Tap the bar where you are</span>
+        <span class="check-in-hint">Tap the bar to set fill %</span>
         <span>100%</span>
       </div>
 

@@ -84,12 +84,14 @@ export const POST: APIRoute = async ({ request, locals }) => {
 
       const data = await engineRes.json();
 
-      // Transform to frontend format
+      // Transform to frontend format.
+      // Defence in depth: coerce nullable fields so the UI never receives
+      // unexpected types (e.g. NaN from pandas serialization edge cases).
       responseData = {
         items: data.items.map((item: any) => ({
           id: item.id,
           itemId: item.item_id,
-          item: item.item_name,
+          item: item.item_name ?? `Item ${item.item_id}`,
           iconUrl: item.icon_url,
           buyPrice: item.buy_price,
           sellPrice: item.sell_price,
@@ -97,11 +99,11 @@ export const POST: APIRoute = async ({ request, locals }) => {
           capitalRequired: item.capital_required,
           expectedProfit: item.expected_profit,
           expectedHours: item.expected_hours,
-          confidence: item.confidence,
+          confidence: item.confidence ?? 'medium',
           fillProbability: item.fill_probability,
-          volume24h: item.volume_24h,
-          trend: item.trend,
-          whyChips: item.why_chips,
+          volume24h: Number.isFinite(item.volume_24h) ? item.volume_24h : null,
+          trend: item.trend ?? 'Stable',
+          whyChips: item.why_chips ?? [],
           category: item.category,
           modelId: item.model_id
         })),

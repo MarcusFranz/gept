@@ -14,7 +14,6 @@ const user = Astro.locals.user;
 // Fetch user data
 const userData = await userRepo.findOrCreate(user.id, user.email);
 const trades = await activeTradesRepo.findByUserId(user.id);
-const tiedCapital = await activeTradesRepo.getTiedCapital(user.id);
 ---
 
 <Layout title="GePT - My Trades">
@@ -22,7 +21,5 @@ const tiedCapital = await activeTradesRepo.getTiedCapital(user.id);
     client:load
     user={{ id: user.id, email: user.email }}
     initialTrades={trades}
-    userCapital={userData.capital}
-    tiedCapital={tiedCapital}
   />
 </Layout>

@@ -1,8 +1,7 @@
 import { createSignal, onMount, Show, For } from 'solid-js';
-import { capitalPresets, formatGold, type AppSettings, defaultAppSettings } from '../lib/types';
+import { type AppSettings, defaultAppSettings } from '../lib/types';
 
 interface UserSettings {
-  capital: number;
   tier: 'free' | 'premium';
 }
 
@@ -23,7 +22,6 @@ export default function Settings() {
   const [saving, setSaving] = createSignal(false);
   const [error, setError] = createSignal<string | null>(null);
   const [success, setSuccess] = createSignal<string | null>(null);
-  const [customCapital, setCustomCapital] = createSignal(false);
   const [activeTab, setActiveTab] = createSignal<'account' | 'app'>('account');
 
   const fetchSettings = async () => {
@@ -38,9 +36,6 @@ export default function Settings() {
       if (data.success) {
         setSettings(data.data.user);
         setRateLimit(data.data.rateLimit);
-        // Check if capital is custom
-        const isPreset = capitalPresets.some(p => p.value === data.data.user.capital);
-        setCustomCapital(!isPreset);
       } else {
         setError(data.error);
       }
@@ -186,51 +181,6 @@ export default function Settings() {
             </p>
           </div>
 
-          {/* Capital */}
-          <div class="form-group">
-            <label class="label">Trading Capital</label>
-            <div class="capital-options">
-              <For each={capitalPresets}>
-                {(preset) => (
-                  <button
-                    class={`btn ${!customCapital() && settings()!.capital === preset.value ? 'btn-primary' : 'btn-secondary'} btn-sm`}
-                    onClick={() => {
-                      setCustomCapital(false);
-                      updateSetting('capital', preset.value);
-                    }}
-                  >
-                    {preset.label}
-                  </button>
-                )}
-              </For>
-              <button
-                class={`btn ${customCapital() ? 'btn-primary' : 'btn-secondary'} btn-sm`}
-                onClick={() => setCustomCapital(true)}
-              >
-                Custom
-              </button>
-            </div>
-            <Show when={customCapital()}>
-              <label for="custom-capital" class="sr-only">Custom capital amount</label>
-              <input
-                type="number"
-                id="custom-capital"
-                class="input mt-2"
-                min="0"
-                max="2147483647"
-                value={settings()!.capital}
-                onInput={(e) => {
-                  const value = parseInt(e.currentTarget.value) || 0;
-                  updateSetting('capital', Math.max(0, Math.min(2147483647, value)));
-                }}
-                placeholder="Enter capital in GP"
-              />
-            </Show>
-            <p class="text-sm text-muted mt-1">
-              Current: {formatGold(settings()!.capital)}
-            </p>
-          </div>
-
           <button
             class="btn btn-primary w-full"
             onClick={saveAccountSettings}
@@ -369,12 +319,6 @@ export default function Settings() {
 
         .rate-limit-title {
           font-weight: 500;
-        }
-
-        .capital-options {
-          display: flex;
-          flex-wrap: wrap;
-          gap: var(--space-2);
         }
 
         .option-group {
