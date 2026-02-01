@@ -70,7 +70,6 @@ export function TradeCard(props: TradeCardProps) {
           <Sparkline
             highs={priceHistory()!.highs}
             lows={priceHistory()!.lows}
-            predictedPrice={props.trade.sellPrice}
             width={160}
             height={28}
           />
