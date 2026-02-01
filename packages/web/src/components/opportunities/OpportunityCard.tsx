@@ -3,7 +3,7 @@ import { Show, For, createSignal, onMount } from 'solid-js';
 import type { Opportunity } from '../../lib/trade-types';
 import Tooltip from '../Tooltip';
 import { Sparkline } from '../Sparkline';
-import { fetchPriceHistory } from '../../lib/price-history';
+import { fetchPriceHistory, type PriceHistoryData } from '../../lib/price-history';
 
 interface OpportunityCardProps {
   opportunity: Opportunity;
@@ -15,11 +15,11 @@ interface OpportunityCardProps {
 
 export function OpportunityCard(props: OpportunityCardProps) {
   const opp = () => props.opportunity;
-  const [priceHistory, setPriceHistory] = createSignal<number[] | null>(null);
+  const [priceHistory, setPriceHistory] = createSignal<PriceHistoryData | null>(null);
 
   onMount(() => {
-    fetchPriceHistory(opp().itemId).then(prices => {
-      if (prices) setPriceHistory(prices);
+    fetchPriceHistory(opp().itemId).then(data => {
+      if (data) setPriceHistory(data);
     });
   });
 
@@ -83,7 +83,8 @@ export function OpportunityCard(props: OpportunityCardProps) {
       <Show when={priceHistory()}>
         <div class="opportunity-card-sparkline">
           <Sparkline
-            prices={priceHistory()!}
+            highs={priceHistory()!.highs}
+            lows={priceHistory()!.lows}
             predictedPrice={opp().sellPrice}
             width={props.expanded ? 280 : 160}
             height={props.expanded ? 40 : 28}
