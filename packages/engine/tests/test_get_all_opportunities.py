@@ -458,11 +458,12 @@ class TestGetAllOpportunities:
         import math
         for opp in opportunities:
             vol = opp.get("volume_24h")
-            assert vol is None or isinstance(vol, int), (
-                f"volume_24h must be None or int, got {type(vol).__name__}: {vol}"
+            assert vol is None or isinstance(vol, (int, float)), (
+                f"volume_24h must be None, int, or float, got {type(vol).__name__}: {vol}"
             )
             if isinstance(vol, float):
                 assert not math.isnan(vol), "volume_24h must not be NaN"
+                assert not math.isinf(vol), "volume_24h must not be inf"
 
     def test_no_nan_or_inf_in_output(self):
         """Verify no NaN or inf values leak into opportunity dicts.
