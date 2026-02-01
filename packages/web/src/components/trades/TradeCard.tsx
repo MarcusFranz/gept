@@ -1,7 +1,10 @@
 // packages/web/src/components/trades/TradeCard.tsx
+import { createResource } from 'solid-js';
 import type { TradeViewModel } from '../../lib/trade-types';
 import type { UpdateRecommendation } from '../../lib/types';
 import Tooltip from '../Tooltip';
+import { Sparkline } from '../Sparkline';
+import { fetchPriceHistory } from '../../lib/price-history';
 
 interface TradeCardProps {
   trade: TradeViewModel;
@@ -12,6 +15,8 @@ interface TradeCardProps {
 }
 
 export function TradeCard(props: TradeCardProps) {
+  const [priceHistory] = createResource(() => props.trade.itemId, fetchPriceHistory);
+
   const formatGold = (amount: number) => {
     if (amount >= 1_000_000) {
       return (amount / 1_000_000).toFixed(1) + 'M';
@@ -53,6 +58,17 @@ export function TradeCard(props: TradeCardProps) {
           {props.trade.phase.toUpperCase()}
         </span>
       </div>
+
+      {priceHistory() && (
+        <div class="trade-card-sparkline">
+          <Sparkline
+            prices={priceHistory()!}
+            predictedPrice={props.trade.sellPrice}
+            width={160}
+            height={28}
+          />
+        </div>
+      )}
 
       <div class="trade-card-progress">
         <Tooltip text={`${props.trade.phase === 'buying' ? 'Buy' : 'Sell'} progress: ${Math.round(props.trade.progress)}%`} position="top">
@@ -134,6 +150,10 @@ export function TradeCard(props: TradeCardProps) {
         .phase-selling {
           background: var(--phase-sell-light);
           color: var(--phase-sell);
+        }
+
+        .trade-card-sparkline {
+          margin-bottom: 0.5rem;
         }
 
         .trade-card-progress {

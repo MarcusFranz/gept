@@ -186,7 +186,13 @@ export function TradeList(props: TradeListProps) {
         when={trades().length > 0}
         fallback={
           <div class="trade-list-empty">
-            <p>No active trades.</p>
+            <svg class="trade-list-empty-icon" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M8 36V16l8-8h16l8 8v20a4 4 0 0 1-4 4H12a4 4 0 0 1-4-4z" />
+              <polyline points="16 28 24 20 32 28" />
+              <line x1="24" y1="20" x2="24" y2="36" />
+            </svg>
+            <p class="trade-list-empty-title">No active trades</p>
+            <p class="trade-list-empty-subtitle">Browse opportunities and add your first trade to get started.</p>
             <button
               class="trade-list-cta"
               onClick={() => props.onNavigateToOpportunities()}
@@ -240,9 +246,10 @@ export function TradeList(props: TradeListProps) {
 
       <style>{`
         .trade-list {
-          max-width: 600px;
+          max-width: 720px;
           margin: 0 auto;
           padding: 1rem;
+          padding-bottom: 5rem;
         }
 
         .trade-list-header {
@@ -261,6 +268,26 @@ export function TradeList(props: TradeListProps) {
           text-align: center;
           padding: 3rem 1rem;
           color: var(--text-secondary);
+        }
+
+        .trade-list-empty-icon {
+          width: 48px;
+          height: 48px;
+          color: var(--text-muted);
+          margin-bottom: 0.75rem;
+        }
+
+        .trade-list-empty-title {
+          font-size: var(--font-size-lg);
+          font-weight: 600;
+          color: var(--text-primary);
+          margin: 0 0 0.25rem;
+        }
+
+        .trade-list-empty-subtitle {
+          font-size: var(--font-size-sm);
+          color: var(--text-secondary);
+          margin: 0;
         }
 
         .trade-list-cta {

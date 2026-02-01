@@ -6,6 +6,10 @@ const user = Astro.locals.user;
 
 <Layout title="Account">
   <div class="container page">
+    <nav class="page-back">
+      <a href="/">← Back to Dashboard</a>
+    </nav>
+
     <header class="page-header">
       <h1>Account</h1>
       <p class="text-secondary">Manage your profile and subscription</p>
@@ -152,6 +156,19 @@ const user = Astro.locals.user;
         </div>
       </section>
 
+      <!-- Session -->
+      <section class="account-section">
+        <div class="section-content">
+          <div class="danger-option">
+            <div class="option-info">
+              <h3>Sign Out</h3>
+              <p class="text-secondary">Sign out of your account on this device</p>
+            </div>
+            <button class="btn btn-secondary" id="sign-out-btn">Sign Out</button>
+          </div>
+        </div>
+      </section>
+
       <!-- Danger Zone -->
       <section class="account-section danger">
         <div class="section-header">
@@ -162,13 +179,6 @@ const user = Astro.locals.user;
           <h2>Danger Zone</h2>
         </div>
         <div class="section-content">
-          <div class="danger-option">
-            <div class="option-info">
-              <h3>Sign Out</h3>
-              <p class="text-secondary">Sign out of your account on this device</p>
-            </div>
-            <button class="btn btn-secondary" id="sign-out-btn">Sign Out</button>
-          </div>
           <div class="danger-option">
             <div class="option-info">
               <h3>Delete Account</h3>
@@ -335,6 +345,21 @@ const user = Astro.locals.user;
 </script>
 
 <style>
+  .page-back {
+    margin-bottom: var(--space-3);
+  }
+
+  .page-back a {
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+    text-decoration: none;
+    transition: color var(--transition-fast);
+  }
+
+  .page-back a:hover {
+    color: var(--accent);
+  }
+
   .page-header {
     text-align: center;
     margin-bottom: var(--space-5);

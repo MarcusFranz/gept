@@ -1,7 +1,9 @@
 // packages/web/src/components/opportunities/OpportunityCard.tsx
-import { Show, For } from 'solid-js';
+import { Show, For, createSignal, createResource } from 'solid-js';
 import type { Opportunity } from '../../lib/trade-types';
 import Tooltip from '../Tooltip';
+import { Sparkline } from '../Sparkline';
+import { fetchPriceHistory } from '../../lib/price-history';
 
 interface OpportunityCardProps {
   opportunity: Opportunity;
@@ -13,6 +15,7 @@ interface OpportunityCardProps {
 
 export function OpportunityCard(props: OpportunityCardProps) {
   const opp = () => props.opportunity;
+  const [priceHistory] = createResource(() => opp().itemId, fetchPriceHistory);
 
   const formatGold = (amount: number) => {
     if (amount >= 1_000_000) {
@@ -70,6 +73,17 @@ export function OpportunityCard(props: OpportunityCardProps) {
           })()}
         </Tooltip>
       </div>
+
+      <Show when={priceHistory()}>
+        <div class="opportunity-card-sparkline">
+          <Sparkline
+            prices={priceHistory()!}
+            predictedPrice={opp().sellPrice}
+            width={props.expanded ? 280 : 160}
+            height={props.expanded ? 40 : 28}
+          />
+        </div>
+      </Show>
 
       <Show when={props.expanded}>
         <div class="opportunity-card-details">
@@ -188,6 +202,10 @@ export function OpportunityCard(props: OpportunityCardProps) {
           padding: 0.0625rem 0.375rem;
           border-radius: var(--radius-sm);
           cursor: default;
+        }
+
+        .opportunity-card-sparkline {
+          margin-top: 0.5rem;
         }
 
         .opportunity-card-details {
