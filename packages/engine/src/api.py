@@ -15,7 +15,7 @@ from fastapi.security import APIKeyHeader
 from pydantic import BaseModel, Field
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
-from sqlalchemy import create_engine, text
+from sqlalchemy import and_, case, create_engine, func, select, text
 from sqlalchemy.engine import Engine
 
 from .cache import (
@@ -36,7 +36,7 @@ from .alert_dispatcher import AlertDispatcher
 from .recommendation_engine import RecommendationEngine
 from .trade_events import TradeEvent, TradeEventHandler, TradeEventType, TradePayload
 from .trade_price_monitor import TradePriceMonitor
-from .schema import RecommendationFeedback, TradeOutcomes
+from .schema import recommendation_feedback, trade_outcomes
 from .webhook import WebhookSignatureError, verify_webhook_signature
 
 # Configure structured logging before creating logger
@@ -2106,35 +2106,22 @@ async def report_trade_outcome(
         )
 
     # Insert into outcome database (gept_bot, separate from predictions osrs_data)
-    T = TradeOutcomes
-    query = text(
-        f"""
-        INSERT INTO {T.TABLE} (
-            {T.USER_ID_HASH}, {T.REC_ID}, {T.ITEM_ID}, {T.ITEM_NAME},
-            {T.BUY_PRICE}, {T.SELL_PRICE}, {T.QUANTITY}, {T.ACTUAL_PROFIT}, {T.REPORTED_AT}
-        ) VALUES (
-            :user_id_hash, :rec_id, :item_id, :item_name,
-            :buy_price, :sell_price, :quantity, :actual_profit, :reported_at
-        )
-    """
+    t = trade_outcomes
+    stmt = t.insert().values(
+        user_id_hash=body.userId,
+        rec_id=body.recId,
+        item_id=body.itemId,
+        item_name=body.itemName,
+        buy_price=body.buyPrice,
+        sell_price=body.sellPrice,
+        quantity=body.quantity,
+        actual_profit=body.actualProfit,
+        reported_at=reported_at,
     )
 
     try:
         with outcome_db_engine.connect() as conn:
-            conn.execute(
-                query,
-                {
-                    "user_id_hash": body.userId,
-                    "rec_id": body.recId,
-                    "item_id": body.itemId,
-                    "item_name": body.itemName,
-                    "buy_price": body.buyPrice,
-                    "sell_price": body.sellPrice,
-                    "quantity": body.quantity,
-                    "actual_profit": body.actualProfit,
-                    "reported_at": reported_at,
-                },
-            )
+            conn.execute(stmt)
             conn.commit()
 
         logger.info(
@@ -2202,160 +2189,80 @@ async def get_user_stats(
         prev_start = None
         prev_end = None
 
-    T = TradeOutcomes
+    t = trade_outcomes
     try:
         with outcome_db_engine.connect() as conn:
-            # Query current period stats
-            if start_date:
-                stats_query = text(
-                    f"""
-                    SELECT
-                        COUNT(*) as total_trades,
-                        COALESCE(SUM({T.ACTUAL_PROFIT}), 0) as total_profit,
-                        COALESCE(SUM(CASE WHEN {T.ACTUAL_PROFIT} > 0 THEN 1 ELSE 0 END), 0)
-                            as winning_trades
-                    FROM {T.TABLE}
-                    WHERE {T.USER_ID_HASH} = :user_id_hash
-                        AND {T.REPORTED_AT} >= :start_date
-                        AND {T.REPORTED_AT} < :end_date
-                    """
-                )
-                result = conn.execute(
-                    stats_query,
-                    {
-                        "user_id_hash": hashed_user_id,
-                        "start_date": start_date,
-                        "end_date": now,
-                    },
-                )
-            else:
-                stats_query = text(
-                    f"""
-                    SELECT
-                        COUNT(*) as total_trades,
-                        COALESCE(SUM({T.ACTUAL_PROFIT}), 0) as total_profit,
-                        COALESCE(SUM(CASE WHEN {T.ACTUAL_PROFIT} > 0 THEN 1 ELSE 0 END), 0)
-                            as winning_trades
-                    FROM {T.TABLE}
-                    WHERE {T.USER_ID_HASH} = :user_id_hash
-                    """
-                )
-                result = conn.execute(
-                    stats_query,
-                    {"user_id_hash": hashed_user_id},
-                )
+            # Helper: build stats aggregation with optional date filter
+            def _stats_query(uid, date_start=None, date_end=None):
+                conditions = [t.c.user_id_hash == uid]
+                if date_start:
+                    conditions.append(t.c.reported_at >= date_start)
+                if date_end:
+                    conditions.append(t.c.reported_at < date_end)
+                return select(
+                    func.count().label("total_trades"),
+                    func.coalesce(func.sum(t.c.actual_profit), 0).label("total_profit"),
+                    func.coalesce(
+                        func.sum(case((t.c.actual_profit > 0, 1), else_=0)), 0
+                    ).label("winning_trades"),
+                ).where(and_(*conditions))
 
+            # Query current period stats
+            result = conn.execute(
+                _stats_query(hashed_user_id, start_date, now if start_date else None)
+            )
             row = result.fetchone()
             total_trades = row[0] if row else 0
             total_profit = row[1] if row else 0
             winning_trades = row[2] if row else 0
             win_rate = winning_trades / total_trades if total_trades > 0 else 0.0
 
+            # Helper: build flip query (best or worst)
+            def _flip_query(uid, order_dir, date_start=None, date_end=None):
+                conditions = [t.c.user_id_hash == uid]
+                if date_start:
+                    conditions.append(t.c.reported_at >= date_start)
+                if date_end:
+                    conditions.append(t.c.reported_at < date_end)
+                order_col = (
+                    t.c.actual_profit.desc()
+                    if order_dir == "best"
+                    else t.c.actual_profit.asc()
+                )
+                return (
+                    select(t.c.item_name, t.c.actual_profit)
+                    .where(and_(*conditions))
+                    .order_by(order_col)
+                    .limit(1)
+                )
+
             # Query best flip
             best_flip = None
             if total_trades > 0:
-                if start_date:
-                    best_query = text(
-                        f"""
-                        SELECT {T.ITEM_NAME}, {T.ACTUAL_PROFIT}
-                        FROM {T.TABLE}
-                        WHERE {T.USER_ID_HASH} = :user_id_hash
-                            AND {T.REPORTED_AT} >= :start_date
-                            AND {T.REPORTED_AT} < :end_date
-                        ORDER BY {T.ACTUAL_PROFIT} DESC
-                        LIMIT 1
-                        """
+                best_row = conn.execute(
+                    _flip_query(
+                        hashed_user_id, "best", start_date, now if start_date else None
                     )
-                    best_result = conn.execute(
-                        best_query,
-                        {
-                            "user_id_hash": hashed_user_id,
-                            "start_date": start_date,
-                            "end_date": now,
-                        },
-                    )
-                else:
-                    best_query = text(
-                        f"""
-                        SELECT {T.ITEM_NAME}, {T.ACTUAL_PROFIT}
-                        FROM {T.TABLE}
-                        WHERE {T.USER_ID_HASH} = :user_id_hash
-                        ORDER BY {T.ACTUAL_PROFIT} DESC
-                        LIMIT 1
-                        """
-                    )
-                    best_result = conn.execute(
-                        best_query,
-                        {"user_id_hash": hashed_user_id},
-                    )
-                best_row = best_result.fetchone()
+                ).fetchone()
                 if best_row:
                     best_flip = FlipInfo(itemName=best_row[0], profit=best_row[1])
 
             # Query worst flip
             worst_flip = None
             if total_trades > 0:
-                if start_date:
-                    worst_query = text(
-                        f"""
-                        SELECT {T.ITEM_NAME}, {T.ACTUAL_PROFIT}
-                        FROM {T.TABLE}
-                        WHERE {T.USER_ID_HASH} = :user_id_hash
-                            AND {T.REPORTED_AT} >= :start_date
-                            AND {T.REPORTED_AT} < :end_date
-                        ORDER BY {T.ACTUAL_PROFIT} ASC
-                        LIMIT 1
-                        """
+                worst_row = conn.execute(
+                    _flip_query(
+                        hashed_user_id, "worst", start_date, now if start_date else None
                     )
-                    worst_result = conn.execute(
-                        worst_query,
-                        {
-                            "user_id_hash": hashed_user_id,
-                            "start_date": start_date,
-                            "end_date": now,
-                        },
-                    )
-                else:
-                    worst_query = text(
-                        f"""
-                        SELECT {T.ITEM_NAME}, {T.ACTUAL_PROFIT}
-                        FROM {T.TABLE}
-                        WHERE {T.USER_ID_HASH} = :user_id_hash
-                        ORDER BY {T.ACTUAL_PROFIT} ASC
-                        LIMIT 1
-                        """
-                    )
-                    worst_result = conn.execute(
-                        worst_query,
-                        {"user_id_hash": hashed_user_id},
-                    )
-                worst_row = worst_result.fetchone()
+                ).fetchone()
                 if worst_row:
                     worst_flip = FlipInfo(itemName=worst_row[0], profit=worst_row[1])
 
             # Query previous period for comparison (only for week/month)
             comparison = None
             if prev_start and prev_end:
-                prev_query = text(
-                    f"""
-                    SELECT
-                        COUNT(*) as total_trades,
-                        COALESCE(SUM({T.ACTUAL_PROFIT}), 0) as total_profit,
-                        COALESCE(SUM(CASE WHEN {T.ACTUAL_PROFIT} > 0 THEN 1 ELSE 0 END), 0)
-                            as winning_trades
-                    FROM {T.TABLE}
-                    WHERE {T.USER_ID_HASH} = :user_id_hash
-                        AND {T.REPORTED_AT} >= :start_date
-                        AND {T.REPORTED_AT} < :end_date
-                    """
-                )
                 prev_result = conn.execute(
-                    prev_query,
-                    {
-                        "user_id_hash": hashed_user_id,
-                        "start_date": prev_start,
-                        "end_date": prev_end,
-                    },
+                    _stats_query(hashed_user_id, prev_start, prev_end)
                 )
                 prev_row = prev_result.fetchone()
                 prev_total_trades = prev_row[0] if prev_row else 0
@@ -2454,39 +2361,27 @@ async def submit_feedback(
             )
 
     # Insert into feedback table
-    F = RecommendationFeedback
-    query = text(
-        f"""
-        INSERT INTO {F.TABLE} (
-            {F.USER_ID_HASH}, {F.REC_ID}, {F.ITEM_ID}, {F.ITEM_NAME},
-            {F.FEEDBACK_TYPE}, {F.SIDE}, {F.NOTES}, {F.RECOMMENDED_PRICE},
-            {F.ACTUAL_PRICE}, {F.SUBMITTED_AT}
-        ) VALUES (
-            :user_id_hash, :rec_id, :item_id, :item_name,
-            :feedback_type, :side, :notes, :recommended_price,
-            :actual_price, :submitted_at
+    f = recommendation_feedback
+    stmt = (
+        f.insert()
+        .values(
+            user_id_hash=body.userId,
+            rec_id=body.recId,
+            item_id=body.itemId,
+            item_name=body.itemName,
+            feedback_type=body.feedbackType,
+            side=body.side,
+            notes=body.notes,
+            recommended_price=body.recommendedPrice,
+            actual_price=body.actualPrice,
+            submitted_at=submitted_at,
         )
-        RETURNING {F.ID}
-        """
+        .returning(f.c.id)
     )
 
     try:
         with outcome_db_engine.connect() as conn:
-            result = conn.execute(
-                query,
-                {
-                    "user_id_hash": body.userId,
-                    "rec_id": body.recId,
-                    "item_id": body.itemId,
-                    "item_name": body.itemName,
-                    "feedback_type": body.feedbackType,
-                    "side": body.side,
-                    "notes": body.notes,
-                    "recommended_price": body.recommendedPrice,
-                    "actual_price": body.actualPrice,
-                    "submitted_at": submitted_at,
-                },
-            )
+            result = conn.execute(stmt)
             row = result.fetchone()
             feedback_id = row[0] if row else None
             conn.commit()
@@ -2544,32 +2439,27 @@ async def get_feedback_analytics(
 
     try:
         with outcome_db_engine.connect() as conn:
-            # Build base query with optional filters
-            F = RecommendationFeedback
-            date_filter = f"AND {F.SUBMITTED_AT} >= :start_date" if start_date else ""
-            item_filter = f"AND {F.ITEM_ID} = :item_id" if item_id else ""
+            f = recommendation_feedback
 
-            # Get total count and by-type breakdown
-            type_query = text(
-                f"""
-                SELECT
-                    {F.FEEDBACK_TYPE},
-                    COUNT(*) as count
-                FROM {F.TABLE}
-                WHERE 1=1 {date_filter} {item_filter}
-                GROUP BY {F.FEEDBACK_TYPE}
-                ORDER BY count DESC
-                """
-            )
-
-            params: dict = {}
+            # Build conditions for type breakdown
+            type_conditions = []
             if start_date:
-                params["start_date"] = start_date
-            if item_id:
-                params["item_id"] = item_id
+                type_conditions.append(f.c.submitted_at >= start_date)
+            if item_id is not None:
+                type_conditions.append(f.c.item_id == item_id)
 
-            type_result = conn.execute(type_query, params)
-            type_rows = type_result.fetchall()
+            type_query = (
+                select(
+                    f.c.feedback_type,
+                    func.count().label("count"),
+                )
+                .group_by(f.c.feedback_type)
+                .order_by(func.count().desc())
+            )
+            if type_conditions:
+                type_query = type_query.where(and_(*type_conditions))
+
+            type_rows = conn.execute(type_query).fetchall()
 
             total_feedback = sum(row[1] for row in type_rows)
             by_type = [
@@ -2585,27 +2475,25 @@ async def get_feedback_analytics(
                 for row in type_rows
             ]
 
-            # Get top items
-            top_items_query = text(
-                f"""
-                SELECT
-                    {F.ITEM_ID},
-                    {F.ITEM_NAME},
-                    COUNT(*) as count
-                FROM {F.TABLE}
-                WHERE 1=1 {date_filter}
-                GROUP BY {F.ITEM_ID}, {F.ITEM_NAME}
-                ORDER BY count DESC
-                LIMIT 10
-                """
+            # Get top items (date filter only, no item filter)
+            top_items_query = (
+                select(
+                    f.c.item_id,
+                    f.c.item_name,
+                    func.count().label("count"),
+                )
+                .group_by(f.c.item_id, f.c.item_name)
+                .order_by(func.count().desc())
+                .limit(10)
             )
+            if start_date:
+                top_items_query = top_items_query.where(
+                    f.c.submitted_at >= start_date
+                )
 
-            items_result = conn.execute(
-                top_items_query, {"start_date": start_date} if start_date else {}
-            )
             top_items = [
                 {"itemId": row[0], "itemName": row[1], "count": row[2]}
-                for row in items_result.fetchall()
+                for row in conn.execute(top_items_query).fetchall()
             ]
 
         return FeedbackAnalyticsResponse(
