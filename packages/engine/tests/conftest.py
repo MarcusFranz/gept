@@ -98,7 +98,7 @@ def sample_registry(tmp_path):
     registry = {
         "metadata": {
             "created_at": "2026-01-08T12:00:00Z",
-            "model_type": "catboost",
+            "model_type": "patchtst",
             "total_items": 2,
             "total_models": 14,
         },

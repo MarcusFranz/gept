@@ -50,11 +50,13 @@ set -a && source "$GEPT_DIR/.env" && set +a
 # Activate virtual environment (shared across releases)
 source "$GEPT_DIR/venv/bin/activate"
 
-# Run inference with timeout
+# Run PatchTST inference with timeout
 echo ""
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Starting inference cycle (version: $(basename "$(readlink "$CURRENT_DIR")"))"
-# Let predictor auto-discover latest model run in models/ directory
-timeout $MAX_RUNTIME python run_inference.py
+export PYTHONPATH="$CURRENT_DIR/src"
+timeout $MAX_RUNTIME python src/pipeline/run_patchtst_inference.py \
+    --model-path models/patchtst/best_model.pt \
+    --min-volume 2000
 
 EXIT_CODE=$?
 
