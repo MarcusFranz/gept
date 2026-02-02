@@ -196,17 +196,28 @@ const fullTitle = `${title} | GePT`;
           menuBtn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
         });
 
-        // Discord banner dismiss (banner may already be removed by the immediate script)
+        // Discord banner dismiss
+        // The synchronous script handles initial hard load; this handles view transition navigations
         const banner = document.getElementById('discord-banner');
         if (banner) {
-          document.getElementById('discord-banner-dismiss')?.addEventListener('click', () => {
+          let dismissed = false;
+          try {
+            dismissed = !!localStorage.getItem('discord-banner-dismissed');
+          } catch {
+            // localStorage unavailable - show banner
+          }
+          if (dismissed) {
             banner.remove();
-            try {
-              localStorage.setItem('discord-banner-dismissed', '1');
-            } catch {
-              // Storage unavailable - dismiss works for current page view only
-            }
-          });
+          } else {
+            document.getElementById('discord-banner-dismiss')?.addEventListener('click', () => {
+              banner.remove();
+              try {
+                localStorage.setItem('discord-banner-dismissed', '1');
+              } catch {
+                // Storage unavailable - dismiss works for current page view only
+              }
+            });
+          }
         }
       }
 
