@@ -2445,7 +2445,7 @@ async def get_feedback_analytics(
             type_conditions = []
             if start_date:
                 type_conditions.append(f.c.submitted_at >= start_date)
-            if item_id:
+            if item_id is not None:
                 type_conditions.append(f.c.item_id == item_id)
 
             type_query = (

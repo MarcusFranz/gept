@@ -323,7 +323,7 @@ p = predictions
 v = price_data_5min
 i = items
 m = model_registry
-l = prices_latest_1m
+latest = prices_latest_1m
 
 
 def _prediction_columns():
@@ -398,7 +398,8 @@ class PredictionLoader:
                         {"name": view_name},
                     ).fetchone()
                     self._matview_cache[view_name] = result is not None
-            except Exception:
+            except Exception as e:
+                logger.warning(f"Error checking matview '{view_name}': {e}")
                 self._matview_cache[view_name] = False
         return self._matview_cache[view_name]
 
@@ -428,7 +429,7 @@ class PredictionLoader:
             p.c.expected_value >= min_ev,
         ]
 
-        if max_hour_offset:
+        if max_hour_offset is not None:
             conditions.append(p.c.hour_offset <= max_hour_offset)
 
         if item_ids:
@@ -520,9 +521,9 @@ class PredictionLoader:
             p.c.fill_probability >= min_fill_prob,
             p.c.expected_value >= min_ev,
         ]
-        if min_hour_offset:
+        if min_hour_offset is not None:
             conditions.append(p.c.hour_offset >= int(min_hour_offset))
-        if max_hour_offset:
+        if max_hour_offset is not None:
             conditions.append(p.c.hour_offset <= int(max_hour_offset))
         if min_offset_pct is not None:
             conditions.append(p.c.offset_pct >= min_offset_pct)
@@ -819,29 +820,6 @@ class PredictionLoader:
 
         return result, remaining
 
-    def _volume_query(self, matview, fallback_table, interval_expr):
-        """Build a volume query using matview if available, else live aggregation.
-
-        Args:
-            matview: Materialized view table reference (e.g., mv_volume_24h)
-            fallback_table: Table to aggregate from (price_data_5min)
-            interval_expr: SQL interval text (e.g., "INTERVAL '24 hours'")
-
-        Returns:
-            A select statement for (item_id, total_volume)
-        """
-        if self._matview_exists(matview.name):
-            return select(matview.c.item_id, matview.c.total_volume)
-        return select(
-            fallback_table.c.item_id,
-            (
-                func.coalesce(func.sum(fallback_table.c.high_price_volume), 0)
-                + func.coalesce(func.sum(fallback_table.c.low_price_volume), 0)
-            ).label("total_volume"),
-        ).where(
-            fallback_table.c.timestamp >= func.now() - text(interval_expr)
-        ).group_by(fallback_table.c.item_id)
-
     def get_item_volume_24h(self, item_id: int) -> Optional[int]:
         """Get 24-hour trade volume for an item.
 
@@ -880,7 +858,7 @@ class PredictionLoader:
             return 0
 
         except Exception as e:
-            logger.debug(f"Could not fetch 24h volume for item {item_id}: {e}")
+            logger.warning(f"Could not fetch 24h volume for item {item_id}: {e}")
             return None
 
     def get_item_volume_1h(self, item_id: int) -> Optional[int]:
@@ -919,7 +897,7 @@ class PredictionLoader:
             return 0
 
         except Exception as e:
-            logger.debug(f"Could not fetch 1h volume for item {item_id}: {e}")
+            logger.warning(f"Could not fetch 1h volume for item {item_id}: {e}")
             return None
 
     def get_batch_volumes_24h(self, item_ids: list[int]) -> dict[int, int]:
@@ -1013,7 +991,7 @@ class PredictionLoader:
             return {int(row[0]): int(row[1]) for row in result}
 
         except Exception as e:
-            logger.debug(f"Could not fetch batch 1h volumes: {e}")
+            logger.warning(f"Could not fetch batch 1h volumes: {e}")
             return {}
 
     def get_price_history(self, item_id: int, hours: int = 24) -> list[dict]:
@@ -1033,7 +1011,9 @@ class PredictionLoader:
             .where(
                 and_(
                     v.c.item_id == item_id,
-                    v.c.timestamp >= func.now() - func.make_interval(0, 0, 0, 0, hours),
+                    v.c.timestamp >= func.now() - func.make_interval(  # years, months, weeks, days, hours
+                        0, 0, 0, 0, hours
+                    ),
                 )
             )
             .order_by(v.c.timestamp.asc())
@@ -1063,7 +1043,7 @@ class PredictionLoader:
             return history
 
         except Exception as e:
-            logger.debug(f"Could not fetch price history for item {item_id}: {e}")
+            logger.warning(f"Could not fetch price history for item {item_id}: {e}")
             return []
 
     def get_extended_price_history(self, item_id: int, hours: int = 24) -> list[dict]:
@@ -1089,7 +1069,9 @@ class PredictionLoader:
             .where(
                 and_(
                     v.c.item_id == item_id,
-                    v.c.timestamp >= func.now() - func.make_interval(0, 0, 0, 0, hours),
+                    v.c.timestamp >= func.now() - func.make_interval(  # years, months, weeks, days, hours
+                        0, 0, 0, 0, hours
+                    ),
                 )
             )
             .order_by(v.c.timestamp.asc())
@@ -1135,7 +1117,7 @@ class PredictionLoader:
             return history
 
         except Exception as e:
-            logger.debug(
+            logger.warning(
                 f"Could not fetch extended price history for item {item_id}: {e}"
             )
             return []
@@ -1188,7 +1170,7 @@ class PredictionLoader:
                 return "Stable"
 
         except Exception as e:
-            logger.debug(f"Could not fetch trend for item {item_id}: {e}")
+            logger.warning(f"Could not fetch trend for item {item_id}: {e}")
             return "Stable"
 
     def get_batch_trends(self, item_ids: list[int]) -> dict[int, str]:
@@ -1352,6 +1334,9 @@ class PredictionLoader:
         # Expand acronym if recognized
         expanded_query = expand_acronym(query_str)
 
+        # Escape LIKE wildcard characters in search term
+        safe_query = expanded_query.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
         max_time = self._max_time_subquery()
 
         # Subquery: distinct items matching the search
@@ -1361,7 +1346,9 @@ class PredictionLoader:
             .where(
                 and_(
                     p.c.time == max_time,
-                    func.lower(p.c.item_name).like(func.lower(f"%{expanded_query}%")),
+                    func.lower(p.c.item_name).like(
+                        func.lower(f"%{safe_query}%"), escape="\\"
+                    ),
                 )
             )
             .subquery("items")
@@ -1372,7 +1359,7 @@ class PredictionLoader:
             (func.lower(items_sub.c.item_name) == func.lower(expanded_query), 0),
             (
                 func.lower(items_sub.c.item_name).like(
-                    func.lower(f"{expanded_query}%")
+                    func.lower(f"{safe_query}%"), escape="\\"
                 ),
                 1,
             ),
@@ -1547,9 +1534,9 @@ class PredictionLoader:
             Returns None if no data found
         """
         query = (
-            select(l.c.timestamp, l.c.high, l.c.low, l.c.high_time, l.c.low_time)
-            .where(l.c.item_id == item_id)
-            .order_by(l.c.timestamp.desc())
+            select(latest.c.timestamp, latest.c.high, latest.c.low, latest.c.high_time, latest.c.low_time)
+            .where(latest.c.item_id == item_id)
+            .order_by(latest.c.timestamp.desc())
             .limit(1)
         )
 
