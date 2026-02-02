@@ -103,59 +103,6 @@ const user = Astro.locals.user;
         </div>
       </section>
 
-      <!-- Notifications Section -->
-      <section class="account-section">
-        <div class="section-header">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
-            <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
-          </svg>
-          <h2>Notifications</h2>
-        </div>
-        <div class="section-content">
-          <div class="toggle-option">
-            <div class="option-info">
-              <h3>Email Notifications</h3>
-              <p class="text-secondary">Receive updates about your trades</p>
-            </div>
-            <label class="toggle">
-              <input type="checkbox" checked />
-              <span class="toggle-slider"></span>
-            </label>
-          </div>
-          <div class="toggle-option">
-            <div class="option-info">
-              <h3>Price Alerts</h3>
-              <p class="text-secondary">Get notified when prices change significantly</p>
-            </div>
-            <label class="toggle">
-              <input type="checkbox" checked />
-              <span class="toggle-slider"></span>
-            </label>
-          </div>
-          <div class="toggle-option">
-            <div class="option-info">
-              <h3>Weekly Summary</h3>
-              <p class="text-secondary">Receive a weekly report of your trading activity</p>
-            </div>
-            <label class="toggle">
-              <input type="checkbox" />
-              <span class="toggle-slider"></span>
-            </label>
-          </div>
-          <div class="toggle-option">
-            <div class="option-info">
-              <h3>Marketing Emails</h3>
-              <p class="text-secondary">News and updates about GePT</p>
-            </div>
-            <label class="toggle">
-              <input type="checkbox" />
-              <span class="toggle-slider"></span>
-            </label>
-          </div>
-        </div>
-      </section>
-
       <!-- Session -->
       <section class="account-section">
         <div class="section-content">
@@ -448,29 +395,6 @@ const user = Astro.locals.user;
     border-color: var(--accent);
   }
 
-  .avatar-upload {
-    display: flex;
-    align-items: center;
-    gap: var(--space-3);
-  }
-
-  .avatar-preview {
-    width: 64px;
-    height: 64px;
-    border-radius: 50%;
-    background-color: var(--bg-tertiary);
-    border: 2px solid var(--border);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .avatar-preview svg {
-    width: 32px;
-    height: 32px;
-    color: var(--text-muted);
-  }
-
   /* Plan Cards */
   .plan-card {
     padding: var(--space-3);
@@ -483,67 +407,6 @@ const user = Astro.locals.user;
     border-color: var(--accent);
   }
 
-  .plan-card.active.is-pro {
-    background: linear-gradient(135deg, var(--bg-tertiary) 0%, rgba(139, 195, 74, 0.1) 100%);
-  }
-
-  .dev-toggle-section {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: var(--space-3);
-    background-color: rgba(255, 193, 7, 0.1);
-    border: 1px dashed rgba(255, 193, 7, 0.5);
-    border-radius: var(--radius-md);
-  }
-
-  .dev-label {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-    font-size: var(--font-size-sm);
-    color: var(--text-secondary);
-  }
-
-  .dev-badge {
-    padding: 2px 6px;
-    background-color: #ffc107;
-    color: #000;
-    font-size: 10px;
-    font-weight: 700;
-    border-radius: var(--radius-sm);
-  }
-
-  .plan-switcher {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-  }
-
-  .plan-option {
-    font-size: var(--font-size-sm);
-    font-weight: 500;
-    color: var(--text-muted);
-    transition: color var(--transition-fast);
-  }
-
-  .plan-option.active {
-    color: var(--accent);
-  }
-
-  .pro-features-card {
-    padding: var(--space-3);
-    background-color: var(--bg-tertiary);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-md);
-  }
-
-  .pro-features-card h3 {
-    font-size: var(--font-size-base);
-    font-weight: 600;
-    margin-bottom: var(--space-2);
-  }
-
   .plan-badge {
     display: inline-block;
     padding: var(--space-1) var(--space-2);
@@ -551,16 +414,6 @@ const user = Astro.locals.user;
     font-weight: 600;
     border-radius: var(--radius-sm);
     text-transform: uppercase;
-  }
-
-  .plan-badge.free {
-    background-color: var(--bg-hover);
-    color: var(--text-secondary);
-  }
-
-  .plan-badge.pro {
-    background-color: var(--accent);
-    color: var(--bg-primary);
   }
 
   .plan-badge.beta {
@@ -603,13 +456,6 @@ const user = Astro.locals.user;
     color: var(--text-secondary);
   }
 
-  .plan-price {
-    font-size: var(--font-size-xl);
-    font-weight: 700;
-    color: var(--accent);
-    margin-top: var(--space-1);
-  }
-
   .plan-features {
     margin-top: var(--space-2);
     padding-left: var(--space-4);
@@ -621,24 +467,7 @@ const user = Astro.locals.user;
     margin-bottom: var(--space-1);
   }
 
-  .plan-card.pro .btn {
-    margin-top: var(--space-3);
-  }
-
-  .billing-info {
-    padding-top: var(--space-3);
-    border-top: 1px solid var(--border);
-  }
-
-  .billing-info h3 {
-    font-size: var(--font-size-base);
-    font-weight: 600;
-    margin-bottom: var(--space-2);
-  }
-
-  /* Security & Toggle Options */
-  .security-option,
-  .toggle-option,
+  /* Danger Options */
   .danger-option {
     display: flex;
     align-items: center;
@@ -655,53 +484,6 @@ const user = Astro.locals.user;
 
   .option-info p {
     font-size: var(--font-size-sm);
-  }
-
-  /* Toggle Switch */
-  .toggle {
-    position: relative;
-    display: inline-block;
-    width: 48px;
-    height: 26px;
-  }
-
-  .toggle input {
-    opacity: 0;
-    width: 0;
-    height: 0;
-  }
-
-  .toggle-slider {
-    position: absolute;
-    cursor: pointer;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-color: var(--bg-hover);
-    border-radius: 26px;
-    transition: var(--transition-fast);
-  }
-
-  .toggle-slider:before {
-    position: absolute;
-    content: "";
-    height: 20px;
-    width: 20px;
-    left: 3px;
-    bottom: 3px;
-    background-color: var(--text-secondary);
-    border-radius: 50%;
-    transition: var(--transition-fast);
-  }
-
-  .toggle input:checked + .toggle-slider {
-    background-color: var(--accent);
-  }
-
-  .toggle input:checked + .toggle-slider:before {
-    transform: translateX(22px);
-    background-color: white;
   }
 
   /* Buttons */
@@ -734,15 +516,6 @@ const user = Astro.locals.user;
     background-color: var(--bg-tertiary);
   }
 
-  .btn-accent {
-    background-color: var(--accent);
-    color: var(--bg-primary);
-  }
-
-  .btn-accent:hover {
-    background-color: var(--accent-hover);
-  }
-
   .btn-danger {
     background-color: var(--danger);
     color: white;
@@ -772,17 +545,10 @@ const user = Astro.locals.user;
   }
 
   @media (max-width: 640px) {
-    .security-option,
-    .toggle-option,
     .danger-option {
       flex-direction: column;
       align-items: flex-start;
       gap: var(--space-2);
-    }
-
-    .toggle-option {
-      flex-direction: row;
-      align-items: center;
     }
   }
 </style>
