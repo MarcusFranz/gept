@@ -358,14 +358,8 @@ def convert_predictions_to_rows(
             # Simplified: fill_prob * profit_pct
             expected_value = fill_prob * profit_pct
 
-            # Confidence based on quantile spread
+            # Raw quantile spread — confidence assigned later relative to batch
             spread = high_q90 - high_q10
-            if spread < 0.02:
-                confidence = 'high'
-            elif spread < 0.05:
-                confidence = 'medium'
-            else:
-                confidence = 'low'
 
             # Compute auxiliary features for the row
             # (These would ideally come from actual calculations, but we approximate)
@@ -382,9 +376,79 @@ def convert_predictions_to_rows(
                 'sell_price': float(sell_price),
                 'current_high': float(current_high),
                 'current_low': float(current_low),
-                'confidence': confidence,
+                'confidence': None,
+                'spread': float(spread),
                 'model_id': model_id,
             })
+
+    return rows
+
+
+def assign_confidence_labels(rows: List[Dict]) -> List[Dict]:
+    """Assign confidence labels relative to the batch spread distribution.
+
+    Uses percentile-based thresholds so confidence is distributed across
+    high/medium/low rather than clustering in one bucket. Applies an
+    absolute floor: if median spread > 0.15, best confidence is capped
+    at 'medium' (the whole batch is too uncertain for 'high').
+
+    Handles edge cases: NaN spreads are replaced with the median of valid
+    spreads; degenerate distributions (p33 == p66) fall back to absolute
+    thresholds.
+    """
+    if not rows:
+        return rows
+
+    spreads = np.array([r['spread'] for r in rows])
+
+    # Guard against NaN/inf spreads from degenerate model outputs
+    finite_mask = np.isfinite(spreads)
+    if not finite_mask.all():
+        n_bad = int((~finite_mask).sum())
+        logger.error(
+            f"assign_confidence_labels: {n_bad}/{len(spreads)} non-finite "
+            f"spreads detected, replacing with median of valid spreads"
+        )
+        if finite_mask.any():
+            spreads[~finite_mask] = np.median(spreads[finite_mask])
+            for i, row in enumerate(rows):
+                row['spread'] = float(spreads[i])
+        else:
+            # All spreads are garbage — assign uniform 'medium'
+            for row in rows:
+                row['confidence'] = 'medium'
+                del row['spread']
+            return rows
+
+    p33 = np.percentile(spreads, 33)
+    p66 = np.percentile(spreads, 66)
+    median_spread = np.median(spreads)
+
+    # Degenerate distribution — fall back to absolute thresholds
+    if p33 == p66:
+        for row in rows:
+            s = row['spread']
+            if s < 0.05:
+                row['confidence'] = 'high'
+            elif s < 0.10:
+                row['confidence'] = 'medium'
+            else:
+                row['confidence'] = 'low'
+            del row['spread']
+        return rows
+
+    # If overall uncertainty is very high, cap best label at medium
+    cap_high = median_spread > 0.15
+
+    for row in rows:
+        s = row['spread']
+        if s <= p33:
+            row['confidence'] = 'medium' if cap_high else 'high'
+        elif s <= p66:
+            row['confidence'] = 'medium'
+        else:
+            row['confidence'] = 'low'
+        del row['spread']
 
     return rows
 
@@ -583,6 +647,13 @@ def run_inference(args):
             all_rows.extend(rows)
 
         inference_time += time.time() - inf_start
+
+    # Assign confidence labels relative to batch distribution
+    all_rows = assign_confidence_labels(all_rows)
+    conf_counts = {}
+    for r in all_rows:
+        conf_counts[r['confidence']] = conf_counts.get(r['confidence'], 0) + 1
+    logger.info(f"Confidence distribution: {conf_counts}")
 
     # Write predictions
     if not args.dry_run:
