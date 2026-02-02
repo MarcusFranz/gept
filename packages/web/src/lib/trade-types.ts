@@ -74,7 +74,7 @@ export interface OpportunityFilters {
   profitMin?: number;
   profitMax?: number;
   timeMax?: number; // hours
-  confidence?: 'low' | 'medium' | 'high' | 'all';
+  confidence?: 'low' | 'medium' | 'high';
   capitalMax?: number;
   category?: string;
 }
