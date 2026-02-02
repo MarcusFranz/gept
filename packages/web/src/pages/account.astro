@@ -395,29 +395,6 @@ const user = Astro.locals.user;
     border-color: var(--accent);
   }
 
-  .avatar-upload {
-    display: flex;
-    align-items: center;
-    gap: var(--space-3);
-  }
-
-  .avatar-preview {
-    width: 64px;
-    height: 64px;
-    border-radius: 50%;
-    background-color: var(--bg-tertiary);
-    border: 2px solid var(--border);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .avatar-preview svg {
-    width: 32px;
-    height: 32px;
-    color: var(--text-muted);
-  }
-
   /* Plan Cards */
   .plan-card {
     padding: var(--space-3);
@@ -430,67 +407,6 @@ const user = Astro.locals.user;
     border-color: var(--accent);
   }
 
-  .plan-card.active.is-pro {
-    background: linear-gradient(135deg, var(--bg-tertiary) 0%, rgba(139, 195, 74, 0.1) 100%);
-  }
-
-  .dev-toggle-section {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: var(--space-3);
-    background-color: rgba(255, 193, 7, 0.1);
-    border: 1px dashed rgba(255, 193, 7, 0.5);
-    border-radius: var(--radius-md);
-  }
-
-  .dev-label {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-    font-size: var(--font-size-sm);
-    color: var(--text-secondary);
-  }
-
-  .dev-badge {
-    padding: 2px 6px;
-    background-color: #ffc107;
-    color: #000;
-    font-size: 10px;
-    font-weight: 700;
-    border-radius: var(--radius-sm);
-  }
-
-  .plan-switcher {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-  }
-
-  .plan-option {
-    font-size: var(--font-size-sm);
-    font-weight: 500;
-    color: var(--text-muted);
-    transition: color var(--transition-fast);
-  }
-
-  .plan-option.active {
-    color: var(--accent);
-  }
-
-  .pro-features-card {
-    padding: var(--space-3);
-    background-color: var(--bg-tertiary);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-md);
-  }
-
-  .pro-features-card h3 {
-    font-size: var(--font-size-base);
-    font-weight: 600;
-    margin-bottom: var(--space-2);
-  }
-
   .plan-badge {
     display: inline-block;
     padding: var(--space-1) var(--space-2);
@@ -498,16 +414,6 @@ const user = Astro.locals.user;
     font-weight: 600;
     border-radius: var(--radius-sm);
     text-transform: uppercase;
-  }
-
-  .plan-badge.free {
-    background-color: var(--bg-hover);
-    color: var(--text-secondary);
-  }
-
-  .plan-badge.pro {
-    background-color: var(--accent);
-    color: var(--bg-primary);
   }
 
   .plan-badge.beta {
@@ -550,13 +456,6 @@ const user = Astro.locals.user;
     color: var(--text-secondary);
   }
 
-  .plan-price {
-    font-size: var(--font-size-xl);
-    font-weight: 700;
-    color: var(--accent);
-    margin-top: var(--space-1);
-  }
-
   .plan-features {
     margin-top: var(--space-2);
     padding-left: var(--space-4);
@@ -568,23 +467,7 @@ const user = Astro.locals.user;
     margin-bottom: var(--space-1);
   }
 
-  .plan-card.pro .btn {
-    margin-top: var(--space-3);
-  }
-
-  .billing-info {
-    padding-top: var(--space-3);
-    border-top: 1px solid var(--border);
-  }
-
-  .billing-info h3 {
-    font-size: var(--font-size-base);
-    font-weight: 600;
-    margin-bottom: var(--space-2);
-  }
-
-  /* Security & Danger Options */
-  .security-option,
+  /* Danger Options */
   .danger-option {
     display: flex;
     align-items: center;
@@ -633,15 +516,6 @@ const user = Astro.locals.user;
     background-color: var(--bg-tertiary);
   }
 
-  .btn-accent {
-    background-color: var(--accent);
-    color: var(--bg-primary);
-  }
-
-  .btn-accent:hover {
-    background-color: var(--accent-hover);
-  }
-
   .btn-danger {
     background-color: var(--danger);
     color: white;
@@ -671,7 +545,6 @@ const user = Astro.locals.user;
   }
 
   @media (max-width: 640px) {
-    .security-option,
     .danger-option {
       flex-direction: column;
       align-items: flex-start;
