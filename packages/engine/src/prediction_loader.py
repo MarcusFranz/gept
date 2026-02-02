@@ -5,16 +5,18 @@ from datetime import datetime, timezone
 from typing import Optional
 
 import pandas as pd
-from sqlalchemy import create_engine, text
+from sqlalchemy import and_, case, create_engine, func, literal_column, select, text
 from sqlalchemy.pool import QueuePool
 
 from .config import Config
 from .schema import (
-    Items,
-    ModelRegistry,
-    Predictions,
-    PriceData5Min,
-    PricesLatest1M,
+    items,
+    model_registry,
+    mv_volume_1h,
+    mv_volume_24h,
+    predictions,
+    price_data_5min,
+    prices_latest_1m,
 )
 from .wiki_api import get_wiki_api_client
 
@@ -316,6 +318,32 @@ def expand_acronym(query: str) -> str:
     return OSRS_ACRONYMS.get(query.lower().strip(), query)
 
 
+# Shorthand aliases for table references used in query building
+p = predictions
+v = price_data_5min
+i = items
+m = model_registry
+l = prices_latest_1m
+
+
+def _prediction_columns():
+    """Standard prediction columns used across multiple queries."""
+    return [
+        p.c.item_id,
+        p.c.item_name,
+        p.c.hour_offset,
+        p.c.offset_pct,
+        p.c.fill_probability,
+        p.c.expected_value,
+        p.c.buy_price,
+        p.c.sell_price,
+        p.c.current_high,
+        p.c.current_low,
+        p.c.confidence,
+        p.c.time.label("prediction_time"),
+    ]
+
+
 class PredictionLoader:
     """Fetches pre-computed predictions from the Ampere server's predictions table.
 
@@ -351,20 +379,12 @@ class PredictionLoader:
         if preferred_model_id:
             logger.info(f"Model filter active: preferred_model_id={preferred_model_id}")
 
-    def _max_time_subquery(self) -> str:
-        """Return the MAX(time) subquery, scoped to preferred model if configured."""
+    def _max_time_subquery(self):
+        """Return a scalar subquery for MAX(time), scoped to preferred model if configured."""
+        q = select(func.max(p.c.time))
         if self.preferred_model_id:
-            return (
-                f"(SELECT MAX({Predictions.TIME}) FROM {Predictions.TABLE}"
-                f" WHERE {Predictions.MODEL_ID} = :preferred_model_id)"
-            )
-        return f"(SELECT MAX({Predictions.TIME}) FROM {Predictions.TABLE})"
-
-    def _inject_model_params(self, params: dict) -> dict:
-        """Add preferred_model_id to params dict if configured."""
-        if self.preferred_model_id:
-            params["preferred_model_id"] = self.preferred_model_id
-        return params
+            q = q.where(p.c.model_id == self.preferred_model_id)
+        return q.scalar_subquery()
 
     def _matview_exists(self, view_name: str) -> bool:
         """Check if a materialized view exists (cached per instance)."""
@@ -402,56 +422,28 @@ class PredictionLoader:
         Returns:
             DataFrame with predictions sorted by expected_value descending
         """
-        # Build query with filters
-        P = Predictions
         conditions = [
-            f"{P.TIME} = {self._max_time_subquery()}",
-            f"{P.FILL_PROBABILITY} >= :min_fill_prob",
-            f"{P.EXPECTED_VALUE} >= :min_ev",
+            p.c.time == self._max_time_subquery(),
+            p.c.fill_probability >= min_fill_prob,
+            p.c.expected_value >= min_ev,
         ]
 
-        params = {
-            "min_fill_prob": min_fill_prob,
-            "min_ev": min_ev,
-            "limit": limit,
-        }
-        self._inject_model_params(params)
-
         if max_hour_offset:
-            conditions.append(f"{P.HOUR_OFFSET} <= :max_hour_offset")
-            params["max_hour_offset"] = max_hour_offset
+            conditions.append(p.c.hour_offset <= max_hour_offset)
 
         if item_ids:
-            conditions.append(f"{P.ITEM_ID} = ANY(:item_ids)")
-            params["item_ids"] = item_ids
+            conditions.append(p.c.item_id.in_(item_ids))
 
-        where_clause = " AND ".join(conditions)
-
-        query = text(
-            f"""
-            SELECT
-                {P.ITEM_ID},
-                {P.ITEM_NAME},
-                {P.HOUR_OFFSET},
-                {P.OFFSET_PCT},
-                {P.FILL_PROBABILITY},
-                {P.EXPECTED_VALUE},
-                {P.BUY_PRICE},
-                {P.SELL_PRICE},
-                {P.CURRENT_HIGH},
-                {P.CURRENT_LOW},
-                {P.CONFIDENCE},
-                {P.TIME} as prediction_time
-            FROM {P.TABLE}
-            WHERE {where_clause}
-            ORDER BY {P.EXPECTED_VALUE} DESC
-            LIMIT :limit
-        """
+        query = (
+            select(*_prediction_columns())
+            .where(and_(*conditions))
+            .order_by(p.c.expected_value.desc())
+            .limit(limit)
         )
 
         try:
             with self.engine.connect() as conn:
-                df = pd.read_sql(query, conn, params=params)
+                df = pd.read_sql(query, conn)
 
             if df.empty:
                 logger.warning("No predictions found matching criteria")
@@ -472,33 +464,20 @@ class PredictionLoader:
         Returns:
             DataFrame with all hour_offset/offset_pct combinations for the item
         """
-        P = Predictions
-        query = text(
-            f"""
-            SELECT
-                {P.ITEM_ID},
-                {P.ITEM_NAME},
-                {P.HOUR_OFFSET},
-                {P.OFFSET_PCT},
-                {P.FILL_PROBABILITY},
-                {P.EXPECTED_VALUE},
-                {P.BUY_PRICE},
-                {P.SELL_PRICE},
-                {P.CURRENT_HIGH},
-                {P.CURRENT_LOW},
-                {P.CONFIDENCE},
-                {P.TIME} as prediction_time
-            FROM {P.TABLE}
-            WHERE {P.TIME} = {self._max_time_subquery()}
-              AND {P.ITEM_ID} = :item_id
-            ORDER BY {P.HOUR_OFFSET}, {P.OFFSET_PCT}
-        """
+        query = (
+            select(*_prediction_columns())
+            .where(
+                and_(
+                    p.c.time == self._max_time_subquery(),
+                    p.c.item_id == item_id,
+                )
+            )
+            .order_by(p.c.hour_offset, p.c.offset_pct)
         )
 
         try:
-            params = self._inject_model_params({"item_id": item_id})
             with self.engine.connect() as conn:
-                df = pd.read_sql(query, conn, params=params)
+                df = pd.read_sql(query, conn)
             return df
         except Exception as e:
             logger.error(f"Error fetching predictions for item {item_id}: {e}")
@@ -532,153 +511,104 @@ class PredictionLoader:
         Returns:
             DataFrame with one row per item (best configuration)
         """
-        P = Predictions
-        V = PriceData5Min
-
-        # Build hour filter for both min and max (using parameterized queries)
-        hour_filter = ""
-        if min_hour_offset:
-            hour_filter += f" AND p.{P.HOUR_OFFSET} >= :min_hour_offset"
-        if max_hour_offset:
-            hour_filter += f" AND p.{P.HOUR_OFFSET} <= :max_hour_offset"
-
-        # Build offset filter
-        offset_filter = ""
-        if min_offset_pct is not None:
-            offset_filter += f" AND p.{P.OFFSET_PCT} >= :min_offset_pct"
-        if max_offset_pct is not None:
-            offset_filter += f" AND p.{P.OFFSET_PCT} <= :max_offset_pct"
-
-        # Build volume filter with price-tiered thresholds
-        # High-value items naturally have lower volume, so we apply carve-outs:
-        # - >100M items: min 100 volume (Tbow, Scythe, Torva, etc.)
-        # - >10M items: min 500 volume
-        # - >1M items: min volume capped at 2000
-        # - Other items: use configured min_volume_24h
-        volume_filter = ""
-        if min_volume_24h is not None and min_volume_24h > 0:
-            volume_filter = f"""
-                AND COALESCE(v.total_volume, 0) >= CASE
-                    WHEN COALESCE(p.{P.BUY_PRICE}, 0) > 100000000 THEN 100
-                    WHEN COALESCE(p.{P.BUY_PRICE}, 0) > 10000000 THEN 500
-                    WHEN COALESCE(p.{P.BUY_PRICE}, 0) > 1000000 THEN LEAST(:min_volume_24h, 2000)
-                    ELSE :min_volume_24h
-                END"""
-
-        # Conditionally build query - skip volume CTE if not needed (slow 24h aggregation)
+        max_time = self._max_time_subquery()
         needs_volume = min_volume_24h is not None and min_volume_24h > 0
 
+        # Base WHERE conditions
+        conditions = [
+            p.c.time == max_time,
+            p.c.fill_probability >= min_fill_prob,
+            p.c.expected_value >= min_ev,
+        ]
+        if min_hour_offset:
+            conditions.append(p.c.hour_offset >= int(min_hour_offset))
+        if max_hour_offset:
+            conditions.append(p.c.hour_offset <= int(max_hour_offset))
+        if min_offset_pct is not None:
+            conditions.append(p.c.offset_pct >= min_offset_pct)
+        if max_offset_pct is not None:
+            conditions.append(p.c.offset_pct <= max_offset_pct)
+
+        # Build column list with optional volume
+        rank_cols = list(_prediction_columns())
+
+        rn_col = func.row_number().over(
+            partition_by=p.c.item_id,
+            order_by=p.c.expected_value.desc(),
+        ).label("rn")
+
         if needs_volume:
-            # Use materialized view if available (refreshed every 5 min)
+            # Build volume source (matview or live aggregation)
             if self._matview_exists("mv_volume_24h"):
-                volume_cte = """
-                WITH volume_24h AS (
-                    SELECT item_id, total_volume FROM mv_volume_24h
-                ),"""
-            else:
-                volume_cte = f"""
-                WITH volume_24h AS (
-                    SELECT {V.ITEM_ID},
-                           COALESCE(SUM({V.HIGH_PRICE_VOLUME}), 0)
-                           + COALESCE(SUM({V.LOW_PRICE_VOLUME}), 0) as total_volume
-                    FROM {V.TABLE}
-                    WHERE {V.TIMESTAMP} >= NOW() - INTERVAL '24 hours'
-                    GROUP BY {V.ITEM_ID}
-                ),"""
-            query = text(
-                f"""
-                {volume_cte}
-                ranked AS (
-                    SELECT
-                        p.{P.ITEM_ID},
-                        p.{P.ITEM_NAME},
-                        p.{P.HOUR_OFFSET},
-                        p.{P.OFFSET_PCT},
-                        p.{P.FILL_PROBABILITY},
-                        p.{P.EXPECTED_VALUE},
-                        p.{P.BUY_PRICE},
-                        p.{P.SELL_PRICE},
-                        p.{P.CURRENT_HIGH},
-                        p.{P.CURRENT_LOW},
-                        p.{P.CONFIDENCE},
-                        p.{P.TIME} as prediction_time,
-                        COALESCE(v.total_volume, 0) as volume_24h,
-                        ROW_NUMBER() OVER (
-                            PARTITION BY p.{P.ITEM_ID} ORDER BY p.{P.EXPECTED_VALUE} DESC
-                        ) as rn
-                    FROM {P.TABLE} p
-                    LEFT JOIN volume_24h v ON v.{V.ITEM_ID} = p.{P.ITEM_ID}
-                    WHERE p.{P.TIME} = {self._max_time_subquery()}
-                      AND p.{P.FILL_PROBABILITY} >= :min_fill_prob
-                      AND p.{P.EXPECTED_VALUE} >= :min_ev
-                      {hour_filter}
-                      {offset_filter}
-                      {volume_filter}
+                vol_cte = (
+                    select(
+                        mv_volume_24h.c.item_id,
+                        mv_volume_24h.c.total_volume,
+                    )
+                    .cte("volume_24h")
                 )
-                SELECT *
-                FROM ranked
-                WHERE rn = 1
-                ORDER BY {P.EXPECTED_VALUE} DESC
-                LIMIT :limit
-            """
+            else:
+                vol_cte = (
+                    select(
+                        v.c.item_id,
+                        (
+                            func.coalesce(func.sum(v.c.high_price_volume), 0)
+                            + func.coalesce(func.sum(v.c.low_price_volume), 0)
+                        ).label("total_volume"),
+                    )
+                    .where(v.c.timestamp >= func.now() - text("INTERVAL '24 hours'"))
+                    .group_by(v.c.item_id)
+                    .cte("volume_24h")
+                )
+
+            rank_cols.append(
+                func.coalesce(vol_cte.c.total_volume, 0).label("volume_24h")
+            )
+            rank_cols.append(rn_col)
+
+            # Price-tiered volume threshold
+            vol_threshold = case(
+                (func.coalesce(p.c.buy_price, 0) > 100_000_000, 100),
+                (func.coalesce(p.c.buy_price, 0) > 10_000_000, 500),
+                (
+                    func.coalesce(p.c.buy_price, 0) > 1_000_000,
+                    func.least(min_volume_24h, 2000),
+                ),
+                else_=min_volume_24h,
+            )
+            conditions.append(
+                func.coalesce(vol_cte.c.total_volume, 0) >= vol_threshold
+            )
+
+            ranked = (
+                select(*rank_cols)
+                .select_from(
+                    p.outerjoin(vol_cte, vol_cte.c.item_id == p.c.item_id)
+                )
+                .where(and_(*conditions))
+                .cte("ranked")
             )
         else:
             # Fast path: skip volume calculation entirely
-            query = text(
-                f"""
-                WITH ranked AS (
-                    SELECT
-                        p.{P.ITEM_ID},
-                        p.{P.ITEM_NAME},
-                        p.{P.HOUR_OFFSET},
-                        p.{P.OFFSET_PCT},
-                        p.{P.FILL_PROBABILITY},
-                        p.{P.EXPECTED_VALUE},
-                        p.{P.BUY_PRICE},
-                        p.{P.SELL_PRICE},
-                        p.{P.CURRENT_HIGH},
-                        p.{P.CURRENT_LOW},
-                        p.{P.CONFIDENCE},
-                        p.{P.TIME} as prediction_time,
-                        0 as volume_24h,
-                        ROW_NUMBER() OVER (
-                            PARTITION BY p.{P.ITEM_ID} ORDER BY p.{P.EXPECTED_VALUE} DESC
-                        ) as rn
-                    FROM {P.TABLE} p
-                    WHERE p.{P.TIME} = {self._max_time_subquery()}
-                      AND p.{P.FILL_PROBABILITY} >= :min_fill_prob
-                      AND p.{P.EXPECTED_VALUE} >= :min_ev
-                      {hour_filter}
-                      {offset_filter}
-                )
-                SELECT *
-                FROM ranked
-                WHERE rn = 1
-                ORDER BY {P.EXPECTED_VALUE} DESC
-                LIMIT :limit
-            """
+            rank_cols.append(literal_column("0").label("volume_24h"))
+            rank_cols.append(rn_col)
+
+            ranked = (
+                select(*rank_cols)
+                .where(and_(*conditions))
+                .cte("ranked")
             )
 
-        params = {
-            "min_fill_prob": min_fill_prob,
-            "min_ev": min_ev,
-            "limit": limit,
-        }
-        if min_hour_offset:
-            params["min_hour_offset"] = int(min_hour_offset)
-        if max_hour_offset:
-            params["max_hour_offset"] = int(max_hour_offset)
-        if min_offset_pct is not None:
-            params["min_offset_pct"] = min_offset_pct
-        if max_offset_pct is not None:
-            params["max_offset_pct"] = max_offset_pct
-        if min_volume_24h is not None and min_volume_24h > 0:
-            params["min_volume_24h"] = min_volume_24h
-        self._inject_model_params(params)
+        query = (
+            select(ranked)
+            .where(ranked.c.rn == 1)
+            .order_by(ranked.c.expected_value.desc())
+            .limit(limit)
+        )
 
         try:
             with self.engine.connect() as conn:
-                df = pd.read_sql(query, conn, params=params)
+                df = pd.read_sql(query, conn)
 
             # Drop internal columns (keep volume_24h for stability filter)
             for col in ["rn"]:
@@ -697,19 +627,13 @@ class PredictionLoader:
         Returns:
             Most recent prediction timestamp, or None if no data
         """
+        query = select(func.max(p.c.time))
         if self.preferred_model_id:
-            query = text(
-                f"SELECT MAX({Predictions.TIME}) FROM {Predictions.TABLE}"
-                f" WHERE {Predictions.MODEL_ID} = :preferred_model_id"
-            )
-            params = {"preferred_model_id": self.preferred_model_id}
-        else:
-            query = text(f"SELECT MAX({Predictions.TIME}) FROM {Predictions.TABLE}")
-            params = {}
+            query = query.where(p.c.model_id == self.preferred_model_id)
 
         try:
             with self.engine.connect() as conn:
-                result = conn.execute(query, params).fetchone()
+                result = conn.execute(query).fetchone()
 
             if result and result[0]:
                 return result[0]
@@ -767,17 +691,11 @@ class PredictionLoader:
         Returns:
             Buy limit from database or None if not found
         """
-        query = text(
-            f"""
-            SELECT {Items.BUY_LIMIT}
-            FROM {Items.TABLE}
-            WHERE {Items.ITEM_ID} = :item_id
-        """
-        )
+        query = select(i.c.buy_limit).where(i.c.item_id == item_id)
 
         try:
             with self.engine.connect() as conn:
-                result = conn.execute(query, {"item_id": item_id}).fetchone()
+                result = conn.execute(query).fetchone()
 
             if result and result[0]:
                 return int(result[0])
@@ -848,19 +766,19 @@ class PredictionLoader:
         if not item_ids:
             return {}
 
-        # Use ANY array for efficient IN clause
-        query = text(
-            f"""
-            SELECT {Items.ITEM_ID}, {Items.BUY_LIMIT}
-            FROM {Items.TABLE}
-            WHERE {Items.ITEM_ID} = ANY(:item_ids)
-              AND {Items.BUY_LIMIT} IS NOT NULL
-        """
+        query = (
+            select(i.c.item_id, i.c.buy_limit)
+            .where(
+                and_(
+                    i.c.item_id.in_(item_ids),
+                    i.c.buy_limit.is_not(None),
+                )
+            )
         )
 
         try:
             with self.engine.connect() as conn:
-                result = conn.execute(query, {"item_ids": item_ids}).fetchall()
+                result = conn.execute(query).fetchall()
 
             return {int(row[0]): int(row[1]) for row in result if row[1]}
 
@@ -901,6 +819,29 @@ class PredictionLoader:
 
         return result, remaining
 
+    def _volume_query(self, matview, fallback_table, interval_expr):
+        """Build a volume query using matview if available, else live aggregation.
+
+        Args:
+            matview: Materialized view table reference (e.g., mv_volume_24h)
+            fallback_table: Table to aggregate from (price_data_5min)
+            interval_expr: SQL interval text (e.g., "INTERVAL '24 hours'")
+
+        Returns:
+            A select statement for (item_id, total_volume)
+        """
+        if self._matview_exists(matview.name):
+            return select(matview.c.item_id, matview.c.total_volume)
+        return select(
+            fallback_table.c.item_id,
+            (
+                func.coalesce(func.sum(fallback_table.c.high_price_volume), 0)
+                + func.coalesce(func.sum(fallback_table.c.low_price_volume), 0)
+            ).label("total_volume"),
+        ).where(
+            fallback_table.c.timestamp >= func.now() - text(interval_expr)
+        ).group_by(fallback_table.c.item_id)
+
     def get_item_volume_24h(self, item_id: int) -> Optional[int]:
         """Get 24-hour trade volume for an item.
 
@@ -912,25 +853,27 @@ class PredictionLoader:
         Returns:
             Total 24h volume (0 if no data), or None on query failure
         """
-        V = PriceData5Min
         if self._matview_exists("mv_volume_24h"):
-            query = text(
-                "SELECT total_volume FROM mv_volume_24h WHERE item_id = :item_id"
+            query = (
+                select(mv_volume_24h.c.total_volume)
+                .where(mv_volume_24h.c.item_id == item_id)
             )
         else:
-            query = text(
-                f"""
-                SELECT COALESCE(SUM({V.HIGH_PRICE_VOLUME}), 0)
-                       + COALESCE(SUM({V.LOW_PRICE_VOLUME}), 0) as total_volume
-                FROM {V.TABLE}
-                WHERE {V.ITEM_ID} = :item_id
-                  AND {V.TIMESTAMP} >= NOW() - INTERVAL '24 hours'
-            """
+            query = select(
+                (
+                    func.coalesce(func.sum(v.c.high_price_volume), 0)
+                    + func.coalesce(func.sum(v.c.low_price_volume), 0)
+                ).label("total_volume")
+            ).where(
+                and_(
+                    v.c.item_id == item_id,
+                    v.c.timestamp >= func.now() - text("INTERVAL '24 hours'"),
+                )
             )
 
         try:
             with self.engine.connect() as conn:
-                result = conn.execute(query, {"item_id": item_id}).fetchone()
+                result = conn.execute(query).fetchone()
 
             if result and result[0] is not None:
                 return int(result[0])
@@ -949,25 +892,27 @@ class PredictionLoader:
         Returns:
             Total 1h volume (0 if no data), or None on query failure
         """
-        V = PriceData5Min
         if self._matview_exists("mv_volume_1h"):
-            query = text(
-                "SELECT total_volume FROM mv_volume_1h WHERE item_id = :item_id"
+            query = (
+                select(mv_volume_1h.c.total_volume)
+                .where(mv_volume_1h.c.item_id == item_id)
             )
         else:
-            query = text(
-                f"""
-                SELECT COALESCE(SUM({V.HIGH_PRICE_VOLUME}), 0)
-                       + COALESCE(SUM({V.LOW_PRICE_VOLUME}), 0) as total_volume
-                FROM {V.TABLE}
-                WHERE {V.ITEM_ID} = :item_id
-                  AND {V.TIMESTAMP} >= NOW() - INTERVAL '1 hour'
-            """
+            query = select(
+                (
+                    func.coalesce(func.sum(v.c.high_price_volume), 0)
+                    + func.coalesce(func.sum(v.c.low_price_volume), 0)
+                ).label("total_volume")
+            ).where(
+                and_(
+                    v.c.item_id == item_id,
+                    v.c.timestamp >= func.now() - text("INTERVAL '1 hour'"),
+                )
             )
 
         try:
             with self.engine.connect() as conn:
-                result = conn.execute(query, {"item_id": item_id}).fetchone()
+                result = conn.execute(query).fetchone()
 
             if result and result[0] is not None:
                 return int(result[0])
@@ -991,31 +936,32 @@ class PredictionLoader:
         if not item_ids:
             return {}
 
-        V = PriceData5Min
         if self._matview_exists("mv_volume_24h"):
-            query = text(
-                """
-                SELECT item_id, total_volume
-                FROM mv_volume_24h
-                WHERE item_id = ANY(:item_ids)
-            """
+            query = (
+                select(mv_volume_24h.c.item_id, mv_volume_24h.c.total_volume)
+                .where(mv_volume_24h.c.item_id.in_(item_ids))
             )
         else:
-            query = text(
-                f"""
-                SELECT {V.ITEM_ID},
-                       COALESCE(SUM({V.HIGH_PRICE_VOLUME}), 0)
-                       + COALESCE(SUM({V.LOW_PRICE_VOLUME}), 0) as total_volume
-                FROM {V.TABLE}
-                WHERE {V.ITEM_ID} = ANY(:item_ids)
-                  AND {V.TIMESTAMP} >= NOW() - INTERVAL '24 hours'
-                GROUP BY {V.ITEM_ID}
-            """
+            query = (
+                select(
+                    v.c.item_id,
+                    (
+                        func.coalesce(func.sum(v.c.high_price_volume), 0)
+                        + func.coalesce(func.sum(v.c.low_price_volume), 0)
+                    ).label("total_volume"),
+                )
+                .where(
+                    and_(
+                        v.c.item_id.in_(item_ids),
+                        v.c.timestamp >= func.now() - text("INTERVAL '24 hours'"),
+                    )
+                )
+                .group_by(v.c.item_id)
             )
 
         try:
             with self.engine.connect() as conn:
-                result = conn.execute(query, {"item_ids": item_ids}).fetchall()
+                result = conn.execute(query).fetchall()
 
             return {int(row[0]): int(row[1]) for row in result}
 
@@ -1037,31 +983,32 @@ class PredictionLoader:
         if not item_ids:
             return {}
 
-        V = PriceData5Min
         if self._matview_exists("mv_volume_1h"):
-            query = text(
-                """
-                SELECT item_id, total_volume
-                FROM mv_volume_1h
-                WHERE item_id = ANY(:item_ids)
-            """
+            query = (
+                select(mv_volume_1h.c.item_id, mv_volume_1h.c.total_volume)
+                .where(mv_volume_1h.c.item_id.in_(item_ids))
             )
         else:
-            query = text(
-                f"""
-                SELECT {V.ITEM_ID},
-                       COALESCE(SUM({V.HIGH_PRICE_VOLUME}), 0)
-                       + COALESCE(SUM({V.LOW_PRICE_VOLUME}), 0) as total_volume
-                FROM {V.TABLE}
-                WHERE {V.ITEM_ID} = ANY(:item_ids)
-                  AND {V.TIMESTAMP} >= NOW() - INTERVAL '1 hour'
-                GROUP BY {V.ITEM_ID}
-            """
+            query = (
+                select(
+                    v.c.item_id,
+                    (
+                        func.coalesce(func.sum(v.c.high_price_volume), 0)
+                        + func.coalesce(func.sum(v.c.low_price_volume), 0)
+                    ).label("total_volume"),
+                )
+                .where(
+                    and_(
+                        v.c.item_id.in_(item_ids),
+                        v.c.timestamp >= func.now() - text("INTERVAL '1 hour'"),
+                    )
+                )
+                .group_by(v.c.item_id)
             )
 
         try:
             with self.engine.connect() as conn:
-                result = conn.execute(query, {"item_ids": item_ids}).fetchall()
+                result = conn.execute(query).fetchall()
 
             return {int(row[0]): int(row[1]) for row in result}
 
@@ -1081,23 +1028,21 @@ class PredictionLoader:
         Returns:
             List of dicts with 'timestamp' and 'price' (midpoint) keys
         """
-        V = PriceData5Min
-        query = text(
-            f"""
-            SELECT {V.TIMESTAMP}, {V.AVG_HIGH_PRICE}, {V.AVG_LOW_PRICE}
-            FROM {V.TABLE}
-            WHERE {V.ITEM_ID} = :item_id
-              AND {V.TIMESTAMP} >= NOW() - make_interval(hours => :hours)
-            ORDER BY {V.TIMESTAMP} ASC
-            LIMIT :limit
-        """
+        query = (
+            select(v.c.timestamp, v.c.avg_high_price, v.c.avg_low_price)
+            .where(
+                and_(
+                    v.c.item_id == item_id,
+                    v.c.timestamp >= func.now() - func.make_interval(0, 0, 0, 0, hours),
+                )
+            )
+            .order_by(v.c.timestamp.asc())
+            .limit(hours)
         )
 
         try:
             with self.engine.connect() as conn:
-                result = conn.execute(
-                    query, {"item_id": item_id, "hours": hours, "limit": hours}
-                ).fetchall()
+                result = conn.execute(query).fetchall()
 
             history = []
             for row in result:
@@ -1133,23 +1078,27 @@ class PredictionLoader:
         Returns:
             List of dicts with 'timestamp', 'high', 'low', 'avgHigh', 'avgLow' keys
         """
-        V = PriceData5Min
-        query = text(
-            f"""
-            SELECT {V.TIMESTAMP}, {V.HIGH_PRICE}, {V.LOW_PRICE}, {V.AVG_HIGH_PRICE}, {V.AVG_LOW_PRICE}
-            FROM {V.TABLE}
-            WHERE {V.ITEM_ID} = :item_id
-              AND {V.TIMESTAMP} >= NOW() - make_interval(hours => :hours)
-            ORDER BY {V.TIMESTAMP} ASC
-            LIMIT :limit
-        """
+        query = (
+            select(
+                v.c.timestamp,
+                v.c.high_price,
+                v.c.low_price,
+                v.c.avg_high_price,
+                v.c.avg_low_price,
+            )
+            .where(
+                and_(
+                    v.c.item_id == item_id,
+                    v.c.timestamp >= func.now() - func.make_interval(0, 0, 0, 0, hours),
+                )
+            )
+            .order_by(v.c.timestamp.asc())
+            .limit(hours)
         )
 
         try:
             with self.engine.connect() as conn:
-                result = conn.execute(
-                    query, {"item_id": item_id, "hours": hours, "limit": hours}
-                ).fetchall()
+                result = conn.execute(query).fetchall()
 
             history = []
             for row in result:
@@ -1200,20 +1149,16 @@ class PredictionLoader:
         Returns:
             'Rising', 'Falling', or 'Stable'
         """
-        V = PriceData5Min
-        query = text(
-            f"""
-            SELECT {V.AVG_HIGH_PRICE}, {V.AVG_LOW_PRICE}
-            FROM {V.TABLE}
-            WHERE {V.ITEM_ID} = :item_id
-            ORDER BY {V.TIMESTAMP} DESC
-            LIMIT 4
-        """
+        query = (
+            select(v.c.avg_high_price, v.c.avg_low_price)
+            .where(v.c.item_id == item_id)
+            .order_by(v.c.timestamp.desc())
+            .limit(4)
         )
 
         try:
             with self.engine.connect() as conn:
-                result = conn.execute(query, {"item_id": item_id}).fetchall()
+                result = conn.execute(query).fetchall()
 
             if len(result) < 2:
                 return "Stable"
@@ -1261,56 +1206,65 @@ class PredictionLoader:
         if not item_ids:
             return {}
 
-        # Fetch last 4 hours of prices for all items at once
-        V = PriceData5Min
-        query = text(
-            f"""
-            WITH ranked_prices AS (
-                SELECT
-                    {V.ITEM_ID},
-                    {V.AVG_HIGH_PRICE},
-                    {V.AVG_LOW_PRICE},
-                    {V.TIMESTAMP},
-                    ROW_NUMBER() OVER (
-                        PARTITION BY {V.ITEM_ID} ORDER BY {V.TIMESTAMP} DESC
-                    ) as rn
-                FROM {V.TABLE}
-                WHERE {V.ITEM_ID} = ANY(:item_ids)
-                  AND {V.TIMESTAMP} >= NOW() - INTERVAL '4 hours'
+        rn = func.row_number().over(
+            partition_by=v.c.item_id,
+            order_by=v.c.timestamp.desc(),
+        ).label("rn")
+
+        ranked = (
+            select(
+                v.c.item_id,
+                v.c.avg_high_price,
+                v.c.avg_low_price,
+                v.c.timestamp,
+                rn,
             )
-            SELECT {V.ITEM_ID}, {V.AVG_HIGH_PRICE}, {V.AVG_LOW_PRICE}, rn
-            FROM ranked_prices
-            WHERE rn IN (1, 4)
-            ORDER BY {V.ITEM_ID}, rn
-        """
+            .where(
+                and_(
+                    v.c.item_id.in_(item_ids),
+                    v.c.timestamp >= func.now() - text("INTERVAL '4 hours'"),
+                )
+            )
+            .cte("ranked_prices")
+        )
+
+        query = (
+            select(
+                ranked.c.item_id,
+                ranked.c.avg_high_price,
+                ranked.c.avg_low_price,
+                ranked.c.rn,
+            )
+            .where(ranked.c.rn.in_([1, 4]))
+            .order_by(ranked.c.item_id, ranked.c.rn)
         )
 
         try:
             with self.engine.connect() as conn:
-                result = conn.execute(query, {"item_ids": item_ids}).fetchall()
+                result = conn.execute(query).fetchall()
 
             # Group by item_id and calculate trends
             item_prices: dict[int, dict] = {}
             for row in result:
-                item_id, high, low, rn = row
-                item_id = int(item_id)
-                if item_id not in item_prices:
-                    item_prices[item_id] = {}
+                item_id_val, high, low, rn_val = row
+                item_id_val = int(item_id_val)
+                if item_id_val not in item_prices:
+                    item_prices[item_id_val] = {}
 
-                if rn == 1:  # Current (most recent)
-                    item_prices[item_id]["current"] = (high, low)
-                elif rn == 4:  # 4 hours ago
-                    item_prices[item_id]["oldest"] = (high, low)
+                if rn_val == 1:  # Current (most recent)
+                    item_prices[item_id_val]["current"] = (high, low)
+                elif rn_val == 4:  # 4 hours ago
+                    item_prices[item_id_val]["oldest"] = (high, low)
 
             # Calculate trends
             trends: dict[int, str] = {}
-            for item_id, prices in item_prices.items():
+            for item_id_val, prices in item_prices.items():
                 current = prices.get("current")
                 oldest = prices.get("oldest")
 
                 # Need both prices to calculate trend
                 if not current or not oldest:
-                    trends[item_id] = "Stable"
+                    trends[item_id_val] = "Stable"
                     continue
 
                 current_mid = (
@@ -1321,29 +1275,29 @@ class PredictionLoader:
                 )
 
                 if current_mid is None or oldest_mid is None or oldest_mid == 0:
-                    trends[item_id] = "Stable"
+                    trends[item_id_val] = "Stable"
                     continue
 
                 change_pct = (current_mid - oldest_mid) / oldest_mid
 
                 if change_pct > 0.02:  # > 2% increase
-                    trends[item_id] = "Rising"
+                    trends[item_id_val] = "Rising"
                 elif change_pct < -0.02:  # > 2% decrease
-                    trends[item_id] = "Falling"
+                    trends[item_id_val] = "Falling"
                 else:
-                    trends[item_id] = "Stable"
+                    trends[item_id_val] = "Stable"
 
             # Default to Stable for items with no data
-            for item_id in item_ids:
-                if item_id not in trends:
-                    trends[item_id] = "Stable"
+            for item_id_val in item_ids:
+                if item_id_val not in trends:
+                    trends[item_id_val] = "Stable"
 
             return trends
 
         except Exception as e:
             logger.warning(f"Could not fetch batch trends: {e}")
             # Return Stable for all items on error
-            return {item_id: "Stable" for item_id in item_ids}
+            return {item_id_val: "Stable" for item_id_val in item_ids}
 
     def health_check(self) -> dict:
         """Check database connection and prediction freshness.
@@ -1383,51 +1337,57 @@ class PredictionLoader:
                 "connected": False,
             }
 
-    def search_items_by_name(self, query: str, limit: int = 10) -> list[dict]:
+    def search_items_by_name(self, query_str: str, limit: int = 10) -> list[dict]:
         """Search for items by name with fuzzy matching.
 
         Supports OSRS acronym expansion (e.g., "ags" -> "armadyl godsword").
 
         Args:
-            query: Search query (may be an acronym)
+            query_str: Search query (may be an acronym)
             limit: Maximum number of results
 
         Returns:
             List of dicts with item_id and item_name
         """
         # Expand acronym if recognized
-        expanded_query = expand_acronym(query)
+        expanded_query = expand_acronym(query_str)
 
-        P = Predictions
-        sql = text(
-            f"""
-            SELECT {P.ITEM_ID}, {P.ITEM_NAME}
-            FROM (
-                SELECT DISTINCT {P.ITEM_ID}, {P.ITEM_NAME}
-                FROM {P.TABLE}
-                WHERE {P.TIME} = {self._max_time_subquery()}
-                  AND LOWER({P.ITEM_NAME}) LIKE LOWER(:query)
-            ) AS items
-            ORDER BY
-                CASE
-                    WHEN LOWER({P.ITEM_NAME}) = LOWER(:exact) THEN 0
-                    WHEN LOWER({P.ITEM_NAME}) LIKE LOWER(:starts) THEN 1
-                    ELSE 2
-                END,
-                {P.ITEM_NAME}
-            LIMIT :limit
-        """
+        max_time = self._max_time_subquery()
+
+        # Subquery: distinct items matching the search
+        items_sub = (
+            select(p.c.item_id, p.c.item_name)
+            .distinct()
+            .where(
+                and_(
+                    p.c.time == max_time,
+                    func.lower(p.c.item_name).like(func.lower(f"%{expanded_query}%")),
+                )
+            )
+            .subquery("items")
         )
 
-        params = self._inject_model_params({
-            "query": f"%{expanded_query}%",
-            "exact": expanded_query,
-            "starts": f"{expanded_query}%",
-            "limit": limit,
-        })
+        # Order by match quality: exact > starts-with > contains
+        order_priority = case(
+            (func.lower(items_sub.c.item_name) == func.lower(expanded_query), 0),
+            (
+                func.lower(items_sub.c.item_name).like(
+                    func.lower(f"{expanded_query}%")
+                ),
+                1,
+            ),
+            else_=2,
+        )
+
+        sql = (
+            select(items_sub.c.item_id, items_sub.c.item_name)
+            .order_by(order_priority, items_sub.c.item_name)
+            .limit(limit)
+        )
+
         try:
             with self.engine.connect() as conn:
-                result = conn.execute(sql, params)
+                result = conn.execute(sql)
                 return [{"item_id": row[0], "item_name": row[1]} for row in result]
         except Exception as e:
             logger.error(f"Error searching items: {e}")
@@ -1445,14 +1405,7 @@ class PredictionLoader:
         Returns:
             Set of model_ids that are currently active
         """
-        M = ModelRegistry
-        query = text(
-            f"""
-            SELECT {M.MODEL_ID}
-            FROM {M.TABLE}
-            WHERE {M.STATUS} = 'ACTIVE'
-        """
-        )
+        query = select(m.c.model_id).where(m.c.status == "ACTIVE")
 
         try:
             with self.engine.connect() as conn:
@@ -1471,18 +1424,11 @@ class PredictionLoader:
         Returns:
             Model status string or None if not found
         """
-        M = ModelRegistry
-        query = text(
-            f"""
-            SELECT {M.STATUS}
-            FROM {M.TABLE}
-            WHERE {M.MODEL_ID} = :model_id
-        """
-        )
+        query = select(m.c.status).where(m.c.model_id == model_id)
 
         try:
             with self.engine.connect() as conn:
-                result = conn.execute(query, {"model_id": model_id}).fetchone()
+                result = conn.execute(query).fetchone()
             return result[0] if result else None
         except Exception as e:
             logger.error(f"Error fetching model status for {model_id}: {e}")
@@ -1502,31 +1448,20 @@ class PredictionLoader:
         Returns:
             List of model dicts with model_id, status, mean_auc, trained_at
         """
-        M = ModelRegistry
+        cols = [m.c.model_id, m.c.item_id, m.c.status, m.c.mean_auc, m.c.trained_at]
+        conditions = [m.c.item_id == item_id]
         if status_filter:
-            query = text(
-                f"""
-                SELECT {M.MODEL_ID}, {M.ITEM_ID}, {M.STATUS}, {M.MEAN_AUC}, {M.TRAINED_AT}
-                FROM {M.TABLE}
-                WHERE {M.ITEM_ID} = :item_id AND {M.STATUS} = :status
-                ORDER BY {M.TRAINED_AT} DESC
-            """
-            )
-            params = {"item_id": item_id, "status": status_filter}
-        else:
-            query = text(
-                f"""
-                SELECT {M.MODEL_ID}, {M.ITEM_ID}, {M.STATUS}, {M.MEAN_AUC}, {M.TRAINED_AT}
-                FROM {M.TABLE}
-                WHERE {M.ITEM_ID} = :item_id
-                ORDER BY {M.TRAINED_AT} DESC
-            """
-            )
-            params = {"item_id": item_id}
+            conditions.append(m.c.status == status_filter)
+
+        query = (
+            select(*cols)
+            .where(and_(*conditions))
+            .order_by(m.c.trained_at.desc())
+        )
 
         try:
             with self.engine.connect() as conn:
-                result = conn.execute(query, params).fetchall()
+                result = conn.execute(query).fetchall()
             return [
                 {
                     "model_id": row[0],
@@ -1559,13 +1494,9 @@ class PredictionLoader:
         Returns:
             Dict with counts by status
         """
-        M = ModelRegistry
-        query = text(
-            f"""
-            SELECT {M.STATUS}, COUNT(*) as count
-            FROM {M.TABLE}
-            GROUP BY {M.STATUS}
-        """
+        query = (
+            select(m.c.status, func.count().label("count"))
+            .group_by(m.c.status)
         )
 
         try:
@@ -1595,14 +1526,7 @@ class PredictionLoader:
         Returns:
             Set of item_ids with active models
         """
-        M = ModelRegistry
-        query = text(
-            f"""
-            SELECT DISTINCT {M.ITEM_ID}
-            FROM {M.TABLE}
-            WHERE {M.STATUS} = 'ACTIVE'
-        """
-        )
+        query = select(m.c.item_id).distinct().where(m.c.status == "ACTIVE")
 
         try:
             with self.engine.connect() as conn:
@@ -1622,25 +1546,16 @@ class PredictionLoader:
             Dictionary with keys: timestamp, high, low, high_time, low_time
             Returns None if no data found
         """
-        L = PricesLatest1M
-        query = text(
-            f"""
-            SELECT
-                {L.TIMESTAMP},
-                {L.HIGH},
-                {L.LOW},
-                {L.HIGH_TIME},
-                {L.LOW_TIME}
-            FROM {L.TABLE}
-            WHERE {L.ITEM_ID} = :item_id
-            ORDER BY {L.TIMESTAMP} DESC
-            LIMIT 1
-        """
+        query = (
+            select(l.c.timestamp, l.c.high, l.c.low, l.c.high_time, l.c.low_time)
+            .where(l.c.item_id == item_id)
+            .order_by(l.c.timestamp.desc())
+            .limit(1)
         )
 
         try:
             with self.engine.connect() as conn:
-                result = conn.execute(query, {"item_id": item_id}).fetchone()
+                result = conn.execute(query).fetchone()
 
             if result is None:
                 return None
@@ -1670,33 +1585,20 @@ class PredictionLoader:
         if not item_ids:
             return pd.DataFrame()
 
-        P = Predictions
-        query = text(
-            f"""
-            SELECT
-                {P.ITEM_ID},
-                {P.ITEM_NAME},
-                {P.HOUR_OFFSET},
-                {P.OFFSET_PCT},
-                {P.FILL_PROBABILITY},
-                {P.EXPECTED_VALUE},
-                {P.BUY_PRICE},
-                {P.SELL_PRICE},
-                {P.CURRENT_HIGH},
-                {P.CURRENT_LOW},
-                {P.CONFIDENCE},
-                {P.TIME} as prediction_time
-            FROM {P.TABLE}
-            WHERE {P.TIME} = {self._max_time_subquery()}
-              AND {P.ITEM_ID} = ANY(:item_ids)
-            ORDER BY {P.ITEM_ID}, {P.HOUR_OFFSET}, {P.OFFSET_PCT}
-        """
+        query = (
+            select(*_prediction_columns())
+            .where(
+                and_(
+                    p.c.time == self._max_time_subquery(),
+                    p.c.item_id.in_(item_ids),
+                )
+            )
+            .order_by(p.c.item_id, p.c.hour_offset, p.c.offset_pct)
         )
 
-        params = self._inject_model_params({"item_ids": item_ids})
         try:
             with self.engine.connect() as conn:
-                df = pd.read_sql(query, conn, params=params)
+                df = pd.read_sql(query, conn)
             return df
         except Exception as e:
             logger.error(f"Error fetching predictions for items: {e}")
