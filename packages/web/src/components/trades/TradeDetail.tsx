@@ -331,7 +331,7 @@ export function TradeDetail(props: TradeDetailProps) {
           height: 22px;
           padding: 0;
           margin-left: 0.25rem;
-          background: rgba(126, 231, 135, 0.2);
+          background: var(--accent-glow);
           color: var(--success);
           border: 1px solid rgba(126, 231, 135, 0.6);
           border-radius: var(--radius-sm);
@@ -375,13 +375,13 @@ export function TradeDetail(props: TradeDetailProps) {
           width: 100%;
           padding: 0.625rem;
           background: linear-gradient(135deg, var(--accent) 0%, var(--action) 100%);
-          color: #0b0d12;
+          color: var(--btn-text-dark);
           border: none;
           border-radius: var(--radius-md);
           font-weight: 600;
           cursor: pointer;
           margin-top: 0.5rem;
-          box-shadow: 0 10px 22px rgba(126, 231, 135, 0.2);
+          box-shadow: 0 10px 22px var(--accent-glow);
         }
 
         .trade-detail-submit:hover:not(:disabled) {

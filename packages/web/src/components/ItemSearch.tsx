@@ -276,7 +276,7 @@ export default function ItemSearch() {
         }
 
         .search-clear:hover {
-          background-color: rgba(255, 255, 255, 0.08);
+          background-color: var(--hover-bg);
           color: var(--text-primary);
         }
 
@@ -316,7 +316,7 @@ export default function ItemSearch() {
         }
 
         .search-result:hover {
-          background-color: rgba(255, 255, 255, 0.08);
+          background-color: var(--hover-bg);
         }
 
         .search-result-acronym {

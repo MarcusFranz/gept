@@ -129,14 +129,14 @@ export function HomePage(props: HomePageProps) {
 
         .nav-tab:hover:not(.nav-tab-active) {
           color: var(--text-primary);
-          background: rgba(255, 255, 255, 0.08);
+          background: var(--hover-bg);
           border-color: var(--border-light);
         }
 
         .nav-tab-active,
         .nav-tab-active:hover {
           background: linear-gradient(135deg, var(--accent) 0%, var(--action) 100%);
-          color: #0b0d12;
+          color: var(--btn-text-dark);
           border-color: transparent;
         }
 

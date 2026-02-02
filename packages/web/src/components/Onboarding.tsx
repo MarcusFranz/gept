@@ -303,8 +303,8 @@ export default function Onboarding(props: OnboardingProps) {
 
         .btn-primary {
           background: linear-gradient(135deg, var(--accent) 0%, var(--action) 100%);
-          color: #0b0d12;
-          box-shadow: 0 10px 22px rgba(126, 231, 135, 0.2);
+          color: var(--btn-text-dark);
+          box-shadow: 0 10px 22px var(--accent-glow);
           border: none;
         }
 
@@ -319,7 +319,7 @@ export default function Onboarding(props: OnboardingProps) {
         }
 
         .btn-ghost:hover {
-          background: rgba(255, 255, 255, 0.08);
+          background: var(--hover-bg);
           color: var(--text-primary);
         }
 

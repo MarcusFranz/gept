@@ -254,7 +254,6 @@ export function OpportunityBrowser(props: OpportunityBrowserProps) {
           max-width: 720px;
           margin: 0 auto;
           padding: 1.5rem 1rem 5rem;
-          padding-bottom: 5rem;
         }
 
         .opportunity-browser-count {
@@ -289,7 +288,7 @@ export function OpportunityBrowser(props: OpportunityBrowserProps) {
 
         .opportunity-browser-error button {
           background: linear-gradient(135deg, var(--danger) 0%, #ff9a9a 100%);
-          color: #0b0d12;
+          color: var(--btn-text-dark);
           border: none;
           padding: 0.5rem 1rem;
           border-radius: var(--radius-md);
@@ -306,12 +305,12 @@ export function OpportunityBrowser(props: OpportunityBrowserProps) {
         .opportunity-browser-empty button {
           margin-top: 1rem;
           background: linear-gradient(135deg, var(--accent) 0%, var(--action) 100%);
-          color: #0b0d12;
+          color: var(--btn-text-dark);
           border: none;
           padding: 0.5rem 1rem;
           border-radius: var(--radius-md);
           cursor: pointer;
-          box-shadow: 0 10px 22px rgba(126, 231, 135, 0.2);
+          box-shadow: 0 10px 22px var(--accent-glow);
         }
 
         .opportunity-browser-list {

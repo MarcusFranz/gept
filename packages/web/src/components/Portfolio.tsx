@@ -272,8 +272,8 @@ export default function Portfolio() {
         }
 
         .stat-card.primary {
-          background: linear-gradient(135deg, rgba(126, 231, 135, 0.18), rgba(88, 101, 242, 0.08));
-          border-color: rgba(126, 231, 135, 0.35);
+          background: linear-gradient(135deg, var(--accent-glow), rgba(88, 101, 242, 0.08));
+          border-color: var(--ring);
         }
 
         .stat-icon {
@@ -282,7 +282,7 @@ export default function Portfolio() {
           display: flex;
           align-items: center;
           justify-content: center;
-          background-color: rgba(126, 231, 135, 0.15);
+          background-color: var(--accent-light);
           border-radius: var(--radius-md);
           color: var(--accent);
         }
