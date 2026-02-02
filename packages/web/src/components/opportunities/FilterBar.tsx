@@ -17,6 +17,12 @@ const timeOptions = [
   { label: '< 24 hrs', value: 24 },
 ];
 
+const confidenceOptions = [
+  { label: 'Any confidence', value: undefined },
+  { label: 'Medium+', value: 'medium' },
+  { label: 'High only', value: 'high' },
+];
+
 export function FilterBar(props: FilterBarProps) {
   const updateFilter = <K extends keyof OpportunityFilters>(
     key: K,
@@ -58,7 +64,20 @@ export function FilterBar(props: FilterBarProps) {
           </select>
         </div>
 
-        {(props.filters.capitalMax || props.filters.timeMax) && (
+        <div class="filter-group">
+          <label class="filter-label">Confidence</label>
+          <select
+            class="filter-select"
+            value={props.filters.confidence || ''}
+            onChange={(e) => updateFilter('confidence', e.currentTarget.value || undefined)}
+          >
+            {confidenceOptions.map(opt => (
+              <option value={opt.value || ''}>{opt.label}</option>
+            ))}
+          </select>
+        </div>
+
+        {(props.filters.capitalMax || props.filters.timeMax || props.filters.confidence) && (
           <button
             class="filter-clear-all"
             onClick={() => {
