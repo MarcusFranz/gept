@@ -3,7 +3,7 @@ Calibration Layer for Multi-Target Probability Predictions
 ==========================================================
 
 Implements isotonic regression calibration to correct systematic under-prediction
-in multi-target CatBoost models. Based on calibration analysis showing models are
+in model probability outputs. Based on calibration analysis showing models are
 3.76x under-predicted in 0-30% range, with Hour 1 being 9x under-predicted.
 
 Architecture:

@@ -31,7 +31,7 @@ CREATE TABLE IF NOT EXISTS model_registry (
     targets_scored INTEGER,                  -- Total targets that could be scored
     n_features INTEGER,                      -- Number of features used
     n_samples INTEGER,                       -- Training samples count
-    iterations_used INTEGER,                 -- CatBoost iterations (may be less than max due to early stopping)
+    iterations_used INTEGER,                 -- Training iterations (may be less than max due to early stopping)
 
     -- Validation metrics (from deployment check)
     validation_auc DECIMAL(5,4),             -- AUC on validation set
