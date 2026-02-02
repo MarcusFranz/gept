@@ -391,14 +391,51 @@ def assign_confidence_labels(rows: List[Dict]) -> List[Dict]:
     high/medium/low rather than clustering in one bucket. Applies an
     absolute floor: if median spread > 0.15, best confidence is capped
     at 'medium' (the whole batch is too uncertain for 'high').
+
+    Handles edge cases: NaN spreads are replaced with the median of valid
+    spreads; degenerate distributions (p33 == p66) fall back to absolute
+    thresholds.
     """
     if not rows:
         return rows
 
     spreads = np.array([r['spread'] for r in rows])
+
+    # Guard against NaN/inf spreads from degenerate model outputs
+    finite_mask = np.isfinite(spreads)
+    if not finite_mask.all():
+        n_bad = int((~finite_mask).sum())
+        logger.error(
+            f"assign_confidence_labels: {n_bad}/{len(spreads)} non-finite "
+            f"spreads detected, replacing with median of valid spreads"
+        )
+        if finite_mask.any():
+            spreads[~finite_mask] = np.median(spreads[finite_mask])
+            for i, row in enumerate(rows):
+                row['spread'] = float(spreads[i])
+        else:
+            # All spreads are garbage — assign uniform 'medium'
+            for row in rows:
+                row['confidence'] = 'medium'
+                del row['spread']
+            return rows
+
     p33 = np.percentile(spreads, 33)
     p66 = np.percentile(spreads, 66)
     median_spread = np.median(spreads)
+
+    # Degenerate distribution — fall back to absolute thresholds
+    if p33 == p66:
+        for row in rows:
+            s = row['spread']
+            if s < 0.05:
+                row['confidence'] = 'high'
+            elif s < 0.10:
+                row['confidence'] = 'medium'
+            else:
+                row['confidence'] = 'low'
+            del row['spread']
+        return rows
 
     # If overall uncertainty is very high, cap best label at medium
     cap_high = median_spread > 0.15
