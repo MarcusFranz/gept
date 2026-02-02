@@ -1,29 +1,18 @@
-catboost==1.2.8
-    # via -r requirements.in
-graphviz==0.21
-    # via catboost
 joblib==1.5.3
     # via -r requirements.in
-mpmath==1.3.0
-    # via sympy
 narwhals==2.15.0
     # via plotly
 numpy==2.2.6
     # via
     #   -r requirements.in
-    #   catboost
     #   pandas
     #   scipy
 packaging==25.0
     # via plotly
 pandas==2.3.3
-    # via
-    #   -r requirements.in
-    #   catboost
+    # via -r requirements.in
 plotly==6.5.1
-    # via
-    #   -r requirements.in
-    #   catboost
+    # via -r requirements.in
 psycopg2-binary==2.9.11
     # via -r requirements.in
 python-dateutil==2.9.0.post0
@@ -33,14 +22,10 @@ pytz==2025.2
 pyyaml==6.0.3
     # via -r requirements.in
 scipy==1.15.3
-    # via
-    #   -r requirements.in
-    #   catboost
+    # via -r requirements.in
 six==1.17.0
-    # via
-    #   catboost
-    #   python-dateutil
-sympy==1.14.0
-    # via catboost
+    # via python-dateutil
+torch>=2.0.0
+    # via -r requirements.in
 tzdata==2025.3
     # via pandas
