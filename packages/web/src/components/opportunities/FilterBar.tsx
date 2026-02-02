@@ -102,6 +102,11 @@ export function FilterBar(props: FilterBarProps) {
           align-items: flex-end;
           gap: 1rem;
           flex-wrap: wrap;
+          background: var(--glass-bg);
+          border: 1px solid var(--glass-border);
+          border-radius: var(--radius-lg);
+          padding: var(--space-3);
+          backdrop-filter: blur(10px);
         }
 
         .filter-group {
@@ -118,8 +123,8 @@ export function FilterBar(props: FilterBarProps) {
         .filter-input,
         .filter-select {
           padding: 0.5rem 0.75rem;
-          background: var(--bg-secondary);
-          border: 1px solid var(--border);
+          background: var(--surface-2);
+          border: 1px solid var(--glass-border);
           border-radius: var(--radius-md);
           color: var(--text-primary);
           font-size: var(--font-size-sm);
@@ -130,6 +135,7 @@ export function FilterBar(props: FilterBarProps) {
         .filter-select:focus {
           outline: none;
           border-color: var(--accent);
+          box-shadow: 0 0 0 3px var(--ring);
         }
 
         .filter-input::placeholder {
@@ -137,16 +143,17 @@ export function FilterBar(props: FilterBarProps) {
         }
 
         .filter-clear-all {
-          background: none;
-          border: none;
+          background: var(--surface-2);
+          border: 1px solid var(--glass-border);
           color: var(--accent);
+          padding: 0.35rem 0.75rem;
+          border-radius: var(--radius-full);
           cursor: pointer;
           font-size: var(--font-size-sm);
-          padding: 0.5rem 0;
         }
 
         .filter-clear-all:hover {
-          text-decoration: underline;
+          background: rgba(255, 255, 255, 0.1);
         }
       `}</style>
     </div>

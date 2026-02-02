@@ -48,8 +48,8 @@ const fullTitle = `${title} | GePT`;
     <meta name="twitter:image" content={`${siteUrl}${image}`} />
 
     <!-- Theme color for mobile browsers -->
-    <meta name="theme-color" content="#8bc34a" />
-    <meta name="msapplication-TileColor" content="#1a1d23" />
+    <meta name="theme-color" content="#0b0d12" />
+    <meta name="msapplication-TileColor" content="#0b0d12" />
 
     <!-- Favicon -->
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
@@ -58,7 +58,7 @@ const fullTitle = `${title} | GePT`;
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600&family=Rajdhani:wght@500;700&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
 
     <title>{fullTitle}</title>
     <ViewTransitions />
@@ -224,11 +224,13 @@ const fullTitle = `${title} | GePT`;
   }
 
   .nav {
-    background-color: var(--bg-secondary);
+    background-color: var(--nav-bg);
+    backdrop-filter: blur(14px);
     border-bottom: 1px solid var(--border);
     position: sticky;
     top: 0;
     z-index: 100;
+    box-shadow: var(--shadow-sm);
   }
 
   .nav-inner {
@@ -250,7 +252,7 @@ const fullTitle = `${title} | GePT`;
   .nav-logo {
     width: 40px;
     height: auto;
-    filter: drop-shadow(0 0 8px rgba(139, 195, 74, 0.3));
+    filter: drop-shadow(0 6px 14px rgba(126, 231, 135, 0.25));
   }
 
   .nav-title-wrap {
@@ -263,10 +265,10 @@ const fullTitle = `${title} | GePT`;
     transform: translateY(-50%);
     left: 100%;
     margin-left: 6px;
-    padding: 1px 3px;
-    font-size: 8px;
+    padding: 3px 6px;
+    font-size: 9px;
     font-weight: 700;
-    border-radius: 3px;
+    border-radius: 999px;
     letter-spacing: 0.5px;
     /* Free style - green */
     background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dark) 100%);
@@ -286,11 +288,11 @@ const fullTitle = `${title} | GePT`;
   }
 
   .nav-title {
-    font-family: 'Rajdhani', sans-serif;
-    font-size: 26px;
+    font-family: var(--font-display);
+    font-size: 24px;
     font-weight: 700;
     color: var(--accent);
-    letter-spacing: 1px;
+    letter-spacing: 0.5px;
   }
 
   .nav-links {
@@ -324,8 +326,8 @@ const fullTitle = `${title} | GePT`;
     justify-content: center;
     width: 36px;
     height: 36px;
-    background: none;
-    border: 1px solid var(--border);
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
     border-radius: var(--radius-md);
     color: var(--text-secondary);
     cursor: pointer;
@@ -371,9 +373,10 @@ const fullTitle = `${title} | GePT`;
     justify-content: center;
     width: 36px;
     height: 36px;
-    border: 1px solid var(--border);
+    border: 1px solid var(--glass-border);
     border-radius: var(--radius-md);
     color: var(--text-secondary);
+    background: var(--glass-bg);
     transition: all var(--transition-fast);
   }
 
@@ -394,9 +397,10 @@ const fullTitle = `${title} | GePT`;
     justify-content: center;
     width: 36px;
     height: 36px;
-    border: 1px solid var(--border);
+    border: 1px solid var(--glass-border);
     border-radius: var(--radius-md);
     color: var(--text-secondary);
+    background: var(--glass-bg);
     transition: all var(--transition-fast);
   }
 
@@ -456,11 +460,11 @@ const fullTitle = `${title} | GePT`;
   }
 
   .footer-title {
-    font-family: 'Rajdhani', sans-serif;
+    font-family: var(--font-display);
     font-size: 18px;
     font-weight: 700;
     color: var(--accent);
-    letter-spacing: 1px;
+    letter-spacing: 0.5px;
   }
 
   .footer-tagline {
@@ -476,8 +480,9 @@ const fullTitle = `${title} | GePT`;
 
   /* Discord banner */
   .discord-banner {
-    background: var(--discord);
-    color: #fff;
+    background: color-mix(in srgb, var(--discord) 18%, transparent);
+    color: var(--text-primary);
+    border-bottom: 1px solid color-mix(in srgb, var(--discord) 30%, transparent);
   }
 
   .discord-banner-inner {
@@ -492,13 +497,13 @@ const fullTitle = `${title} | GePT`;
     display: flex;
     align-items: center;
     gap: var(--space-3);
-    color: #fff;
+    color: var(--text-primary);
     min-width: 0;
   }
 
   .discord-banner-link:hover .discord-banner-cta {
-    background: #fff;
-    color: var(--discord);
+    background: var(--discord);
+    color: #fff;
   }
 
   .discord-banner-icon {
@@ -518,7 +523,7 @@ const fullTitle = `${title} | GePT`;
   .discord-banner-cta {
     flex-shrink: 0;
     padding: var(--space-1) var(--space-3);
-    background: rgba(255, 255, 255, 0.2);
+    background: rgba(88, 101, 242, 0.2);
     border-radius: var(--radius-md);
     font-size: var(--font-size-xs);
     font-weight: 600;

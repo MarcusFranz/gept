@@ -184,7 +184,7 @@ export default function Onboarding(props: OnboardingProps) {
           left: 0;
           right: 0;
           bottom: 0;
-          background: rgba(0, 0, 0, 0.85);
+          background: rgba(8, 10, 15, 0.82);
           display: flex;
           align-items: center;
           justify-content: center;
@@ -193,13 +193,15 @@ export default function Onboarding(props: OnboardingProps) {
         }
 
         .onboarding-modal {
-          background: var(--bg-primary);
-          border: 1px solid var(--border);
+          background: linear-gradient(145deg, var(--surface-2), var(--surface-1));
+          border: 1px solid var(--glass-border);
           border-radius: var(--radius-lg);
           max-width: 480px;
           width: 100%;
           padding: var(--space-6);
           position: relative;
+          box-shadow: var(--shadow-lg);
+          backdrop-filter: blur(16px);
         }
 
         .onboarding-skip {
@@ -263,7 +265,7 @@ export default function Onboarding(props: OnboardingProps) {
         }
 
         .onboarding-step h2 {
-          font-family: 'Rajdhani', sans-serif;
+          font-family: var(--font-display);
           font-size: var(--font-size-2xl);
           font-weight: 700;
           margin-bottom: var(--space-3);
@@ -300,30 +302,31 @@ export default function Onboarding(props: OnboardingProps) {
         }
 
         .btn-primary {
-          background: var(--action);
+          background: linear-gradient(135deg, var(--accent) 0%, var(--action) 100%);
           color: var(--btn-text-dark);
+          box-shadow: 0 10px 22px var(--accent-glow);
           border: none;
         }
 
         .btn-primary:hover {
-          background: var(--action-hover);
+          filter: brightness(1.05);
         }
 
         .btn-ghost {
-          background: transparent;
-          border: 1px solid var(--border);
+          background: var(--glass-bg);
+          border: 1px solid var(--glass-border);
           color: var(--text-secondary);
         }
 
         .btn-ghost:hover {
-          background: var(--bg-hover);
+          background: var(--hover-bg);
           color: var(--text-primary);
         }
 
         /* Recommendation Step */
         .rec-explainer {
-          background: var(--bg-secondary);
-          border: 1px solid var(--border);
+          background: var(--glass-bg);
+          border: 1px solid var(--glass-border);
           border-radius: var(--radius-md);
           padding: var(--space-4);
           text-align: left;
@@ -357,8 +360,8 @@ export default function Onboarding(props: OnboardingProps) {
 
         /* Slots Step */
         .slots-info {
-          background: var(--bg-secondary);
-          border: 1px solid var(--border);
+          background: var(--glass-bg);
+          border: 1px solid var(--glass-border);
           border-radius: var(--radius-md);
           padding: var(--space-4);
         }
@@ -375,8 +378,8 @@ export default function Onboarding(props: OnboardingProps) {
           display: flex;
           align-items: center;
           justify-content: center;
-          background: var(--bg-tertiary);
-          border: 1px solid var(--border);
+          background: var(--surface-2);
+          border: 1px solid var(--glass-border);
           border-radius: var(--radius-sm);
           font-weight: 600;
           color: var(--text-muted);
@@ -396,8 +399,8 @@ export default function Onboarding(props: OnboardingProps) {
 
         /* Ready Step */
         .ready-tips {
-          background: var(--bg-secondary);
-          border: 1px solid var(--border);
+          background: var(--glass-bg);
+          border: 1px solid var(--glass-border);
           border-radius: var(--radius-md);
           padding: var(--space-4);
           text-align: left;

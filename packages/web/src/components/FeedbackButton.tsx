@@ -151,12 +151,13 @@ export default function FeedbackButton(props: FeedbackButtonProps) {
           justify-content: center;
           width: 28px;
           height: 28px;
-          border: 1px solid var(--border);
+          border: 1px solid var(--glass-border);
           border-radius: var(--radius-sm);
-          background: var(--bg-secondary);
+          background: var(--glass-bg);
           color: var(--text-muted);
           cursor: pointer;
           transition: all var(--transition-fast);
+          backdrop-filter: blur(8px);
         }
 
         .feedback-btn:hover {
@@ -195,7 +196,7 @@ export default function FeedbackButton(props: FeedbackButtonProps) {
           left: 0;
           right: 0;
           bottom: 0;
-          background: rgba(0, 0, 0, 0.7);
+          background: rgba(8, 10, 15, 0.7);
           display: flex;
           align-items: center;
           justify-content: center;
@@ -204,11 +205,13 @@ export default function FeedbackButton(props: FeedbackButtonProps) {
         }
 
         .feedback-modal {
-          background: var(--bg-primary);
+          background: linear-gradient(145deg, var(--surface-2), var(--surface-1));
+          border: 1px solid var(--glass-border);
           border-radius: var(--radius-lg);
           max-width: 400px;
           width: 100%;
           box-shadow: var(--shadow-lg);
+          backdrop-filter: blur(16px);
         }
 
         .modal-header {
@@ -246,9 +249,9 @@ export default function FeedbackButton(props: FeedbackButtonProps) {
         .feedback-textarea {
           width: 100%;
           padding: var(--space-3);
-          border: 1px solid var(--border);
+          border: 1px solid var(--glass-border);
           border-radius: var(--radius-md);
-          background: var(--bg-secondary);
+          background: var(--glass-bg);
           color: var(--text-primary);
           font-family: inherit;
           font-size: var(--font-size-sm);
