@@ -1,40 +1,31 @@
-"""Tests for schema constants module.
+"""Tests for schema module.
 
 Validates that:
-1. Schema classes define TABLE and at least one column constant
-2. All constants are non-empty strings (catches accidental empty assignments)
-3. No duplicate column names within a table (catches copy-paste errors)
-4. ALL_TABLES registry is complete
+1. All tables have names and at least one column
+2. No duplicate column names within a table
+3. ALL_TABLES registry is complete
 
-For live validation against the database, run with --db-url:
-    pytest tests/test_schema.py --db-url=postgresql://user:pass@host/db
+For live validation against the database, run with DATABASE_URL set:
+    DATABASE_URL=postgresql://user:pass@host/db pytest tests/test_schema.py
 """
 
 import os
 from typing import Optional
 
 import pytest
-from sqlalchemy import create_engine, inspect
+from sqlalchemy import create_engine, func, inspect, select
 
 from src.schema import (
     ALL_TABLES,
-    Items,
-    ModelRegistry,
-    Predictions,
-    PriceData5Min,
-    PricesLatest1M,
-    RecommendationFeedback,
-    TradeOutcomes,
+    items,
+    model_registry,
+    mv_volume_24h,
+    predictions,
+    price_data_5min,
+    prices_latest_1m,
+    recommendation_feedback,
+    trade_outcomes,
 )
-
-
-def _get_column_attrs(schema_class):
-    """Get all column-name attributes from a schema class (excludes TABLE)."""
-    return {
-        k: v
-        for k, v in vars(schema_class).items()
-        if not k.startswith("_") and k != "TABLE" and isinstance(v, str)
-    }
 
 
 # ---------------------------------------------------------------------------
@@ -43,63 +34,109 @@ def _get_column_attrs(schema_class):
 
 
 class TestSchemaStructure:
-    """Validate schema constants are well-formed."""
+    """Validate schema Table objects are well-formed."""
 
-    @pytest.mark.parametrize("table_cls", ALL_TABLES)
-    def test_has_table_name(self, table_cls):
-        assert hasattr(table_cls, "TABLE"), f"{table_cls.__name__} missing TABLE"
-        assert isinstance(table_cls.TABLE, str)
-        assert len(table_cls.TABLE) > 0
+    @pytest.mark.parametrize("table", ALL_TABLES)
+    def test_has_table_name(self, table):
+        assert table.name, "Table missing name"
+        assert len(table.name) > 0
 
-    @pytest.mark.parametrize("table_cls", ALL_TABLES)
-    def test_has_columns(self, table_cls):
-        cols = _get_column_attrs(table_cls)
-        assert len(cols) > 0, f"{table_cls.__name__} has no column constants"
+    @pytest.mark.parametrize("table", ALL_TABLES)
+    def test_has_columns(self, table):
+        assert len(table.columns) > 0, f"{table.name} has no columns"
 
-    @pytest.mark.parametrize("table_cls", ALL_TABLES)
-    def test_column_values_are_nonempty_strings(self, table_cls):
-        for attr_name, value in _get_column_attrs(table_cls).items():
-            assert isinstance(value, str), (
-                f"{table_cls.__name__}.{attr_name} is {type(value)}, expected str"
-            )
-            assert len(value) > 0, f"{table_cls.__name__}.{attr_name} is empty"
+    @pytest.mark.parametrize("table", ALL_TABLES)
+    def test_column_names_are_nonempty(self, table):
+        for col in table.columns:
+            assert col.name, f"{table.name} has a column with empty name"
+            assert len(col.name) > 0
 
-    @pytest.mark.parametrize("table_cls", ALL_TABLES)
-    def test_no_duplicate_column_values(self, table_cls):
-        cols = _get_column_attrs(table_cls)
-        values = list(cols.values())
-        duplicates = [v for v in values if values.count(v) > 1]
+    @pytest.mark.parametrize("table", ALL_TABLES)
+    def test_no_duplicate_column_names(self, table):
+        names = [col.name for col in table.columns]
+        duplicates = [n for n in names if names.count(n) > 1]
         assert len(duplicates) == 0, (
-            f"{table_cls.__name__} has duplicate column values: {set(duplicates)}"
+            f"{table.name} has duplicate column names: {set(duplicates)}"
         )
 
     def test_all_tables_registry_complete(self):
-        """Ensure ALL_TABLES includes every schema class defined in the module."""
+        """Ensure ALL_TABLES includes every table defined in the module."""
         expected = {
-            Predictions,
-            PriceData5Min,
-            Items,
-            ModelRegistry,
-            PricesLatest1M,
-            TradeOutcomes,
-            RecommendationFeedback,
+            predictions,
+            price_data_5min,
+            items,
+            model_registry,
+            prices_latest_1m,
+            trade_outcomes,
+            recommendation_feedback,
         }
         assert set(ALL_TABLES) == expected
 
     def test_table_names_are_unique(self):
-        table_names = [cls.TABLE for cls in ALL_TABLES]
+        table_names = [t.name for t in ALL_TABLES]
         assert len(table_names) == len(set(table_names)), (
             f"Duplicate table names: {[n for n in table_names if table_names.count(n) > 1]}"
         )
 
 
 # ---------------------------------------------------------------------------
-# Live database validation (requires --db-url or DATABASE_URL env var)
+# Query compilation tests (no database needed)
+# ---------------------------------------------------------------------------
+
+
+class TestQueryCompilation:
+    """Verify key query patterns compile to valid SQL."""
+
+    def test_select_predictions(self):
+        query = select(predictions.c.item_id).where(
+            predictions.c.time == func.now()
+        )
+        sql = str(query.compile(compile_kwargs={"literal_binds": True}))
+        assert "predictions" in sql
+        assert "item_id" in sql
+
+    def test_insert_trade_outcomes(self):
+        stmt = trade_outcomes.insert().values(user_id_hash="test", item_id=1)
+        sql = str(stmt.compile(compile_kwargs={"literal_binds": True}))
+        assert "trade_outcomes" in sql
+
+    def test_insert_returning_feedback(self):
+        stmt = (
+            recommendation_feedback.insert()
+            .values(user_id_hash="test", item_id=1)
+            .returning(recommendation_feedback.c.id)
+        )
+        sql = str(stmt.compile(compile_kwargs={"literal_binds": True}))
+        assert "RETURNING" in sql
+
+    def test_join_with_volume_cte(self):
+        vol = select(
+            mv_volume_24h.c.item_id, mv_volume_24h.c.total_volume
+        ).cte("vol")
+        query = select(predictions.c.item_id).select_from(
+            predictions.outerjoin(vol, vol.c.item_id == predictions.c.item_id)
+        )
+        sql = str(query.compile(compile_kwargs={"literal_binds": True}))
+        assert "LEFT OUTER JOIN" in sql
+
+    def test_like_with_escape(self):
+        query = select(predictions.c.item_name).where(
+            func.lower(predictions.c.item_name).like(
+                func.lower("%test\\%name%"), escape="\\"
+            )
+        )
+        sql = str(query.compile(compile_kwargs={"literal_binds": True}))
+        assert "LIKE" in sql
+        assert "ESCAPE" in sql
+
+
+# ---------------------------------------------------------------------------
+# Live database validation (requires DATABASE_URL env var)
 # ---------------------------------------------------------------------------
 
 
 def _get_db_url() -> Optional[str]:
-    """Get database URL from pytest flag or environment."""
+    """Get database URL from environment."""
     return os.environ.get("DATABASE_URL")
 
 
@@ -115,34 +152,29 @@ def db_engine():
 
 
 class TestSchemaAgainstDatabase:
-    """Validate that schema constants match the actual database schema."""
+    """Validate that schema Table definitions match the actual database schema."""
 
-    @pytest.mark.parametrize("table_cls", ALL_TABLES)
-    def test_table_exists(self, db_engine, table_cls):
+    @pytest.mark.parametrize("table", ALL_TABLES)
+    def test_table_exists(self, db_engine, table):
         inspector = inspect(db_engine)
         tables = inspector.get_table_names()
-        assert table_cls.TABLE in tables, (
-            f"Table '{table_cls.TABLE}' from {table_cls.__name__} "
-            f"does not exist in database. Available: {tables}"
+        assert table.name in tables, (
+            f"Table '{table.name}' does not exist in database. Available: {tables}"
         )
 
-    @pytest.mark.parametrize("table_cls", ALL_TABLES)
-    def test_columns_exist(self, db_engine, table_cls):
+    @pytest.mark.parametrize("table", ALL_TABLES)
+    def test_columns_exist(self, db_engine, table):
         inspector = inspect(db_engine)
         try:
-            db_columns = {col["name"] for col in inspector.get_columns(table_cls.TABLE)}
+            db_columns = {col["name"] for col in inspector.get_columns(table.name)}
         except Exception:
-            pytest.skip(f"Could not inspect table {table_cls.TABLE}")
+            pytest.skip(f"Could not inspect table {table.name}")
             return
 
-        schema_columns = _get_column_attrs(table_cls)
-        missing = []
-        for attr_name, col_name in schema_columns.items():
-            if col_name not in db_columns:
-                missing.append(f"{attr_name}={col_name!r}")
+        schema_columns = {col.name for col in table.columns}
+        missing = schema_columns - db_columns
 
         assert len(missing) == 0, (
-            f"{table_cls.__name__} references columns not in "
-            f"{table_cls.TABLE}: {missing}. "
+            f"{table.name} references columns not in database: {missing}. "
             f"DB has: {sorted(db_columns)}"
         )
