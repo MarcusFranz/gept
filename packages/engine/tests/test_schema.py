@@ -13,12 +13,13 @@ import os
 from typing import Optional
 
 import pytest
-from sqlalchemy import create_engine, inspect
+from sqlalchemy import create_engine, func, inspect, select
 
 from src.schema import (
     ALL_TABLES,
     items,
     model_registry,
+    mv_volume_24h,
     predictions,
     price_data_5min,
     prices_latest_1m,
@@ -37,7 +38,7 @@ class TestSchemaStructure:
 
     @pytest.mark.parametrize("table", ALL_TABLES)
     def test_has_table_name(self, table):
-        assert table.name, f"Table missing name"
+        assert table.name, "Table missing name"
         assert len(table.name) > 0
 
     @pytest.mark.parametrize("table", ALL_TABLES)
@@ -76,6 +77,57 @@ class TestSchemaStructure:
         assert len(table_names) == len(set(table_names)), (
             f"Duplicate table names: {[n for n in table_names if table_names.count(n) > 1]}"
         )
+
+
+# ---------------------------------------------------------------------------
+# Query compilation tests (no database needed)
+# ---------------------------------------------------------------------------
+
+
+class TestQueryCompilation:
+    """Verify key query patterns compile to valid SQL."""
+
+    def test_select_predictions(self):
+        query = select(predictions.c.item_id).where(
+            predictions.c.time == func.now()
+        )
+        sql = str(query.compile(compile_kwargs={"literal_binds": True}))
+        assert "predictions" in sql
+        assert "item_id" in sql
+
+    def test_insert_trade_outcomes(self):
+        stmt = trade_outcomes.insert().values(user_id_hash="test", item_id=1)
+        sql = str(stmt.compile(compile_kwargs={"literal_binds": True}))
+        assert "trade_outcomes" in sql
+
+    def test_insert_returning_feedback(self):
+        stmt = (
+            recommendation_feedback.insert()
+            .values(user_id_hash="test", item_id=1)
+            .returning(recommendation_feedback.c.id)
+        )
+        sql = str(stmt.compile(compile_kwargs={"literal_binds": True}))
+        assert "RETURNING" in sql
+
+    def test_join_with_volume_cte(self):
+        vol = select(
+            mv_volume_24h.c.item_id, mv_volume_24h.c.total_volume
+        ).cte("vol")
+        query = select(predictions.c.item_id).select_from(
+            predictions.outerjoin(vol, vol.c.item_id == predictions.c.item_id)
+        )
+        sql = str(query.compile(compile_kwargs={"literal_binds": True}))
+        assert "LEFT OUTER JOIN" in sql
+
+    def test_like_with_escape(self):
+        query = select(predictions.c.item_name).where(
+            func.lower(predictions.c.item_name).like(
+                func.lower("%test\\%name%"), escape="\\"
+            )
+        )
+        sql = str(query.compile(compile_kwargs={"literal_binds": True}))
+        assert "LIKE" in sql
+        assert "ESCAPE" in sql
 
 
 # ---------------------------------------------------------------------------
