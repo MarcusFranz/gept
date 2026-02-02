@@ -14,6 +14,9 @@
   --accent: #7ee787;
   --accent-hover: #9af0a2;
   --accent-light: rgba(126, 231, 135, 0.15);
+  --accent-glow: rgba(126, 231, 135, 0.2);
+  --accent-glow-strong: rgba(126, 231, 135, 0.3);
+  --accent-subtle: rgba(126, 231, 135, 0.12);
 
   /* Tan/gold from sword hilt */
   --gold: #d2b36a;
@@ -46,7 +49,7 @@
   --action: #7ee787;
   --action-hover: #96f0a0;
   --accent-dark: #5bb46a;
-  --btn-text-dark: #1c1c1c;
+  --btn-text-dark: #0b0d12;
   --btn-text-light: #ffffff;
 
   /* Tier badge colors */
@@ -71,6 +74,7 @@
   --border-light: rgba(255, 255, 255, 0.14);
   --glass-bg: rgba(255, 255, 255, 0.04);
   --glass-border: rgba(255, 255, 255, 0.12);
+  --hover-bg: rgba(255, 255, 255, 0.08);
   --nav-bg: rgba(11, 13, 18, 0.78);
   --surface-1: rgba(255, 255, 255, 0.03);
   --surface-2: rgba(255, 255, 255, 0.06);
@@ -133,6 +137,7 @@
   --border-light: rgba(15, 23, 42, 0.18);
   --glass-bg: rgba(15, 23, 42, 0.04);
   --glass-border: rgba(15, 23, 42, 0.1);
+  --hover-bg: rgba(15, 23, 42, 0.08);
   --nav-bg: rgba(248, 250, 252, 0.85);
   --surface-1: rgba(15, 23, 42, 0.03);
   --surface-2: rgba(15, 23, 42, 0.06);
@@ -143,6 +148,9 @@
   --accent: #2e9f5b;
   --accent-hover: #3ab96a;
   --accent-light: rgba(46, 159, 91, 0.12);
+  --accent-glow: rgba(46, 159, 91, 0.2);
+  --accent-glow-strong: rgba(46, 159, 91, 0.3);
+  --accent-subtle: rgba(46, 159, 91, 0.12);
 
   /* Gold - richer for light backgrounds */
   --gold: #b8934f;
@@ -329,14 +337,14 @@ h4 { font-size: var(--font-size-lg); }
 
 .btn-primary {
   background: linear-gradient(135deg, var(--accent) 0%, var(--action) 100%);
-  color: #0b0d12;
+  color: var(--btn-text-dark);
   font-weight: 600;
-  box-shadow: 0 10px 24px rgba(126, 231, 135, 0.25);
+  box-shadow: 0 10px 24px var(--accent-glow);
 }
 
 .btn-primary:hover:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow: 0 14px 28px rgba(126, 231, 135, 0.3);
+  box-shadow: 0 14px 28px var(--accent-glow-strong);
 }
 
 [data-theme="light"] .btn-primary {
@@ -356,7 +364,7 @@ h4 { font-size: var(--font-size-lg); }
 }
 
 .btn-secondary:hover:not(:disabled) {
-  background-color: rgba(255, 255, 255, 0.08);
+  background-color: var(--hover-bg);
   border-color: var(--border-light);
 }
 
@@ -385,7 +393,7 @@ h4 { font-size: var(--font-size-lg); }
 }
 
 .btn-ghost:hover:not(:disabled) {
-  background-color: rgba(255, 255, 255, 0.08);
+  background-color: var(--hover-bg);
   color: var(--text-primary);
 }
 

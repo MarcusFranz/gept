@@ -98,7 +98,7 @@ export function CheckInBar(props: CheckInBarProps) {
         .check-in-bar {
           flex: 1;
           height: 24px;
-          background: rgba(255, 255, 255, 0.08);
+          background: var(--hover-bg);
           border-radius: 12px;
           cursor: pointer;
           position: relative;
@@ -135,13 +135,13 @@ export function CheckInBar(props: CheckInBarProps) {
         .check-in-done-btn {
           padding: 0.5rem 1rem;
           background: linear-gradient(135deg, var(--accent) 0%, var(--action) 100%);
-          color: #0b0d12;
+          color: var(--btn-text-dark);
           border: none;
           border-radius: var(--radius-md);
           font-weight: 600;
           cursor: pointer;
           white-space: nowrap;
-          box-shadow: 0 10px 22px rgba(126, 231, 135, 0.2);
+          box-shadow: 0 10px 22px var(--accent-glow);
         }
 
         .check-in-done-btn:hover:not(:disabled) {

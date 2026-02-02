@@ -299,9 +299,9 @@ export default function Settings() {
         }
 
         .alert-success {
-          background: linear-gradient(145deg, rgba(126, 231, 135, 0.18), rgba(126, 231, 135, 0.06));
+          background: linear-gradient(145deg, var(--accent-glow), var(--accent-subtle));
           color: var(--success);
-          border: 1px solid rgba(126, 231, 135, 0.35);
+          border: 1px solid var(--ring);
         }
 
         .alert-error {
@@ -354,7 +354,7 @@ export default function Settings() {
 
         .option-btn.active {
           border-color: var(--accent);
-          background-color: rgba(126, 231, 135, 0.12);
+          background-color: var(--accent-subtle);
         }
 
         .option-btn.small {

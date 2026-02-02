@@ -156,7 +156,7 @@ export function GuidancePrompt(props: GuidancePromptProps) {
 
         .guidance-btn-primary {
           background: linear-gradient(135deg, var(--warning) 0%, #f5b942 100%);
-          color: #0b0d12;
+          color: var(--btn-text-dark);
         }
 
         .guidance-btn-primary:hover:not(:disabled) {
@@ -170,7 +170,7 @@ export function GuidancePrompt(props: GuidancePromptProps) {
         }
 
         .guidance-btn-secondary:hover:not(:disabled) {
-          background: rgba(255, 255, 255, 0.08);
+          background: var(--hover-bg);
         }
       `}</style>
     </div>

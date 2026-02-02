@@ -5,13 +5,14 @@ let authInitAttempted = false;
 
 async function getAuth() {
   if (authInitAttempted) return cachedAuth;
-  authInitAttempted = true;
   try {
     const mod = await import('./lib/auth');
     cachedAuth = mod.auth;
+    authInitAttempted = true;
   } catch (err) {
     if (import.meta.env.DEV) {
       console.warn('[Auth] Skipping auth init in dev:', err);
+      authInitAttempted = true;
       cachedAuth = null;
       return cachedAuth;
     }
@@ -39,8 +40,8 @@ export const onRequest = defineMiddleware(async (context, next) => {
         headers: context.request.headers,
       });
     }
-  } catch {
-    // Continue without session on auth errors
+  } catch (err) {
+    console.error('[Middleware] Session retrieval failed:', err);
   }
 
   if (session?.user) {

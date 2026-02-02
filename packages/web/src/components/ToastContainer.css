@@ -98,7 +98,7 @@
 }
 
 .toast-action:hover {
-  background-color: rgba(255, 255, 255, 0.08);
+  background-color: var(--hover-bg);
 }
 
 .toast-dismiss {
@@ -117,7 +117,7 @@
 }
 
 .toast-dismiss:hover {
-  background-color: rgba(255, 255, 255, 0.08);
+  background-color: var(--hover-bg);
   color: var(--text-primary);
 }
 

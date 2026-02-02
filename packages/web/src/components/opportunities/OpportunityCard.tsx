@@ -336,13 +336,13 @@ export function OpportunityCard(props: OpportunityCardProps) {
           width: 100%;
           padding: 0.75rem;
           background: linear-gradient(135deg, var(--accent) 0%, var(--action) 100%);
-          color: #0b0d12;
+          color: var(--btn-text-dark);
           border: none;
           border-radius: var(--radius-md);
           font-weight: 600;
           cursor: pointer;
           margin-top: 1rem;
-          box-shadow: 0 10px 22px rgba(126, 231, 135, 0.2);
+          box-shadow: 0 10px 22px var(--accent-glow);
         }
 
         .opportunity-card-cta:hover:not(:disabled) {
@@ -367,7 +367,7 @@ export function OpportunityCard(props: OpportunityCardProps) {
 
         .opportunity-card-close:hover {
           color: var(--text-primary);
-          background: rgba(255, 255, 255, 0.08);
+          background: var(--hover-bg);
         }
       `}</style>
     </div>

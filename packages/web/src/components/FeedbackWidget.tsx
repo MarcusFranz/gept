@@ -168,7 +168,7 @@ export default function FeedbackWidget() {
           gap: var(--space-2);
           padding: var(--space-3) var(--space-4);
           background: linear-gradient(135deg, var(--accent) 0%, var(--action) 100%);
-          color: #0b0d12;
+          color: var(--btn-text-dark);
           border: none;
           border-radius: var(--radius-full);
           font-weight: 600;
@@ -181,7 +181,7 @@ export default function FeedbackWidget() {
 
         .feedback-trigger:hover {
           transform: translateY(-2px);
-          box-shadow: 0 12px 28px rgba(126, 231, 135, 0.3);
+          box-shadow: 0 12px 28px var(--accent-glow-strong);
         }
 
         .feedback-overlay {
@@ -279,7 +279,7 @@ export default function FeedbackWidget() {
 
         .feedback-type-btn.active {
           border-color: var(--accent);
-          background: rgba(126, 231, 135, 0.12);
+          background: var(--accent-subtle);
           color: var(--text-primary);
         }
 

@@ -162,7 +162,7 @@ export function AlertBanner(props: AlertBannerProps) {
 
         .alert-banner-btn-primary {
           background: linear-gradient(135deg, var(--warning) 0%, #f5b942 100%);
-          color: #0b0d12;
+          color: var(--btn-text-dark);
         }
 
         .alert-banner-btn-primary:hover:not(:disabled) {
@@ -171,7 +171,7 @@ export function AlertBanner(props: AlertBannerProps) {
 
         .alert-banner-btn-danger {
           background: linear-gradient(135deg, var(--danger) 0%, #ff9a9a 100%);
-          color: #0b0d12;
+          color: var(--btn-text-dark);
         }
 
         .alert-banner-btn-danger:hover:not(:disabled) {
@@ -185,7 +185,7 @@ export function AlertBanner(props: AlertBannerProps) {
         }
 
         .alert-banner-btn-secondary:hover:not(:disabled) {
-          background: rgba(255, 255, 255, 0.08);
+          background: var(--hover-bg);
         }
       `}</style>
     </div>

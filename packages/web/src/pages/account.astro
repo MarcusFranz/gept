@@ -501,8 +501,8 @@ const user = Astro.locals.user;
 
   .btn-primary {
     background: linear-gradient(135deg, var(--accent) 0%, var(--action) 100%);
-    color: #0b0d12;
-    box-shadow: 0 10px 22px rgba(126, 231, 135, 0.2);
+    color: var(--btn-text-dark);
+    box-shadow: 0 10px 22px var(--accent-glow);
   }
 
   .btn-primary:hover {
@@ -516,12 +516,12 @@ const user = Astro.locals.user;
   }
 
   .btn-secondary:hover {
-    background-color: rgba(255, 255, 255, 0.08);
+    background-color: var(--hover-bg);
   }
 
   .btn-danger {
     background: linear-gradient(135deg, var(--danger) 0%, #ff9a9a 100%);
-    color: #0b0d12;
+    color: var(--btn-text-dark);
   }
 
   .btn-danger:hover {

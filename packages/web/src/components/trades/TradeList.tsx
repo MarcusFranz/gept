@@ -249,7 +249,6 @@ export function TradeList(props: TradeListProps) {
           max-width: 720px;
           margin: 0 auto;
           padding: 1.5rem 1rem 5rem;
-          padding-bottom: 5rem;
         }
 
         .trade-list-header {
@@ -300,12 +299,12 @@ export function TradeList(props: TradeListProps) {
           margin-top: 1rem;
           padding: 0.75rem 1.5rem;
           background: linear-gradient(135deg, var(--accent) 0%, var(--action) 100%);
-          color: #0b0d12;
+          color: var(--btn-text-dark);
           border: none;
           border-radius: var(--radius-lg);
           font-weight: 600;
           cursor: pointer;
-          box-shadow: 0 10px 22px rgba(126, 231, 135, 0.2);
+          box-shadow: 0 10px 22px var(--accent-glow);
         }
 
         .trade-list-cta:hover {
