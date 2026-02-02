@@ -88,7 +88,7 @@ Thumbs.db
 # -----------------------------------------------------------------------------
 # Project Specific - Generated/Temporary
 # -----------------------------------------------------------------------------
-# CatBoost training artifacts
+# Training artifacts
 catboost_info/
 
 # Logs

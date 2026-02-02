@@ -12,14 +12,14 @@ The system runs inference every 5 minutes on an Ampere server, generating fill p
 packages/model/
 ├── run_inference.py              # Inference entry point
 ├── src/
-│   ├── batch_predictor_multitarget.py  # Production inference engine
 │   ├── feature_engine.py         # Feature computation (102 features)
 │   ├── target_engine.py          # Target/EV calculation
 │   ├── db_utils.py               # Database connection pool
 │   ├── inference_config.py       # Probability caps, confidence tiers
 │   ├── calibration.py            # Model calibration manager
-│   ├── catboost_config.py        # CatBoost model config
-│   └── training_tier_config.py   # Time-window tier definitions
+│   ├── training_tier_config.py   # Time-window tier definitions
+│   └── pipeline/
+│       └── run_patchtst_inference.py  # PatchTST production inference
 ├── collectors/                   # Data collection services (Docker + systemd)
 ├── scripts/
 │   ├── run_inference_cron.sh     # Cron wrapper
@@ -36,7 +36,7 @@ packages/model/
 
 ## Training Code
 
-Training code (CatBoost pipeline, Optuna tuning, cloud training, etc.) has been removed from the public repo and archived locally at `docs/archived-training/`. To restore for local work:
+Training code (CatBoost pipeline, Optuna tuning, cloud training, etc.) has been archived locally at `docs/archived-training/`. Production now uses PatchTST. To restore archived training code for reference:
 
 ```bash
 # From repo root

@@ -56,14 +56,15 @@ fi
 source /home/ubuntu/miniconda3/etc/profile.d/conda.sh
 conda activate gept
 
-log "Starting inference cycle (Hydra primary)"
+log "Starting PatchTST inference cycle (Hydra primary)"
 
-# Run inference with timeout
+# Run PatchTST inference with timeout
 # Uses CPU for inference to leave GPU free for training
-# Uses multi-target format (models/<run_id>/<item_id>/model.cbm)
-# Loads data from local Parquet cache (no DB queries over network)
 export CUDA_VISIBLE_DEVICES=""  # Force CPU inference
-timeout $MAX_RUNTIME python run_inference.py --cache-dir /home/ubuntu/gept/data_cache
+export PYTHONPATH="$GEPT_DIR/src"
+timeout $MAX_RUNTIME python src/pipeline/run_patchtst_inference.py \
+    --model-path models/patchtst/best_model.pt \
+    --min-volume 2000
 
 EXIT_CODE=$?
 
