@@ -15,10 +15,11 @@
   align-items: flex-start;
   gap: var(--space-3);
   padding: var(--space-3) var(--space-4);
-  background-color: var(--bg-secondary);
-  border: 1px solid var(--border);
+  background: linear-gradient(145deg, var(--surface-2), var(--surface-1));
+  border: 1px solid var(--glass-border);
   border-radius: var(--radius-md);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--shadow-md);
+  backdrop-filter: blur(12px);
   animation: toastSlideIn 0.2s ease;
   pointer-events: auto;
 }
@@ -90,14 +91,14 @@
   font-size: var(--font-size-xs);
   font-weight: 500;
   color: var(--accent);
-  background: none;
-  border: 1px solid var(--accent);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
   border-radius: var(--radius-sm);
   cursor: pointer;
 }
 
 .toast-action:hover {
-  background-color: var(--accent-light);
+  background-color: rgba(255, 255, 255, 0.08);
 }
 
 .toast-dismiss {
@@ -116,7 +117,7 @@
 }
 
 .toast-dismiss:hover {
-  background-color: var(--bg-hover);
+  background-color: rgba(255, 255, 255, 0.08);
   color: var(--text-primary);
 }
 

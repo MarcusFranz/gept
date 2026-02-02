@@ -253,7 +253,7 @@ export function OpportunityBrowser(props: OpportunityBrowserProps) {
         .opportunity-browser {
           max-width: 720px;
           margin: 0 auto;
-          padding: 1rem;
+          padding: 1.5rem 1rem 5rem;
           padding-bottom: 5rem;
         }
 
@@ -276,8 +276,9 @@ export function OpportunityBrowser(props: OpportunityBrowserProps) {
         }
 
         .opportunity-browser-error {
-          background: var(--danger-light);
+          background: linear-gradient(145deg, rgba(255, 107, 107, 0.2), rgba(255, 107, 107, 0.06));
           color: var(--danger);
+          border: 1px solid rgba(255, 107, 107, 0.4);
           padding: 1rem;
           border-radius: var(--radius-lg);
           margin-bottom: 1rem;
@@ -287,8 +288,8 @@ export function OpportunityBrowser(props: OpportunityBrowserProps) {
         }
 
         .opportunity-browser-error button {
-          background: var(--danger);
-          color: white;
+          background: linear-gradient(135deg, var(--danger) 0%, #ff9a9a 100%);
+          color: #0b0d12;
           border: none;
           padding: 0.5rem 1rem;
           border-radius: var(--radius-md);
@@ -304,12 +305,13 @@ export function OpportunityBrowser(props: OpportunityBrowserProps) {
 
         .opportunity-browser-empty button {
           margin-top: 1rem;
-          background: var(--action);
-          color: var(--btn-text-dark);
+          background: linear-gradient(135deg, var(--accent) 0%, var(--action) 100%);
+          color: #0b0d12;
           border: none;
           padding: 0.5rem 1rem;
           border-radius: var(--radius-md);
           cursor: pointer;
+          box-shadow: 0 10px 22px rgba(126, 231, 135, 0.2);
         }
 
         .opportunity-browser-list {
@@ -322,11 +324,12 @@ export function OpportunityBrowser(props: OpportunityBrowserProps) {
           width: 100%;
           margin-top: 1rem;
           padding: 0.75rem;
-          background: var(--bg-secondary);
+          background: var(--glass-bg);
           color: var(--text-secondary);
-          border: 1px solid var(--border);
+          border: 1px solid var(--glass-border);
           border-radius: var(--radius-lg);
           cursor: pointer;
+          backdrop-filter: blur(10px);
         }
 
         .opportunity-browser-load-more:hover {
@@ -338,11 +341,13 @@ export function OpportunityBrowser(props: OpportunityBrowserProps) {
           display: flex;
           align-items: flex-start;
           gap: 0.75rem;
-          background: var(--warning-light);
-          border: 1px solid var(--warning);
+          background: linear-gradient(145deg, rgba(255, 209, 102, 0.2), rgba(255, 209, 102, 0.06));
+          border: 1px solid rgba(255, 209, 102, 0.5);
           border-radius: var(--radius-lg);
           padding: 0.75rem 1rem;
           margin-bottom: 1rem;
+          box-shadow: var(--shadow-sm);
+          backdrop-filter: blur(10px);
         }
 
         .opportunity-browser-warning-content {

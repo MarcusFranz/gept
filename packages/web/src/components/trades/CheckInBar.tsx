@@ -77,8 +77,10 @@ export function CheckInBar(props: CheckInBarProps) {
       <style>{`
         .check-in-bar-container {
           padding: 1rem;
-          background: var(--bg-secondary);
+          background: var(--glass-bg);
+          border: 1px solid var(--glass-border);
           border-radius: var(--radius-lg);
+          backdrop-filter: blur(10px);
         }
 
         .check-in-prompt {
@@ -96,11 +98,12 @@ export function CheckInBar(props: CheckInBarProps) {
         .check-in-bar {
           flex: 1;
           height: 24px;
-          background: var(--bg-tertiary);
+          background: rgba(255, 255, 255, 0.08);
           border-radius: 12px;
           cursor: pointer;
           position: relative;
           overflow: visible;
+          border: 1px solid rgba(255, 255, 255, 0.1);
         }
 
         .check-in-bar-fill {
@@ -123,21 +126,22 @@ export function CheckInBar(props: CheckInBarProps) {
           transform: translate(-50%, -50%);
           width: 16px;
           height: 16px;
-          background: white;
+          background: #ffffff;
           border-radius: 50%;
-          box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+          box-shadow: 0 6px 14px rgba(0, 0, 0, 0.35);
           transition: left 0.15s ease-out;
         }
 
         .check-in-done-btn {
           padding: 0.5rem 1rem;
-          background: var(--action);
-          color: var(--btn-text-dark);
+          background: linear-gradient(135deg, var(--accent) 0%, var(--action) 100%);
+          color: #0b0d12;
           border: none;
           border-radius: var(--radius-md);
           font-weight: 600;
           cursor: pointer;
           white-space: nowrap;
+          box-shadow: 0 10px 22px rgba(126, 231, 135, 0.2);
         }
 
         .check-in-done-btn:hover:not(:disabled) {

@@ -36,7 +36,8 @@
   justify-content: center;
   gap: var(--space-4);
   padding: var(--space-4);
-  background-color: var(--bg-tertiary);
+  background-color: var(--glass-bg);
+  border: 1px solid var(--glass-border);
   border-radius: var(--radius-md);
   margin-bottom: var(--space-4);
 }
@@ -87,7 +88,8 @@
   align-items: center;
   justify-content: space-between;
   padding: var(--space-3);
-  background-color: var(--bg-tertiary);
+  background-color: var(--glass-bg);
+  border: 1px solid var(--glass-border);
   border-radius: var(--radius-md);
   margin-bottom: var(--space-4);
 }
@@ -130,7 +132,8 @@
 .flip-reason {
   margin-top: var(--space-3);
   padding: var(--space-3);
-  background-color: var(--bg-tertiary);
+  background-color: var(--glass-bg);
+  border: 1px solid var(--glass-border);
   border-radius: var(--radius-md);
 }
 
