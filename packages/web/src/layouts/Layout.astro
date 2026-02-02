@@ -164,6 +164,14 @@ const fullTitle = `${title} | GePT`;
       } catch {
         document.documentElement.dataset.theme = 'dark';
       }
+      // Hide dismissed Discord banner immediately to prevent flash
+      try {
+        if (localStorage.getItem('discord-banner-dismissed')) {
+          document.getElementById('discord-banner')?.remove();
+        }
+      } catch {
+        // localStorage unavailable (private browsing, disabled storage) - show banner
+      }
     </script>
     <script>
       function initPage() {
@@ -188,20 +196,18 @@ const fullTitle = `${title} | GePT`;
           menuBtn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
         });
 
-        // Discord banner dismiss
+        // Discord banner dismiss (banner may already be removed by the immediate script)
         const banner = document.getElementById('discord-banner');
-        const dismissBtn = document.getElementById('discord-banner-dismiss');
         if (banner) {
-          try {
-            if (localStorage.getItem('discord-banner-dismissed')) {
-              banner.remove();
+          document.getElementById('discord-banner-dismiss')?.addEventListener('click', () => {
+            banner.remove();
+            try {
+              localStorage.setItem('discord-banner-dismissed', '1');
+            } catch {
+              // Storage unavailable - dismiss works for current page view only
             }
-          } catch {}
+          });
         }
-        dismissBtn?.addEventListener('click', () => {
-          banner?.remove();
-          try { localStorage.setItem('discord-banner-dismissed', '1'); } catch {}
-        });
       }
 
       // Run on initial load and after each navigation
