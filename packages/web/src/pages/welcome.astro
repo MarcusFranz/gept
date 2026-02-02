@@ -11,25 +11,65 @@ if (Astro.locals.session) {
   <div class="landing">
     <!-- Hero Section -->
     <section class="hero">
-      <div class="container hero-content">
-        <div class="hero-badge">
-          <span class="tier-badge is-beta">BETA</span>
-          <span>Now accepting beta testers</span>
+      <div class="container hero-grid">
+        <div class="hero-text">
+          <div class="hero-badge">
+            <span class="tier-badge is-beta">BETA</span>
+            <span>Now accepting beta testers</span>
+          </div>
+          <h1 class="hero-title">
+            Flip smarter with <span class="text-accent">AI-powered</span> recommendations
+          </h1>
+          <p class="hero-subtitle">
+            GePT analyzes Grand Exchange data to surface high-margin flips for Old School RuneScape.
+            Get personalized recommendations based on your capital and risk tolerance.
+          </p>
+          <div class="hero-actions">
+            <a href="/signup" class="btn btn-primary btn-lg">Get Started Free</a>
+            <a href="/login" class="btn btn-ghost btn-lg">Sign In</a>
+          </div>
+          <p class="hero-note">Free during beta. No credit card required.</p>
+          <div class="hero-stats">
+            <div class="stat-pill">
+              <span class="stat-value">8</span>
+              <span class="stat-label">GE slots covered</span>
+            </div>
+            <div class="stat-pill">
+              <span class="stat-value">Live</span>
+              <span class="stat-label">price updates</span>
+            </div>
+            <div class="stat-pill">
+              <span class="stat-value">AI</span>
+              <span class="stat-label">risk scoring</span>
+            </div>
+          </div>
         </div>
-        <h1 class="hero-title">
-          Flip smarter with <span class="text-accent">AI-powered</span> recommendations
-        </h1>
-        <p class="hero-subtitle">
-          GePT analyzes Grand Exchange data to find profitable flips for Old School RuneScape.
-          Get personalized recommendations based on your capital and risk tolerance.
-        </p>
-        <div class="hero-actions">
-          <a href="/signup" class="btn btn-primary btn-lg">Get Started Free</a>
-          <a href="/login" class="btn btn-ghost btn-lg">Sign In</a>
+        <div class="hero-visual" aria-hidden="true">
+          <div class="visual-card">
+            <div class="visual-header">
+              <span>Today's picks</span>
+              <span class="visual-chip">Low risk</span>
+            </div>
+            <div class="visual-list">
+              <div class="visual-row">
+                <span class="visual-pill buy">Buy</span>
+                <span class="visual-item">Dragon bolts (e)</span>
+                <span class="visual-metric">+312k</span>
+              </div>
+              <div class="visual-row">
+                <span class="visual-pill sell">Sell</span>
+                <span class="visual-item">Amulet of fury</span>
+                <span class="visual-metric">+198k</span>
+              </div>
+              <div class="visual-row">
+                <span class="visual-pill buy">Buy</span>
+                <span class="visual-item">Zenyte shard</span>
+                <span class="visual-metric">+146k</span>
+              </div>
+            </div>
+            <div class="visual-chart"></div>
+          </div>
         </div>
-        <p class="hero-note">
-          Free during beta. No credit card required.
-        </p>
       </div>
     </section>
 
@@ -37,8 +77,9 @@ if (Astro.locals.session) {
     <section class="features">
       <div class="container">
         <h2 class="section-title">Why GePT?</h2>
+        <p class="section-subtitle">A clean, focused workflow that keeps you in the green without the noise.</p>
         <div class="features-grid">
-          <div class="feature-card">
+          <div class="feature-card" style="--i: 1">
             <div class="feature-icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
@@ -48,7 +89,7 @@ if (Astro.locals.session) {
             <p>Machine learning analyzes millions of trades to find profitable opportunities you might miss.</p>
           </div>
 
-          <div class="feature-card">
+          <div class="feature-card" style="--i: 2">
             <div class="feature-icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <circle cx="12" cy="12" r="10"/>
@@ -59,7 +100,7 @@ if (Astro.locals.session) {
             <p>Prices update every few minutes. Get fresh recommendations based on current market conditions.</p>
           </div>
 
-          <div class="feature-card">
+          <div class="feature-card" style="--i: 3">
             <div class="feature-icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M12 20V10M18 20V4M6 20v-4"/>
@@ -69,7 +110,7 @@ if (Astro.locals.session) {
             <p>Log your trades and see your profit history. Know your win rate and identify your best flips.</p>
           </div>
 
-          <div class="feature-card">
+          <div class="feature-card" style="--i: 4">
             <div class="feature-icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <rect x="3" y="3" width="7" height="7"/>
@@ -89,26 +130,27 @@ if (Astro.locals.session) {
     <section class="how-it-works">
       <div class="container">
         <h2 class="section-title">How It Works</h2>
-        <div class="steps">
-          <div class="step">
-            <div class="step-number">1</div>
+        <p class="section-subtitle">Browse curated trades, refine with filters, and track each flip through its full lifecycle.</p>
+        <div class="steps-grid">
+          <div class="step-card" style="--i: 1">
+            <div class="step-number">01</div>
             <div class="step-content">
-              <h3>Set Your Capital</h3>
-              <p>Tell us how much GP you have to invest. We'll find flips that fit your budget.</p>
+              <h3>Browse Recommendations</h3>
+              <p>Explore AI-ranked trades with clear buy/sell targets and projected profit.</p>
             </div>
           </div>
-          <div class="step">
-            <div class="step-number">2</div>
+          <div class="step-card" style="--i: 2">
+            <div class="step-number">02</div>
             <div class="step-content">
-              <h3>Choose Your Style</h3>
-              <p>Passive for slow but steady margins, or active for quick high-volume flips.</p>
+              <h3>Apply Filters</h3>
+              <p>Dial in capital, time, and confidence to find the trades that fit your style.</p>
             </div>
           </div>
-          <div class="step">
-            <div class="step-number">3</div>
+          <div class="step-card" style="--i: 3">
+            <div class="step-number">03</div>
             <div class="step-content">
-              <h3>Start Flipping</h3>
-              <p>Get AI-powered recommendations with buy/sell prices, quantities, and expected profit.</p>
+              <h3>Track The Lifecycle</h3>
+              <p>Add trades, check in on fill progress, and close the loop with results.</p>
             </div>
           </div>
         </div>
@@ -128,38 +170,70 @@ if (Astro.locals.session) {
 
 <style>
   .landing {
-    --section-padding: var(--space-6);
+    --section-padding: 4.5rem;
+    position: relative;
+    background:
+      radial-gradient(1200px 600px at 10% -10%, rgba(126, 231, 135, 0.18), transparent 60%),
+      radial-gradient(900px 500px at 90% 0%, rgba(88, 101, 242, 0.18), transparent 55%),
+      linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--bg-secondary) 85%, transparent) 0%,
+        var(--bg-primary) 45%,
+        var(--bg-primary) 100%
+      );
   }
 
   @media (min-width: 768px) {
     .landing {
-      --section-padding: 4rem;
+      --section-padding: 5.5rem;
     }
   }
 
   /* Hero */
   .hero {
     padding: var(--section-padding) 0;
-    text-align: center;
-    background: linear-gradient(180deg, var(--bg-secondary) 0%, var(--bg-primary) 100%);
-    border-bottom: 1px solid var(--border);
+    position: relative;
+    overflow: hidden;
   }
 
-  .hero-content {
-    max-width: 680px;
-    margin: 0 auto;
+  .hero::after {
+    content: '';
+    position: absolute;
+    inset: -20% 0 auto;
+    height: 260px;
+    background: radial-gradient(60% 60% at 50% 50%, rgba(126, 231, 135, 0.22), transparent 70%);
+    pointer-events: none;
+  }
+
+  .hero-grid {
+    display: grid;
+    gap: var(--space-6);
+    align-items: center;
+  }
+
+  @media (min-width: 960px) {
+    .hero-grid {
+      grid-template-columns: 1.1fr 0.9fr;
+    }
+  }
+
+  .hero-text {
+    animation: fade-up 0.8s ease both;
   }
 
   .hero-badge {
     display: inline-flex;
     align-items: center;
     gap: var(--space-2);
-    padding: var(--space-2) var(--space-4);
-    background: var(--bg-tertiary);
+    padding: 0.5rem 1rem;
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
     border-radius: var(--radius-full);
     font-size: var(--font-size-sm);
     color: var(--text-secondary);
     margin-bottom: var(--space-5);
+    box-shadow: var(--shadow-sm);
+    backdrop-filter: blur(12px);
   }
 
   .hero-badge .tier-badge {
@@ -169,18 +243,13 @@ if (Astro.locals.session) {
   }
 
   .hero-title {
-    font-family: 'Rajdhani', sans-serif;
-    font-size: 2rem;
+    font-family: var(--font-display);
+    font-size: clamp(2.4rem, 4vw, 3.6rem);
     font-weight: 700;
-    line-height: 1.2;
+    line-height: 1.1;
     margin-bottom: var(--space-4);
+    letter-spacing: -0.02em;
     color: var(--text-primary);
-  }
-
-  @media (min-width: 768px) {
-    .hero-title {
-      font-size: 3rem;
-    }
   }
 
   .text-accent {
@@ -192,12 +261,13 @@ if (Astro.locals.session) {
     color: var(--text-secondary);
     line-height: 1.6;
     margin-bottom: var(--space-5);
+    max-width: 36rem;
   }
 
   .hero-actions {
     display: flex;
     gap: var(--space-3);
-    justify-content: center;
+    justify-content: flex-start;
     flex-wrap: wrap;
     margin-bottom: var(--space-4);
   }
@@ -205,6 +275,147 @@ if (Astro.locals.session) {
   .hero-note {
     font-size: var(--font-size-sm);
     color: var(--text-muted);
+  }
+
+  .hero-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+    margin-top: var(--space-5);
+  }
+
+  .stat-pill {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.9rem;
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-full);
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+    backdrop-filter: blur(12px);
+  }
+
+  .stat-value {
+    font-family: var(--font-display);
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+
+  .hero-visual {
+    position: relative;
+    animation: float 6s ease-in-out infinite;
+  }
+
+  .hero-visual::before {
+    content: '';
+    position: absolute;
+    inset: -20%;
+    background: radial-gradient(50% 50% at 50% 50%, rgba(126, 231, 135, 0.28), transparent 70%);
+    filter: blur(40px);
+    opacity: 0.7;
+    z-index: 0;
+  }
+
+  .visual-card {
+    position: relative;
+    z-index: 1;
+    padding: 1.5rem;
+    border-radius: var(--radius-xl);
+    background: linear-gradient(145deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--shadow-md);
+    backdrop-filter: blur(16px);
+  }
+
+  .visual-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+    margin-bottom: var(--space-3);
+  }
+
+  .visual-chip {
+    padding: 0.2rem 0.6rem;
+    border-radius: var(--radius-full);
+    background: rgba(126, 231, 135, 0.15);
+    color: var(--accent);
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .visual-list {
+    display: grid;
+    gap: 0.6rem;
+    margin-bottom: var(--space-4);
+  }
+
+  .visual-row {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: var(--space-3);
+    align-items: center;
+    padding: 0.5rem 0.75rem;
+    border-radius: var(--radius-md);
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .visual-pill {
+    padding: 0.15rem 0.5rem;
+    border-radius: var(--radius-full);
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    font-weight: 700;
+  }
+
+  .visual-pill.buy {
+    background: rgba(126, 231, 135, 0.2);
+    color: var(--accent);
+  }
+
+  .visual-pill.sell {
+    background: rgba(255, 209, 102, 0.2);
+    color: #ffd166;
+  }
+
+  .visual-item {
+    font-size: var(--font-size-sm);
+    color: var(--text-primary);
+    font-weight: 500;
+  }
+
+  .visual-metric {
+    font-family: var(--font-display);
+    font-weight: 600;
+    color: var(--accent);
+  }
+
+  .visual-chart {
+    height: 90px;
+    border-radius: var(--radius-lg);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background:
+      linear-gradient(180deg, rgba(126, 231, 135, 0.28), rgba(88, 101, 242, 0.08)),
+      repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.08) 0 1px, transparent 1px 26px),
+      repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.06) 0 1px, transparent 1px 18px);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .visual-chart::after {
+    content: '';
+    position: absolute;
+    inset: 20% 10% 25% 10%;
+    border-radius: var(--radius-lg);
+    background: linear-gradient(90deg, rgba(126, 231, 135, 0.7), rgba(88, 101, 242, 0.2));
+    opacity: 0.6;
   }
 
   /* Buttons */
@@ -217,7 +428,7 @@ if (Astro.locals.session) {
     font-size: var(--font-size-sm);
     font-weight: 600;
     text-decoration: none;
-    transition: all var(--transition-fast);
+    transition: all var(--transition-normal);
     cursor: pointer;
     border: none;
   }
@@ -228,38 +439,47 @@ if (Astro.locals.session) {
   }
 
   .btn-primary {
-    background: var(--accent);
-    color: var(--bg-primary);
+    background: linear-gradient(135deg, var(--accent) 0%, var(--action) 100%);
+    color: #0b0d12;
+    box-shadow: 0 10px 24px rgba(126, 231, 135, 0.25);
   }
 
   .btn-primary:hover {
-    background: var(--accent-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 14px 28px rgba(126, 231, 135, 0.3);
   }
 
   .btn-ghost {
-    background: transparent;
+    background: var(--glass-bg);
     color: var(--text-primary);
-    border: 1px solid var(--border);
+    border: 1px solid var(--glass-border);
+    backdrop-filter: blur(10px);
   }
 
   .btn-ghost:hover {
-    background: var(--bg-hover);
+    background: rgba(255, 255, 255, 0.08);
     border-color: var(--border-light);
   }
 
   /* Features */
   .features {
     padding: var(--section-padding) 0;
-    background: var(--bg-primary);
   }
 
   .section-title {
-    font-family: 'Rajdhani', sans-serif;
-    font-size: var(--font-size-2xl);
+    font-family: var(--font-display);
+    font-size: clamp(1.8rem, 2.6vw, 2.4rem);
     font-weight: 700;
     text-align: center;
-    margin-bottom: var(--space-6);
+    margin-bottom: var(--space-3);
     color: var(--text-primary);
+  }
+
+  .section-subtitle {
+    text-align: center;
+    color: var(--text-secondary);
+    max-width: 640px;
+    margin: 0 auto var(--space-6);
   }
 
   .features-grid {
@@ -281,23 +501,38 @@ if (Astro.locals.session) {
   }
 
   .feature-card {
-    background: var(--bg-secondary);
-    border: 1px solid var(--border);
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
     border-radius: var(--radius-lg);
     padding: var(--space-5);
-    text-align: center;
+    text-align: left;
+    box-shadow: var(--shadow-sm);
+    backdrop-filter: blur(10px);
+    transition: transform var(--transition-normal), box-shadow var(--transition-normal), border-color var(--transition-normal);
+    animation: fade-up 0.8s ease both;
+    animation-delay: calc(var(--i) * 0.08s);
+  }
+
+  .feature-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-md);
+    border-color: var(--border-light);
   }
 
   .feature-icon {
-    width: 48px;
-    height: 48px;
-    margin: 0 auto var(--space-4);
+    width: 46px;
+    height: 46px;
+    border-radius: 14px;
+    background: rgba(126, 231, 135, 0.12);
+    display: grid;
+    place-items: center;
+    margin-bottom: var(--space-4);
     color: var(--accent);
   }
 
   .feature-icon svg {
-    width: 100%;
-    height: 100%;
+    width: 22px;
+    height: 22px;
   }
 
   .feature-card h3 {
@@ -316,43 +551,46 @@ if (Astro.locals.session) {
   /* How It Works */
   .how-it-works {
     padding: var(--section-padding) 0;
-    background: var(--bg-secondary);
+    background: linear-gradient(180deg, rgba(18, 23, 35, 0.6) 0%, rgba(11, 13, 18, 0.9) 100%);
     border-top: 1px solid var(--border);
     border-bottom: 1px solid var(--border);
   }
 
-  .steps {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-5);
-    max-width: 600px;
-    margin: 0 auto;
+  .steps-grid {
+    display: grid;
+    gap: var(--space-4);
   }
 
-  .step {
-    display: flex;
-    gap: var(--space-4);
-    align-items: flex-start;
+  @media (min-width: 900px) {
+    .steps-grid {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+
+  .step-card {
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-lg);
+    padding: var(--space-5);
+    box-shadow: var(--shadow-sm);
+    backdrop-filter: blur(10px);
+    animation: fade-up 0.8s ease both;
+    animation-delay: calc(var(--i) * 0.08s);
   }
 
   .step-number {
-    flex-shrink: 0;
-    width: 40px;
-    height: 40px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: var(--accent);
-    color: var(--bg-primary);
-    font-weight: 700;
-    font-size: var(--font-size-lg);
-    border-radius: var(--radius-md);
+    font-family: var(--font-display);
+    font-size: 0.85rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: var(--space-3);
   }
 
   .step-content h3 {
     font-size: var(--font-size-lg);
     font-weight: 600;
-    margin-bottom: var(--space-1);
+    margin-bottom: var(--space-2);
     color: var(--text-primary);
   }
 
@@ -364,19 +602,23 @@ if (Astro.locals.session) {
 
   /* CTA */
   .cta {
-    padding: var(--section-padding) 0;
-    background: var(--bg-primary);
+    padding: var(--section-padding) 0 6rem;
   }
 
   .cta-content {
     text-align: center;
-    max-width: 480px;
+    max-width: 520px;
     margin: 0 auto;
+    padding: 2.5rem 2rem;
+    border-radius: var(--radius-xl);
+    background: linear-gradient(145deg, rgba(126, 231, 135, 0.14), rgba(88, 101, 242, 0.08));
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--shadow-md);
   }
 
   .cta h2 {
-    font-family: 'Rajdhani', sans-serif;
-    font-size: var(--font-size-2xl);
+    font-family: var(--font-display);
+    font-size: clamp(1.6rem, 2.4vw, 2.2rem);
     font-weight: 700;
     margin-bottom: var(--space-3);
     color: var(--text-primary);
@@ -387,17 +629,70 @@ if (Astro.locals.session) {
     margin-bottom: var(--space-5);
   }
 
-  /* Tier badge (copied from layout) */
+  /* Tier badge (local to hero) */
   .tier-badge {
-    padding: 2px 6px;
+    padding: 3px 8px;
     font-size: 10px;
     font-weight: 700;
-    border-radius: 3px;
+    border-radius: 999px;
     letter-spacing: 0.5px;
   }
 
   .tier-badge.is-beta {
     background: linear-gradient(135deg, var(--tier-beta) 0%, var(--tier-beta-light) 100%);
     color: var(--btn-text-light);
+  }
+
+  /* Motion */
+  @keyframes fade-up {
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes float {
+    0%, 100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-8px);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .hero-text,
+    .hero-visual,
+    .feature-card,
+    .step-card {
+      animation: none;
+    }
+
+    .hero-visual {
+      transform: none;
+    }
+  }
+
+  @media (max-width: 900px) {
+    .hero-actions {
+      justify-content: center;
+    }
+
+    .hero-subtitle {
+      margin-left: auto;
+      margin-right: auto;
+      text-align: center;
+    }
+
+    .hero-text,
+    .hero-note,
+    .hero-stats {
+      text-align: center;
+      justify-content: center;
+    }
   }
 </style>

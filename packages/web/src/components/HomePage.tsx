@@ -96,7 +96,7 @@ export function HomePage(props: HomePageProps) {
       <style>{`
         .home-page {
           min-height: 100vh;
-          background: var(--bg-primary);
+          background: transparent;
         }
 
         .home-nav {
@@ -104,40 +104,44 @@ export function HomePage(props: HomePageProps) {
           justify-content: center;
           gap: 0.5rem;
           padding: 1rem;
-          background: var(--bg-secondary);
+          background: var(--nav-bg);
           border-bottom: 1px solid var(--border);
           position: sticky;
           top: 56px;
           z-index: 10;
+          backdrop-filter: blur(14px);
+          box-shadow: var(--shadow-sm);
         }
 
         .nav-tab {
           padding: 0.625rem 1.25rem;
-          background: transparent;
+          background: var(--glass-bg);
           color: var(--text-secondary);
-          border: none;
-          border-radius: var(--radius-md);
+          border: 1px solid var(--glass-border);
+          border-radius: var(--radius-full);
           font-weight: 600;
           cursor: pointer;
           display: flex;
           align-items: center;
           gap: 0.5rem;
-          transition: background var(--transition-fast), color var(--transition-fast);
+          transition: background var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
         }
 
         .nav-tab:hover:not(.nav-tab-active) {
           color: var(--text-primary);
-          background: var(--bg-hover);
+          background: rgba(255, 255, 255, 0.08);
+          border-color: var(--border-light);
         }
 
         .nav-tab-active,
         .nav-tab-active:hover {
-          background: var(--action);
-          color: var(--btn-text-dark);
+          background: linear-gradient(135deg, var(--accent) 0%, var(--action) 100%);
+          color: #0b0d12;
+          border-color: transparent;
         }
 
         .nav-tab-badge {
-          background: rgba(0,0,0,0.2);
+          background: rgba(11, 13, 18, 0.25);
           padding: 0.125rem 0.5rem;
           border-radius: var(--radius-full);
           font-size: var(--font-size-xs);

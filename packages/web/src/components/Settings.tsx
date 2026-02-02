@@ -295,16 +295,19 @@ export default function Settings() {
           padding: var(--space-3) var(--space-4);
           border-radius: var(--radius-md);
           margin-bottom: var(--space-4);
+          backdrop-filter: blur(10px);
         }
 
         .alert-success {
-          background-color: var(--success-light);
+          background: linear-gradient(145deg, rgba(126, 231, 135, 0.18), rgba(126, 231, 135, 0.06));
           color: var(--success);
+          border: 1px solid rgba(126, 231, 135, 0.35);
         }
 
         .alert-error {
-          background-color: var(--danger-light);
+          background: linear-gradient(145deg, rgba(255, 107, 107, 0.2), rgba(255, 107, 107, 0.06));
           color: var(--danger);
+          border: 1px solid rgba(255, 107, 107, 0.35);
         }
 
         .rate-limit-card {
@@ -337,11 +340,12 @@ export default function Settings() {
           align-items: center;
           text-align: center;
           padding: var(--space-3);
-          background-color: var(--bg-tertiary);
-          border: 2px solid var(--border);
+          background-color: var(--glass-bg);
+          border: 1px solid var(--glass-border);
           border-radius: var(--radius-md);
           cursor: pointer;
           transition: all var(--transition-fast);
+          backdrop-filter: blur(10px);
         }
 
         .option-btn:hover {
@@ -350,7 +354,7 @@ export default function Settings() {
 
         .option-btn.active {
           border-color: var(--accent);
-          background-color: var(--accent-light);
+          background-color: rgba(126, 231, 135, 0.12);
         }
 
         .option-btn.small {

@@ -2,28 +2,36 @@ import { betterAuth } from 'better-auth';
 import { Pool } from 'pg';
 import { Resend } from 'resend';
 
+const env = import.meta.env as Record<string, string | undefined>;
+
+const DATABASE_URL = process.env.DATABASE_URL ?? env.DATABASE_URL;
+const BETTER_AUTH_SECRET = process.env.BETTER_AUTH_SECRET ?? env.BETTER_AUTH_SECRET;
+const BETTER_AUTH_URL = process.env.BETTER_AUTH_URL ?? env.BETTER_AUTH_URL;
+const RESEND_API_KEY = process.env.RESEND_API_KEY ?? env.RESEND_API_KEY;
+const EMAIL_FROM = process.env.EMAIL_FROM ?? env.EMAIL_FROM;
+
 // Validate required environment variables
-if (!process.env.DATABASE_URL) {
+if (!DATABASE_URL) {
   throw new Error('DATABASE_URL environment variable is required');
 }
 
-if (!process.env.BETTER_AUTH_SECRET) {
+if (!BETTER_AUTH_SECRET) {
   throw new Error('BETTER_AUTH_SECRET environment variable is required');
 }
 
 // Build trusted origins list
 const trustedOrigins = ['http://localhost:3000', 'http://localhost:4321'];
-if (process.env.BETTER_AUTH_URL && !process.env.BETTER_AUTH_URL.includes('localhost')) {
-  trustedOrigins.push(process.env.BETTER_AUTH_URL);
+if (BETTER_AUTH_URL && !BETTER_AUTH_URL.includes('localhost')) {
+  trustedOrigins.push(BETTER_AUTH_URL);
 }
 
 export const auth = betterAuth({
-  baseURL: process.env.BETTER_AUTH_URL || 'http://localhost:3000',
-  secret: process.env.BETTER_AUTH_SECRET,
+  baseURL: BETTER_AUTH_URL || 'http://localhost:3000',
+  secret: BETTER_AUTH_SECRET,
   trustedOrigins,
 
   database: new Pool({
-    connectionString: process.env.DATABASE_URL,
+    connectionString: DATABASE_URL,
   }),
 
   // Email/password authentication
@@ -32,7 +40,7 @@ export const auth = betterAuth({
     minPasswordLength: 8,
     sendResetPassword: async ({ user, url }) => {
       // Dev fallback: log to console when no Resend API key is configured
-      if (!process.env.RESEND_API_KEY) {
+      if (!RESEND_API_KEY) {
         if (process.env.NODE_ENV === 'development') {
           console.log('\n=== PASSWORD RESET LINK ===');
           console.log(url);
@@ -43,8 +51,8 @@ export const auth = betterAuth({
         return;
       }
 
-      const resend = new Resend(process.env.RESEND_API_KEY);
-      const fromAddress = process.env.EMAIL_FROM || 'GePT <noreply@gept.gg>';
+      const resend = new Resend(RESEND_API_KEY);
+      const fromAddress = EMAIL_FROM || 'GePT <noreply@gept.gg>';
 
       const { error } = await resend.emails.send({
         from: fromAddress,

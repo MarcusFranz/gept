@@ -260,17 +260,20 @@ export default function Portfolio() {
         }
 
         .stat-card {
-          background-color: var(--bg-secondary);
-          border: 1px solid var(--border);
+          background: linear-gradient(145deg, var(--surface-2), var(--surface-1));
+          border: 1px solid var(--glass-border);
           border-radius: var(--radius-lg);
           padding: var(--space-4);
           display: flex;
           align-items: center;
           gap: var(--space-3);
+          box-shadow: var(--shadow-sm);
+          backdrop-filter: blur(12px);
         }
 
         .stat-card.primary {
-          background: linear-gradient(135deg, var(--bg-secondary), var(--bg-tertiary));
+          background: linear-gradient(135deg, rgba(126, 231, 135, 0.18), rgba(88, 101, 242, 0.08));
+          border-color: rgba(126, 231, 135, 0.35);
         }
 
         .stat-icon {
@@ -279,7 +282,7 @@ export default function Portfolio() {
           display: flex;
           align-items: center;
           justify-content: center;
-          background-color: var(--accent-light);
+          background-color: rgba(126, 231, 135, 0.15);
           border-radius: var(--radius-md);
           color: var(--accent);
         }

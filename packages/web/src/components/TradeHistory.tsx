@@ -215,9 +215,11 @@ export default function TradeHistoryView() {
 
         .history-table-wrapper {
           overflow-x: auto;
-          background-color: var(--bg-secondary);
+          background: linear-gradient(145deg, var(--surface-2), var(--surface-1));
           border-radius: var(--radius-lg);
-          border: 1px solid var(--border);
+          border: 1px solid var(--glass-border);
+          box-shadow: var(--shadow-sm);
+          backdrop-filter: blur(12px);
         }
 
         .table {

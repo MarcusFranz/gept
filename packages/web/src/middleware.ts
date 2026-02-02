@@ -1,5 +1,24 @@
 import { defineMiddleware } from 'astro:middleware';
-import { auth } from './lib/auth';
+
+let cachedAuth: typeof import('./lib/auth').auth | null = null;
+let authInitAttempted = false;
+
+async function getAuth() {
+  if (authInitAttempted) return cachedAuth;
+  authInitAttempted = true;
+  try {
+    const mod = await import('./lib/auth');
+    cachedAuth = mod.auth;
+  } catch (err) {
+    if (import.meta.env.DEV) {
+      console.warn('[Auth] Skipping auth init in dev:', err);
+      cachedAuth = null;
+      return cachedAuth;
+    }
+    throw err;
+  }
+  return cachedAuth;
+}
 
 // Security headers for production
 const securityHeaders: Record<string, string> = {
@@ -13,10 +32,13 @@ const securityHeaders: Record<string, string> = {
 export const onRequest = defineMiddleware(async (context, next) => {
   // Get session from Better Auth with error handling
   let session = null;
+  const auth = await getAuth();
   try {
-    session = await auth.api.getSession({
-      headers: context.request.headers,
-    });
+    if (auth) {
+      session = await auth.api.getSession({
+        headers: context.request.headers,
+      });
+    }
   } catch {
     // Continue without session on auth errors
   }

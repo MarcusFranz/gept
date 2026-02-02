@@ -216,24 +216,27 @@ export function TradeDetail(props: TradeDetailProps) {
 
       <style>{`
         .trade-detail {
-          background: var(--bg-secondary);
-          border: 1px solid var(--accent);
+          background: linear-gradient(145deg, var(--surface-2), var(--surface-1));
+          border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
           border-radius: var(--radius-lg);
           padding: 1rem;
           position: relative;
+          box-shadow: var(--shadow-md);
+          backdrop-filter: blur(14px);
         }
 
         .trade-detail-close {
           position: absolute;
           top: 0.5rem;
           right: 0.5rem;
-          background: none;
-          border: none;
+          background: var(--glass-bg);
+          border: 1px solid var(--glass-border);
           color: var(--text-muted);
           font-size: 1.5rem;
           cursor: pointer;
           padding: 0.25rem 0.5rem;
           line-height: 1;
+          border-radius: var(--radius-sm);
         }
 
         .trade-detail-close:hover {
@@ -276,7 +279,8 @@ export function TradeDetail(props: TradeDetailProps) {
           gap: 0.5rem;
           margin: 0.75rem 0;
           padding: 0.75rem;
-          background: var(--bg-tertiary);
+          background: var(--glass-bg);
+          border: 1px solid var(--glass-border);
           border-radius: var(--radius-md);
         }
 
@@ -327,9 +331,9 @@ export function TradeDetail(props: TradeDetailProps) {
           height: 22px;
           padding: 0;
           margin-left: 0.25rem;
-          background: var(--success-light);
+          background: rgba(126, 231, 135, 0.2);
           color: var(--success);
-          border: 1px solid var(--success);
+          border: 1px solid rgba(126, 231, 135, 0.6);
           border-radius: var(--radius-sm);
           font-size: 0.75rem;
           font-weight: 700;
@@ -370,13 +374,14 @@ export function TradeDetail(props: TradeDetailProps) {
         .trade-detail-submit {
           width: 100%;
           padding: 0.625rem;
-          background: var(--action);
-          color: var(--btn-text-dark);
+          background: linear-gradient(135deg, var(--accent) 0%, var(--action) 100%);
+          color: #0b0d12;
           border: none;
           border-radius: var(--radius-md);
           font-weight: 600;
           cursor: pointer;
           margin-top: 0.5rem;
+          box-shadow: 0 10px 22px rgba(126, 231, 135, 0.2);
         }
 
         .trade-detail-submit:hover:not(:disabled) {
@@ -412,9 +417,9 @@ export function TradeDetail(props: TradeDetailProps) {
         .trade-detail-cancel {
           width: 100%;
           padding: 0.5rem;
-          background: transparent;
+          background: var(--glass-bg);
           color: var(--danger);
-          border: 1px solid var(--danger);
+          border: 1px solid rgba(255, 107, 107, 0.6);
           border-radius: var(--radius-md);
           cursor: pointer;
           margin-top: 1rem;

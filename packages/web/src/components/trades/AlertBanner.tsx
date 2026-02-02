@@ -89,16 +89,18 @@ export function AlertBanner(props: AlertBannerProps) {
 
       <style>{`
         .alert-banner {
-          background: var(--warning-light);
-          border: 1px solid var(--warning);
+          background: linear-gradient(145deg, rgba(255, 209, 102, 0.2), rgba(255, 209, 102, 0.06));
+          border: 1px solid rgba(255, 209, 102, 0.5);
           border-radius: var(--radius-lg);
           padding: 1rem;
           margin: 1rem 0;
+          box-shadow: var(--shadow-sm);
+          backdrop-filter: blur(10px);
         }
 
         .alert-banner-danger {
-          background: var(--danger-light);
-          border-color: var(--danger);
+          background: linear-gradient(145deg, rgba(255, 107, 107, 0.2), rgba(255, 107, 107, 0.06));
+          border-color: rgba(255, 107, 107, 0.5);
         }
 
         .alert-banner-header {
@@ -146,7 +148,7 @@ export function AlertBanner(props: AlertBannerProps) {
         .alert-banner-btn {
           flex: 1;
           padding: 0.625rem 1rem;
-          border: none;
+          border: 1px solid transparent;
           border-radius: var(--radius-md);
           font-weight: 600;
           cursor: pointer;
@@ -159,8 +161,8 @@ export function AlertBanner(props: AlertBannerProps) {
         }
 
         .alert-banner-btn-primary {
-          background: var(--warning);
-          color: var(--btn-text-dark);
+          background: linear-gradient(135deg, var(--warning) 0%, #f5b942 100%);
+          color: #0b0d12;
         }
 
         .alert-banner-btn-primary:hover:not(:disabled) {
@@ -168,8 +170,8 @@ export function AlertBanner(props: AlertBannerProps) {
         }
 
         .alert-banner-btn-danger {
-          background: var(--danger);
-          color: var(--btn-text-dark);
+          background: linear-gradient(135deg, var(--danger) 0%, #ff9a9a 100%);
+          color: #0b0d12;
         }
 
         .alert-banner-btn-danger:hover:not(:disabled) {
@@ -177,12 +179,13 @@ export function AlertBanner(props: AlertBannerProps) {
         }
 
         .alert-banner-btn-secondary {
-          background: var(--bg-tertiary);
+          background: var(--glass-bg);
+          border-color: var(--glass-border);
           color: var(--text-primary);
         }
 
         .alert-banner-btn-secondary:hover:not(:disabled) {
-          background: var(--bg-hover);
+          background: rgba(255, 255, 255, 0.08);
         }
       `}</style>
     </div>
