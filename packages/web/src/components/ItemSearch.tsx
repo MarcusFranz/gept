@@ -276,7 +276,7 @@ export default function ItemSearch() {
         }
 
         .search-clear:hover {
-          background-color: var(--bg-hover);
+          background-color: var(--hover-bg);
           color: var(--text-primary);
         }
 
@@ -291,13 +291,14 @@ export default function ItemSearch() {
           left: 0;
           right: 0;
           margin-top: var(--space-2);
-          background-color: var(--bg-secondary);
-          border: 1px solid var(--border);
+          background-color: var(--surface-2);
+          border: 1px solid var(--glass-border);
           border-radius: var(--radius-md);
           max-height: 300px;
           overflow-y: auto;
           z-index: 50;
           box-shadow: var(--shadow-lg);
+          backdrop-filter: blur(12px);
         }
 
         .search-result {
@@ -315,7 +316,7 @@ export default function ItemSearch() {
         }
 
         .search-result:hover {
-          background-color: var(--bg-hover);
+          background-color: var(--hover-bg);
         }
 
         .search-result-acronym {
@@ -360,7 +361,8 @@ export default function ItemSearch() {
           grid-template-columns: 1fr 1fr;
           gap: var(--space-4);
           padding: var(--space-4);
-          background-color: var(--bg-tertiary);
+          background-color: var(--glass-bg);
+          border: 1px solid var(--glass-border);
           border-radius: var(--radius-md);
           margin-bottom: var(--space-4);
         }
@@ -388,7 +390,8 @@ export default function ItemSearch() {
         .item-stat {
           text-align: center;
           padding: var(--space-3);
-          background-color: var(--bg-tertiary);
+          background-color: var(--glass-bg);
+          border: 1px solid var(--glass-border);
           border-radius: var(--radius-md);
         }
 
@@ -406,7 +409,8 @@ export default function ItemSearch() {
 
         .item-info {
           padding: var(--space-3);
-          background-color: var(--bg-tertiary);
+          background-color: var(--glass-bg);
+          border: 1px solid var(--glass-border);
           border-radius: var(--radius-md);
           margin-bottom: var(--space-4);
         }
@@ -433,7 +437,8 @@ export default function ItemSearch() {
 
         .item-reason {
           padding: var(--space-3);
-          background-color: var(--bg-tertiary);
+          background-color: var(--glass-bg);
+          border: 1px solid var(--glass-border);
           border-radius: var(--radius-md);
           margin-bottom: var(--space-4);
         }

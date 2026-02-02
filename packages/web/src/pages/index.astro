@@ -12,7 +12,7 @@ if (!Astro.locals.user) {
 const user = Astro.locals.user;
 
 // Fetch user data
-const userData = await userRepo.findOrCreate(user.id, user.email);
+await userRepo.findOrCreate(user.id, user.email);
 const trades = await activeTradesRepo.findByUserId(user.id);
 ---
 

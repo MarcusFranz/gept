@@ -87,11 +87,13 @@ export function GuidancePrompt(props: GuidancePromptProps) {
 
       <style>{`
         .guidance-prompt {
-          background: var(--warning-light);
-          border: 1px solid var(--warning);
+          background: linear-gradient(145deg, rgba(255, 209, 102, 0.18), rgba(255, 209, 102, 0.06));
+          border: 1px solid rgba(255, 209, 102, 0.5);
           border-radius: var(--radius-lg);
           padding: 1rem;
           margin: 1rem 0;
+          box-shadow: var(--shadow-sm);
+          backdrop-filter: blur(10px);
         }
 
         .guidance-header {
@@ -140,7 +142,7 @@ export function GuidancePrompt(props: GuidancePromptProps) {
         .guidance-btn {
           flex: 1;
           padding: 0.625rem 1rem;
-          border: none;
+          border: 1px solid transparent;
           border-radius: var(--radius-md);
           font-weight: 600;
           cursor: pointer;
@@ -153,7 +155,7 @@ export function GuidancePrompt(props: GuidancePromptProps) {
         }
 
         .guidance-btn-primary {
-          background: var(--warning);
+          background: linear-gradient(135deg, var(--warning) 0%, #f5b942 100%);
           color: var(--btn-text-dark);
         }
 
@@ -162,12 +164,13 @@ export function GuidancePrompt(props: GuidancePromptProps) {
         }
 
         .guidance-btn-secondary {
-          background: var(--bg-tertiary);
+          background: var(--glass-bg);
+          border-color: var(--glass-border);
           color: var(--text-primary);
         }
 
         .guidance-btn-secondary:hover:not(:disabled) {
-          background: var(--bg-hover);
+          background: var(--hover-bg);
         }
       `}</style>
     </div>

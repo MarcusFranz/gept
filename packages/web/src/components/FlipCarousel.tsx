@@ -224,7 +224,7 @@ export default function FlipCarousel(props: FlipCarouselProps) {
           padding: 0;
           border: none;
           border-radius: 50%;
-          background-color: var(--bg-tertiary);
+          background-color: rgba(255, 255, 255, 0.12);
           cursor: pointer;
           transition: background-color var(--transition-fast), transform var(--transition-fast);
         }
