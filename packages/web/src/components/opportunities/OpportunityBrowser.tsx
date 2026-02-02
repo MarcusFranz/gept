@@ -50,6 +50,13 @@ export function OpportunityBrowser(props: OpportunityBrowserProps) {
 
     try {
       const f = filters();
+      // Convert minimum confidence level to the array of levels the engine accepts
+      const confidenceMap: Record<string, string[]> = {
+        high: ['high'],
+        medium: ['medium', 'high'],
+        low: ['low', 'medium', 'high'],
+      };
+      const confidenceArr = f.confidence ? confidenceMap[f.confidence] : undefined;
       const res = await fetch('/api/opportunities', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -57,7 +64,7 @@ export function OpportunityBrowser(props: OpportunityBrowserProps) {
           profitMin: f.profitMin,
           profitMax: f.profitMax,
           timeMax: f.timeMax,
-          confidence: f.confidence,
+          confidence: confidenceArr,
           capitalMax: f.capitalMax,
           category: f.category,
           limit: 30,
