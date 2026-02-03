@@ -1007,6 +1007,9 @@ class OpportunityFilters(BaseModel):
     )
     limit: int = Field(default=50, ge=1, le=200, description="Max results to return")
     offset: int = Field(default=0, ge=0, description="Pagination offset")
+    use_beta_model: bool = Field(
+        default=False, description="Use beta model predictions if available"
+    )
 
 
 class OpportunityResponse(BaseModel):
@@ -1028,6 +1031,7 @@ class OpportunityResponse(BaseModel):
     trend: Optional[str] = None
     why_chips: list[WhyChip]
     category: Optional[str] = None
+    model_id: Optional[str] = None
 
 
 class OpportunitiesListResponse(BaseModel):
@@ -1557,7 +1561,9 @@ async def browse_opportunities(
     start_time = time.monotonic()
     try:
         # Get all current predictions above minimum thresholds
-        all_opportunities = engine.get_all_opportunities()
+        all_opportunities = engine.get_all_opportunities(
+            use_beta_model=filters.use_beta_model
+        )
 
         # Apply filters
         filtered = []
@@ -1596,6 +1602,13 @@ async def browse_opportunities(
         # Paginate
         paginated = filtered[filters.offset : filters.offset + filters.limit]
 
+        # Determine model_id for attribution
+        active_model_id: Optional[str] = None
+        if filters.use_beta_model and config.beta_model_id:
+            active_model_id = config.beta_model_id
+        elif config.preferred_model_id:
+            active_model_id = config.preferred_model_id
+
         # Build response with why_chips
         items = []
         for opp in paginated:
@@ -1622,6 +1635,7 @@ async def browse_opportunities(
                     trend=opp.get("trend"),
                     why_chips=[WhyChip(**c) for c in chips],
                     category=opp.get("category"),
+                    model_id=active_model_id,
                 )
             )
 

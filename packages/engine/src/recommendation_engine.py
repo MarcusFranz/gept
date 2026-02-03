@@ -2148,7 +2148,7 @@ class RecommendationEngine:
 
         return chips[:4]  # Max 4 chips
 
-    def get_all_opportunities(self) -> list[dict]:
+    def get_all_opportunities(self, use_beta_model: bool = False) -> list[dict]:
         """Get all valid trading opportunities for browsing.
 
         Unlike get_recommendations(), this method:
@@ -2156,9 +2156,15 @@ class RecommendationEngine:
         - Returns all valid opportunities (no crowding filter)
         - Includes fields for opportunity browsing UI
 
+        Args:
+            use_beta_model: If True, use beta model predictions when available.
+
         Returns:
             List of opportunity dicts with item details, prices, profits, etc.
         """
+        # Select loader based on beta model preference
+        loader = self._get_loader(use_beta_model)
+
         # Use generous default thresholds for browsing
         min_fill_prob = 0.1  # Lower threshold since model outputs range 0-0.5
         min_ev = 0.003  # Low EV threshold for broad results
@@ -2166,7 +2172,7 @@ class RecommendationEngine:
         candidate_limit = 500  # Get a large pool of candidates
 
         # Fetch predictions from database
-        predictions_df = self.loader.get_best_prediction_per_item(
+        predictions_df = loader.get_best_prediction_per_item(
             min_fill_prob=min_fill_prob,
             min_ev=min_ev,
             min_hour_offset=1,
@@ -2183,9 +2189,9 @@ class RecommendationEngine:
 
         # Batch fetch all per-item data upfront (eliminates N+1 queries)
         candidate_item_ids = predictions_df["item_id"].unique().tolist()
-        buy_limits = self.loader.get_batch_buy_limits(candidate_item_ids)
-        volumes_24h = self.loader.get_batch_volumes_24h(candidate_item_ids)
-        trends = self.loader.get_batch_trends(candidate_item_ids)
+        buy_limits = loader.get_batch_buy_limits(candidate_item_ids)
+        volumes_24h = loader.get_batch_volumes_24h(candidate_item_ids)
+        trends = loader.get_batch_trends(candidate_item_ids)
 
         # Apply liquidity filter (anti-manipulation: filter items where buy_limit >> volume)
         predictions_df = self._apply_liquidity_filter(
