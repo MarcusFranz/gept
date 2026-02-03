@@ -3425,6 +3425,52 @@ class TestAPIAuthentication:
             import src.config as config_module
             importlib.reload(config_module)
 
+    def test_validate_rejects_missing_webhook_config_when_monitor_enabled(self):
+        """Test config.validate() rejects missing webhook config when monitor enabled."""
+        import importlib
+        import os
+
+        with patch.dict(
+            os.environ,
+            {
+                "PRICE_DROP_MONITOR_ENABLED": "true",
+                "WEBHOOK_SECRET": "",
+                "WEB_APP_WEBHOOK_URL": "",
+                "INTERNAL_API_KEY": "test-api-key",
+                "DB_CONNECTION_STRING": "postgresql://test:test@localhost:5432/test",
+            },
+            clear=False,
+        ):
+            import src.config as config_module
+            importlib.reload(config_module)
+
+            errors = config_module.config.validate()
+            assert any("WEBHOOK_SECRET" in e for e in errors)
+            assert any("WEB_APP_WEBHOOK_URL" in e for e in errors)
+
+    def test_validate_allows_missing_webhook_config_when_monitor_disabled(self):
+        """Test config.validate() allows missing webhook config when monitor disabled."""
+        import importlib
+        import os
+
+        with patch.dict(
+            os.environ,
+            {
+                "PRICE_DROP_MONITOR_ENABLED": "false",
+                "WEBHOOK_SECRET": "",
+                "WEB_APP_WEBHOOK_URL": "",
+                "INTERNAL_API_KEY": "test-api-key",
+                "DB_CONNECTION_STRING": "postgresql://test:test@localhost:5432/test",
+            },
+            clear=False,
+        ):
+            import src.config as config_module
+            importlib.reload(config_module)
+
+            errors = config_module.config.validate()
+            assert not any("WEBHOOK_SECRET" in e for e in errors)
+            assert not any("WEB_APP_WEBHOOK_URL" in e for e in errors)
+
     def test_root_endpoint_public(self, client_with_auth):
         """Test root endpoint is always public."""
         test_client, mock_engine, _ = client_with_auth
