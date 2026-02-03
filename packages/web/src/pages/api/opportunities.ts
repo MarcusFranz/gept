@@ -1,9 +1,25 @@
 // packages/web/src/pages/api/opportunities.ts
 import type { APIRoute } from 'astro';
+import { createHash } from 'crypto';
 import { cache, cacheKey, TTL, KEY } from '../../lib/cache';
 
 const PREDICTION_API = import.meta.env.PREDICTION_API;
 const API_KEY = process.env.PREDICTION_API_KEY ?? import.meta.env.PREDICTION_API_KEY;
+const API_KEY_SOURCE = process.env.PREDICTION_API_KEY
+  ? 'process.env'
+  : import.meta.env.PREDICTION_API_KEY
+    ? 'import.meta.env'
+    : 'missing';
+
+const fingerprintKey = (key?: string) => {
+  if (!key) return { keyLen: 0, keySuffix: null, keyHash: null };
+  const keyHash = createHash('sha256').update(key).digest('hex').slice(0, 8);
+  return {
+    keyLen: key.length,
+    keySuffix: key.slice(-4),
+    keyHash,
+  };
+};
 
 export const POST: APIRoute = async ({ request, locals }) => {
   // Require authentication
@@ -79,6 +95,12 @@ export const POST: APIRoute = async ({ request, locals }) => {
       });
 
       if (!engineRes.ok) {
+        if (engineRes.status === 401) {
+          console.error('[Opportunities] Engine 401 fingerprint', {
+            apiKeySource: API_KEY_SOURCE,
+            ...fingerprintKey(API_KEY)
+          });
+        }
         throw new Error(`Engine returned ${engineRes.status}`);
       }
 
