@@ -29,7 +29,8 @@ export const GET: APIRoute = async ({ locals }) => {
           slots: user.slots,
           min_roi: user.min_roi,
           tier: user.tier,
-          tutorialCompleted: user.tutorial_completed
+          tutorialCompleted: user.tutorial_completed,
+          useBetaModel: user.use_beta_model
         },
         rateLimit
       }
@@ -62,7 +63,7 @@ export const PUT: APIRoute = async ({ request, locals }) => {
 
     const userId = locals.user.id;
     const body = await request.json();
-    const { capital, style, risk, margin, slots, min_roi, tutorialCompleted } = body;
+    const { capital, style, risk, margin, slots, min_roi, tutorialCompleted, useBetaModel } = body;
 
     const updates: Record<string, unknown> = {};
 
@@ -94,6 +95,10 @@ export const PUT: APIRoute = async ({ request, locals }) => {
       updates.tutorial_completed = tutorialCompleted;
     }
 
+    if (useBetaModel !== undefined && typeof useBetaModel === 'boolean') {
+      updates.use_beta_model = useBetaModel;
+    }
+
     if (Object.keys(updates).length > 0) {
       await userRepo.update(userId, updates);
 
@@ -114,7 +119,8 @@ export const PUT: APIRoute = async ({ request, locals }) => {
         slots: user?.slots,
         min_roi: user?.min_roi,
         tier: user?.tier,
-        tutorialCompleted: user?.tutorial_completed
+        tutorialCompleted: user?.tutorial_completed,
+        useBetaModel: user?.use_beta_model
       }
     }), {
       status: 200,

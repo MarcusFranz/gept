@@ -189,6 +189,13 @@ class Config:
         default_factory=lambda: environ.get("PREFERRED_MODEL_ID", "")
     )
 
+    # Beta model ID - shadow/experimental model for opt-in users
+    # Set to a specific model_id to enable the beta model toggle
+    # Leave empty to disable the beta model feature
+    beta_model_id: str = field(
+        default_factory=lambda: environ.get("BETA_MODEL_ID", "")
+    )
+
     # Logging configuration
     # LOG_LEVEL: DEBUG, INFO, WARNING, ERROR (default: INFO)
     # LOG_FORMAT: json (for production), text (for local development)
