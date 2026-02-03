@@ -58,6 +58,7 @@ packages/model/data/
 .claude/
 agents/
 docs/
+packages/engine/docs/server_setup.md
 infra/runbooks/
 CLAUDE.md
 .worktrees/
