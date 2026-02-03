@@ -93,6 +93,20 @@ class RecommendationEngine:
             preferred_model_id=self.config.preferred_model_id,
             config=self.config,
         )
+
+        # Beta model loader (only if configured)
+        self._beta_loader: Optional[PredictionLoader] = None
+        if self.config.beta_model_id:
+            self._beta_loader = PredictionLoader(
+                db_connection_string,
+                pool_size=2,
+                preferred_model_id=self.config.beta_model_id,
+                config=self.config,
+            )
+            logger.info(
+                f"Beta model loader initialized: beta_model_id={self.config.beta_model_id}"
+            )
+
         self.store = RecommendationStore(ttl_seconds=900)
 
         # Create crowding tracker (Redis if configured, otherwise in-memory)
@@ -100,6 +114,12 @@ class RecommendationEngine:
             redis_url=self.config.redis_url or None,
             fallback_to_memory=self.config.redis_fallback_to_memory,
         )
+
+    def _get_loader(self, use_beta: bool = False) -> PredictionLoader:
+        """Get the appropriate prediction loader based on user preference."""
+        if use_beta and self._beta_loader is not None:
+            return self._beta_loader
+        return self.loader
 
     def _apply_price_buffer(self, buy_price: int, sell_price: int) -> tuple[int, int]:
         """Apply a random buffer to buy and sell prices to reduce price competition.
@@ -167,6 +187,7 @@ class RecommendationEngine:
         max_offset_pct: Optional[float] = None,
         max_hour_offset: Optional[int] = None,
         min_ev: Optional[float] = None,
+        use_beta_model: bool = False,
     ) -> list[dict]:
         """Get optimized trade recommendations for user constraints.
 
@@ -191,6 +212,9 @@ class RecommendationEngine:
         active_trades = active_trades or []
         exclude_ids = exclude_ids or set()
         exclude_item_ids = exclude_item_ids or set()
+
+        # Select loader based on beta model preference
+        loader = self._get_loader(use_beta_model)
 
         # Calculate remaining capital and slots after active trades
         capital_in_use = sum(t["quantity"] * t["buyPrice"] for t in active_trades)
@@ -247,7 +271,7 @@ class RecommendationEngine:
         )  # Hard cap to prevent excessive queries
 
         # Fetch predictions from database with hour/volume filtering at DB level
-        predictions_df = self.loader.get_best_prediction_per_item(
+        predictions_df = loader.get_best_prediction_per_item(
             min_fill_prob=min_fill,
             min_ev=min_ev_threshold,
             min_hour_offset=min_hour,
@@ -266,14 +290,14 @@ class RecommendationEngine:
         predictions_df = cast(pd.DataFrame, predictions_df[~predictions_df["item_id"].isin(excluded_items)])
 
         # Get prediction age for confidence adjustment
-        pred_age = self.loader.get_prediction_age_seconds()
+        pred_age = loader.get_prediction_age_seconds()
 
         # Batch fetch all per-item data upfront (eliminates N+1 queries)
         candidate_item_ids = predictions_df["item_id"].unique().tolist()
-        buy_limits = self.loader.get_batch_buy_limits(candidate_item_ids)
-        volumes_24h = self.loader.get_batch_volumes_24h(candidate_item_ids)
-        volumes_1h = self.loader.get_batch_volumes_1h(candidate_item_ids)
-        trends = self.loader.get_batch_trends(candidate_item_ids)
+        buy_limits = loader.get_batch_buy_limits(candidate_item_ids)
+        volumes_24h = loader.get_batch_volumes_24h(candidate_item_ids)
+        volumes_1h = loader.get_batch_volumes_1h(candidate_item_ids)
+        trends = loader.get_batch_trends(candidate_item_ids)
 
         # Apply liquidity filter (anti-manipulation: filter items where buy_limit >> volume)
         predictions_df = cast(pd.DataFrame, self._apply_liquidity_filter(predictions_df, buy_limits, volumes_24h))
@@ -379,6 +403,7 @@ class RecommendationEngine:
         max_offset_pct: Optional[float] = None,
         max_hour_offset: Optional[int] = None,
         min_ev: Optional[float] = None,
+        use_beta_model: bool = False,
     ) -> list[dict]:
         """Get ALL viable recommendations sorted by score (no slot limit).
 
@@ -404,6 +429,9 @@ class RecommendationEngine:
         """
         active_trades = active_trades or []
         exclude_item_ids = exclude_item_ids or set()
+
+        # Select loader based on beta model preference
+        loader = self._get_loader(use_beta_model)
 
         # Calculate remaining capital after active trades
         capital_in_use = sum(t["quantity"] * t["buyPrice"] for t in active_trades)
@@ -443,7 +471,7 @@ class RecommendationEngine:
         candidate_limit = 500
 
         # Fetch predictions from database
-        predictions_df = self.loader.get_best_prediction_per_item(
+        predictions_df = loader.get_best_prediction_per_item(
             min_fill_prob=min_fill,
             min_ev=min_ev_threshold,
             min_hour_offset=min_hour,
@@ -462,14 +490,14 @@ class RecommendationEngine:
         predictions_df = cast(pd.DataFrame, predictions_df[~predictions_df["item_id"].isin(excluded_items)])
 
         # Get prediction age for confidence adjustment
-        pred_age = self.loader.get_prediction_age_seconds()
+        pred_age = loader.get_prediction_age_seconds()
 
         # Batch fetch all per-item data upfront (eliminates N+1 queries)
         candidate_item_ids = predictions_df["item_id"].unique().tolist()
-        buy_limits = self.loader.get_batch_buy_limits(candidate_item_ids)
-        volumes_24h = self.loader.get_batch_volumes_24h(candidate_item_ids)
-        volumes_1h = self.loader.get_batch_volumes_1h(candidate_item_ids)
-        trends = self.loader.get_batch_trends(candidate_item_ids)
+        buy_limits = loader.get_batch_buy_limits(candidate_item_ids)
+        volumes_24h = loader.get_batch_volumes_24h(candidate_item_ids)
+        volumes_1h = loader.get_batch_volumes_1h(candidate_item_ids)
+        trends = loader.get_batch_trends(candidate_item_ids)
 
         # Apply liquidity filter (anti-manipulation: filter items where buy_limit >> volume)
         predictions_df = cast(pd.DataFrame, self._apply_liquidity_filter(predictions_df, buy_limits, volumes_24h))
@@ -2866,5 +2894,7 @@ class RecommendationEngine:
     def close(self):
         """Clean up resources."""
         self.loader.close()
+        if self._beta_loader is not None:
+            self._beta_loader.close()
         self.store.clear()
         self.crowding_tracker.clear()

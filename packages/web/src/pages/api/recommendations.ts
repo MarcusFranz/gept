@@ -71,8 +71,11 @@ export const GET: APIRoute = async ({ locals, request }) => {
     // Check if client requested fresh data (bypass cache)
     const skipCache = url.searchParams.get('fresh') === '1';
 
+    // Check if user wants beta model predictions
+    const useBetaModel = user.use_beta_model === true;
+
     // Build cache key based on effective settings (use exact capital for accuracy)
-    const redisCacheKey = cacheKey(KEY.RECS, userId, capital.toString(), effectiveStyle, effectiveRisk, effectiveMargin);
+    const redisCacheKey = cacheKey(KEY.RECS, userId, capital.toString(), effectiveStyle, effectiveRisk, effectiveMargin, useBetaModel ? 'beta' : 'prod');
 
     // Try Redis cache first (unless fresh=1 requested)
     let recommendations: Awaited<ReturnType<typeof getRecommendations>> | null = null;
@@ -92,7 +95,8 @@ export const GET: APIRoute = async ({ locals, request }) => {
         style: effectiveStyle,
         risk: effectiveRisk,
         margin: effectiveMargin,
-        excludedItems: [] // Don't exclude at API level - filter client-side for flexibility
+        excludedItems: [], // Don't exclude at API level - filter client-side for flexibility
+        useBetaModel
       }, requestedSlots);
 
       // Cache for 30 seconds (fire and forget)

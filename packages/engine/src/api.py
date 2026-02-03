@@ -1431,6 +1431,10 @@ async def get_recommendations_get(
         default=False,
         description="If true, return all viable flips sorted by score instead of slot-limited portfolio",
     ),
+    use_beta_model: bool = Query(
+        default=False,
+        description="Use beta model predictions if available",
+    ),
 ):
     """Get recommendations via GET request.
 
@@ -1488,6 +1492,7 @@ async def get_recommendations_get(
                 max_offset_pct=max_offset_pct,
                 max_hour_offset=max_hour_offset,
                 min_ev=min_ev,
+                use_beta_model=use_beta_model,
             )
 
             # Generate timestamps for response
@@ -1515,6 +1520,7 @@ async def get_recommendations_get(
             max_offset_pct=max_offset_pct,
             max_hour_offset=max_hour_offset,
             min_ev=min_ev,
+            use_beta_model=use_beta_model,
         )
 
         # Return with or without metadata based on request

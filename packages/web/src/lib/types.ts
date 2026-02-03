@@ -35,6 +35,7 @@ export interface UserSettings {
   risk: 'low' | 'medium' | 'high';
   margin: 'conservative' | 'moderate' | 'aggressive';
   excludedItems?: number[];
+  useBetaModel?: boolean;
 }
 
 // Item search result

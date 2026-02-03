@@ -196,6 +196,10 @@ export async function getRecommendations(
     params.append('exclude_item_ids', settings.excludedItems.join(','));
   }
 
+  if (settings.useBetaModel) {
+    params.append('use_beta_model', 'true');
+  }
+
   const url = `${getApiBase()}/api/v1/recommendations?${params}`;
   const apiResponse = await fetchWithRetry<ApiRecommendation[]>(url);
   return apiResponse.map(transformRecommendation);

@@ -3,6 +3,7 @@ import { type AppSettings, defaultAppSettings } from '../lib/types';
 
 interface UserSettings {
   tier: 'free' | 'premium';
+  useBetaModel: boolean;
 }
 
 interface RateLimitInfo {
@@ -178,6 +179,21 @@ export default function Settings() {
             </div>
             <p class="rate-limit-tier text-sm text-muted mt-2">
               Tier: <span class="font-medium">{settings()!.tier}</span>
+            </p>
+          </div>
+
+          {/* Beta Model Toggle */}
+          <div class="form-group" style={{ "margin-bottom": "var(--space-4)" }}>
+            <label class="toggle-label">
+              <input
+                type="checkbox"
+                checked={settings()!.useBetaModel}
+                onChange={(e) => updateSetting('useBetaModel', e.currentTarget.checked)}
+              />
+              <span>Use beta model if available</span>
+            </label>
+            <p class="text-sm text-muted" style={{ "margin-top": "var(--space-1)", "margin-left": "calc(18px + var(--space-3))" }}>
+              Try our latest prediction model. Beta models may be less stable but can offer improved accuracy.
             </p>
           </div>
 
