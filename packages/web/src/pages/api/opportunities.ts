@@ -2,6 +2,7 @@
 import type { APIRoute } from 'astro';
 import { createHash } from 'crypto';
 import { cache, cacheKey, TTL, KEY } from '../../lib/cache';
+import { userRepo } from '../../lib/repositories';
 
 const PREDICTION_API = process.env.PREDICTION_API ?? import.meta.env.PREDICTION_API;
 const API_KEY = process.env.PREDICTION_API_KEY ?? import.meta.env.PREDICTION_API_KEY;
@@ -48,6 +49,10 @@ export const POST: APIRoute = async ({ request, locals }) => {
     // Parse filter parameters from body
     const filters = await request.json();
 
+    // Check if user wants beta model predictions
+    const user = await userRepo.findById(locals.user.id);
+    const useBetaModel = user?.use_beta_model === true;
+
     // Build the engine request payload
     const enginePayload = {
       min_profit: filters.profitMin,
@@ -58,7 +63,8 @@ export const POST: APIRoute = async ({ request, locals }) => {
       max_capital: filters.capitalMax,
       categories: filters.categories,
       limit: filters.limit || 50,
-      offset: filters.offset || 0
+      offset: filters.offset || 0,
+      use_beta_model: useBetaModel
     };
 
     // Build cache key from all filter parameters that affect the response
@@ -72,7 +78,8 @@ export const POST: APIRoute = async ({ request, locals }) => {
       enginePayload.max_capital ?? '',
       (enginePayload.categories ?? []).join(','),
       enginePayload.limit,
-      enginePayload.offset
+      enginePayload.offset,
+      useBetaModel ? 'beta' : 'prod'
     );
 
     // Try cache first
@@ -139,7 +146,8 @@ export const POST: APIRoute = async ({ request, locals }) => {
 
     return new Response(JSON.stringify({
       success: true,
-      data: responseData
+      data: responseData,
+      isBeta: useBetaModel
     }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' }

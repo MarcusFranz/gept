@@ -27,6 +27,7 @@ export function OpportunityBrowser(props: OpportunityBrowserProps) {
   const [wikiWarningDismissed, setWikiWarningDismissed] = createSignal(
     typeof localStorage !== 'undefined' && localStorage.getItem(WIKI_WARNING_DISMISSED_KEY) === '1'
   );
+  const [isBeta, setIsBeta] = createSignal(false);
 
   // Load saved filters on mount
   createEffect(() => {
@@ -83,6 +84,7 @@ export function OpportunityBrowser(props: OpportunityBrowserProps) {
         }
         setHasMore(data.data.hasMore);
         setTotal(data.data.total);
+        if (data.isBeta !== undefined) setIsBeta(data.isBeta);
       } else {
         setError(data.error || 'Failed to load opportunities');
       }
@@ -232,6 +234,7 @@ export function OpportunityBrowser(props: OpportunityBrowserProps) {
                   onClick={() => setExpandedId(expandedId() === opp.id ? null : opp.id)}
                   onAddToTrades={() => handleAddToTrades(opp)}
                   loading={addingId() === opp.id}
+                  isBeta={isBeta()}
                 />
               )}
             </For>
