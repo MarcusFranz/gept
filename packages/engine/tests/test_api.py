@@ -3457,6 +3457,7 @@ class TestAPIAuthentication:
             os.environ,
             {
                 "PRICE_DROP_MONITOR_ENABLED": "false",
+                "TRADE_WEBHOOKS_ENABLED": "false",
                 "WEBHOOK_SECRET": "",
                 "WEB_APP_WEBHOOK_URL": "",
                 "INTERNAL_API_KEY": "test-api-key",
@@ -3469,6 +3470,30 @@ class TestAPIAuthentication:
 
             errors = config_module.config.validate()
             assert not any("WEBHOOK_SECRET" in e for e in errors)
+            assert not any("WEB_APP_WEBHOOK_URL" in e for e in errors)
+
+    def test_validate_rejects_missing_webhook_secret_when_trade_webhooks_enabled(self):
+        """Test config.validate() rejects missing webhook secret when trade webhooks enabled."""
+        import importlib
+        import os
+
+        with patch.dict(
+            os.environ,
+            {
+                "PRICE_DROP_MONITOR_ENABLED": "false",
+                "TRADE_WEBHOOKS_ENABLED": "true",
+                "WEBHOOK_SECRET": "",
+                "WEB_APP_WEBHOOK_URL": "",
+                "INTERNAL_API_KEY": "test-api-key",
+                "DB_CONNECTION_STRING": "postgresql://test:test@localhost:5432/test",
+            },
+            clear=False,
+        ):
+            import src.config as config_module
+            importlib.reload(config_module)
+
+            errors = config_module.config.validate()
+            assert any("WEBHOOK_SECRET" in e for e in errors)
             assert not any("WEB_APP_WEBHOOK_URL" in e for e in errors)
 
     def test_root_endpoint_public(self, client_with_auth):

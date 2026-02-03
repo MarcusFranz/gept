@@ -143,6 +143,12 @@ async def _crowding_cleanup_loop() -> None:
 
 async def _resync_active_trades() -> None:
     """Trigger a resync of active trades from the web app."""
+    if not config.trade_webhooks_enabled:
+        logger.info(
+            "Active trade resync skipped: TRADE_WEBHOOKS_ENABLED=false",
+        )
+        return
+
     if not config.web_app_resync_url:
         logger.info("Active trade resync skipped: WEB_APP_RESYNC_URL not configured")
         return
@@ -217,13 +223,19 @@ async def lifespan(app: FastAPI):
     )
     logger.info("Trade event handler initialized")
 
+    if config.trade_webhooks_enabled:
+        # Resync active trades after engine restart
+        await _resync_active_trades()
+    else:
+        logger.warning(
+            "Trade webhooks disabled",
+            reason="TRADE_WEBHOOKS_ENABLED=false",
+        )
+
     if config.price_drop_monitor_enabled:
         # Initialize alert dispatcher for price monitoring
         alert_dispatcher = AlertDispatcher()
         logger.info("Alert dispatcher initialized")
-
-        # Resync active trades after engine restart
-        await _resync_active_trades()
 
         # Start trade price monitor background task
         trade_monitor = TradePriceMonitor(
