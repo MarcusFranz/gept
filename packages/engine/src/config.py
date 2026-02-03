@@ -245,6 +245,10 @@ class Config:
     # Webhook configuration for web app integration
     # Shared secret for HMAC-SHA256 signature verification
     # Generate: python -c "import secrets; print(secrets.token_urlsafe(32))"
+    trade_webhooks_enabled: bool = field(
+        default_factory=lambda: environ.get("TRADE_WEBHOOKS_ENABLED", "true").lower()
+        == "true"
+    )
     webhook_secret: str = field(
         default_factory=lambda: environ.get("WEBHOOK_SECRET", "")
     )
@@ -273,11 +277,12 @@ class Config:
                 "INTERNAL_API_KEY is required. "
                 "Generate one: python -c \"import secrets; print(secrets.token_urlsafe(32))\""
             )
-        if self.price_drop_monitor_enabled:
+        if self.trade_webhooks_enabled or self.price_drop_monitor_enabled:
             if not self.webhook_secret:
                 errors.append(
-                    "WEBHOOK_SECRET is required when PRICE_DROP_MONITOR_ENABLED=true"
+                    "WEBHOOK_SECRET is required when TRADE_WEBHOOKS_ENABLED=true or PRICE_DROP_MONITOR_ENABLED=true"
                 )
+        if self.price_drop_monitor_enabled:
             if not self.web_app_webhook_url:
                 errors.append(
                     "WEB_APP_WEBHOOK_URL is required when PRICE_DROP_MONITOR_ENABLED=true"

@@ -93,6 +93,22 @@ class TestGenerateSignature:
         result = verify_webhook_signature(body, timestamp, signature, secret)
         assert result is True
 
+    def test_generate_signature_uses_config_secret(self):
+        """Test signature generation falls back to config when secret is None."""
+        body = '{"eventType": "TRADE_CREATED"}'
+        config_secret = "config_secret_key"
+
+        import src.config as config_module
+
+        original = config_module.config.webhook_secret
+        config_module.config.webhook_secret = config_secret
+        try:
+            timestamp, signature = generate_webhook_signature(body)
+            result = verify_webhook_signature(body, timestamp, signature)
+            assert result is True
+        finally:
+            config_module.config.webhook_secret = original
+
     def test_generate_signature_no_secret(self):
         """Test that missing secret raises an error."""
         body = '{"eventType": "TRADE_CREATED"}'

@@ -37,7 +37,8 @@ def verify_webhook_signature(
     Raises:
         WebhookSignatureError: If signature is invalid or timestamp is stale
     """
-    secret = secret or config.webhook_secret
+    if secret is None:
+        secret = config.webhook_secret
 
     if not secret:
         raise WebhookSignatureError("Webhook secret not configured")
@@ -84,7 +85,8 @@ def generate_webhook_signature(
     Returns:
         Tuple of (timestamp, signature)
     """
-    secret = secret or config.webhook_secret
+    if secret is None:
+        secret = config.webhook_secret
 
     if not secret:
         raise WebhookSignatureError("Webhook secret not configured")
