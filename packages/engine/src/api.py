@@ -9,6 +9,7 @@ from datetime import datetime, timedelta, timezone
 from enum import Enum
 from typing import Literal, Optional, Union
 
+import httpx
 from fastapi import Depends, FastAPI, HTTPException, Path, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import APIKeyHeader
@@ -140,10 +141,57 @@ async def _crowding_cleanup_loop() -> None:
             # Continue running despite errors
 
 
+async def _resync_active_trades() -> None:
+    """Trigger a resync of active trades from the web app."""
+    if not config.trade_webhooks_enabled:
+        logger.info(
+            "Active trade resync skipped: TRADE_WEBHOOKS_ENABLED=false",
+        )
+        return
+
+    if not config.web_app_resync_url:
+        logger.info("Active trade resync skipped: WEB_APP_RESYNC_URL not configured")
+        return
+
+    if not config.webhook_secret:
+        logger.warning("Active trade resync skipped: WEBHOOK_SECRET not configured")
+        return
+
+    headers = {"Authorization": f"Bearer {config.webhook_secret}"}
+
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            response = await client.post(config.web_app_resync_url, headers=headers)
+
+        if 200 <= response.status_code < 300:
+            dispatched = None
+            try:
+                payload = response.json()
+                dispatched = payload.get("data", {}).get("dispatched")
+            except Exception:
+                dispatched = None
+            logger.info(
+                "Active trade resync completed",
+                status_code=response.status_code,
+                dispatched=dispatched,
+            )
+            return
+
+        logger.warning(
+            "Active trade resync failed",
+            status_code=response.status_code,
+        )
+    except Exception as e:
+        logger.warning("Active trade resync error", error=str(e))
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Manage application lifespan."""
     global engine, outcome_db_engine, _cleanup_task, _startup_time, _is_ready, trade_event_handler
+
+    alert_dispatcher = None
+    _monitor_task = None
 
     # Startup
     _startup_time = time.time()
@@ -175,19 +223,34 @@ async def lifespan(app: FastAPI):
     )
     logger.info("Trade event handler initialized")
 
-    # Initialize alert dispatcher for price monitoring
-    alert_dispatcher = AlertDispatcher()
-    logger.info("Alert dispatcher initialized")
+    if config.trade_webhooks_enabled:
+        # Resync active trades after engine restart
+        await _resync_active_trades()
+    else:
+        logger.warning(
+            "Trade webhooks disabled",
+            reason="TRADE_WEBHOOKS_ENABLED=false",
+        )
 
-    # Start trade price monitor background task
-    trade_monitor = TradePriceMonitor(
-        trade_event_handler=trade_event_handler,
-        prediction_loader=engine.loader,
-        alert_dispatcher=alert_dispatcher,
-        config=config,
-    )
-    _monitor_task = asyncio.create_task(trade_monitor.run())
-    logger.info("Trade price monitor started")
+    if config.price_drop_monitor_enabled:
+        # Initialize alert dispatcher for price monitoring
+        alert_dispatcher = AlertDispatcher()
+        logger.info("Alert dispatcher initialized")
+
+        # Start trade price monitor background task
+        trade_monitor = TradePriceMonitor(
+            trade_event_handler=trade_event_handler,
+            prediction_loader=engine.loader,
+            alert_dispatcher=alert_dispatcher,
+            config=config,
+        )
+        _monitor_task = asyncio.create_task(trade_monitor.run())
+        logger.info("Trade price monitor started")
+    else:
+        logger.warning(
+            "Price drop monitor disabled",
+            reason="PRICE_DROP_MONITOR_ENABLED=false",
+        )
 
     # Initialize outcome database connection (optional - for ML feedback loop)
     if config.outcome_db_connection_string:
