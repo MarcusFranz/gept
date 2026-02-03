@@ -7,7 +7,7 @@ Transforms raw ML predictions into optimized OSRS Grand Exchange trade recommend
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                        Ampere Server                            │
-│                    (<SERVER_IP>)                           │
+│                       (redacted)                                │
 │                                                                 │
 │  ┌──────────────┐     ┌──────────────┐     ┌──────────────┐   │
 │  │   Cron Job   │────▶│  Inference   │────▶│  PostgreSQL  │   │
@@ -37,8 +37,8 @@ The engine reads pre-computed fill probability predictions from the Ampere serve
 ### Prerequisites
 
 - Python 3.11+
-- SSH access to Ampere server (for database tunnel)
-- `oracle_key.pem` SSH key
+- SSH access to the predictions database host (for database tunnel)
+- SSH key with access to the database host
 
 ### Installation
 
@@ -58,7 +58,7 @@ pip install -r requirements.txt
 Create an SSH tunnel to the Ampere server:
 
 ```bash
-ssh -i oracle_key.pem -L 5432:localhost:5432 ubuntu@<SERVER_IP>
+ssh -i <SSH_KEY_PATH> -L 5432:localhost:5432 <SSH_USER>@<DB_HOST>
 ```
 
 Keep this running in a separate terminal.
@@ -168,7 +168,7 @@ gept-engine/
 
 ## Configuration
 
-Environment variables (see `.env.example`):
+Environment variables (see `packages/engine/.env.example`):
 
 ```bash
 # Database (via SSH tunnel)
@@ -181,7 +181,16 @@ DATA_STALE_SECONDS=600
 # API
 API_HOST=0.0.0.0
 API_PORT=8000
+INTERNAL_API_KEY=your-internal-api-key
 ```
+
+## Health Endpoints
+
+Use these for load balancers and monitoring:
+
+- `GET /healthz` for liveness
+- `GET /ready` for readiness (503 until startup completes)
+- `GET /api/v1/health` for full dependency checks
 
 ## Database Schema
 

@@ -15,6 +15,8 @@ This document tracks integration details and coordination between the Discord bo
 | `GET /api/v1/items/search` | Autocomplete for `/report`, `/item` | ✅ Active |
 | `POST /api/v1/recommendations/{rec_id}/outcome` | Trade outcome reporting | ✅ Active |
 
+All endpoints require the `X-API-Key` header using the engine `INTERNAL_API_KEY`.
+
 ---
 
 ## Implemented Features
@@ -110,6 +112,12 @@ Does the item search fuzzy matching handle common OSRS acronyms?
 **Testing Required** - The search endpoint needs to be verified with acronym queries.
 
 ### Recommendation
+
+Quick sanity check (example):
+
+```
+curl -H "X-API-Key: <INTERNAL_API_KEY>" "http://localhost:8000/api/v1/items/search?q=ags&limit=5"
+```
 
 If acronym expansion is not currently supported, two options:
 

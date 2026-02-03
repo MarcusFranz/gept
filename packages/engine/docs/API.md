@@ -3,6 +3,16 @@
 **Version:** 2.0.0
 **Base URL:** `http://localhost:8000`
 
+## Authentication
+
+Most `/api/v1/*` endpoints require an API key header:
+
+```
+X-API-Key: <INTERNAL_API_KEY>
+```
+
+The key is configured via `INTERNAL_API_KEY` in `packages/engine/.env.example`. If you see a `401` response, add the header. The liveness/readiness endpoints (`/healthz`, `/ready`) do not require authentication.
+
 ## Overview
 
 OSRS Grand Exchange flipping recommendation API. Provides optimized trade recommendations based on ML predictions, user capital, trading style, and risk tolerance.
@@ -10,6 +20,15 @@ OSRS Grand Exchange flipping recommendation API. Provides optimized trade recomm
 ---
 
 ## Endpoints
+
+### Liveness/Readiness
+
+```
+GET /healthz
+GET /ready
+```
+
+Use these for load balancers and startup checks. `/ready` returns 503 until the engine finishes initializing.
 
 ### Health Check
 
@@ -89,6 +108,11 @@ Main endpoint for Discord bot to fetch flip recommendations with full context.
 | `slots` | integer | No | Available GE slots, 1-8 (default: 4) |
 | `activeTrades` | array | No | Currently tracked trades (auto-excluded) |
 | `userId` | string | No | Hashed user ID for crowding tracking |
+
+**Headers:**
+```
+X-API-Key: <INTERNAL_API_KEY>
+```
 
 #### GET (Alternative)
 

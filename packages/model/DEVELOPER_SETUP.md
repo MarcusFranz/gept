@@ -13,23 +13,23 @@ cd gept-foundations
 cp .env.example .env
 ```
 
-Edit `.env` with the actual credentials (ask Marcus for values):
+Edit `.env` with the actual credentials (obtain via a secure channel):
 ```bash
 DB_HOST=localhost
 DB_PORT=5432
 DB_NAME=osrs_data
 DB_USER=osrs_user
-DB_PASS=<ask_marcus>
-GRAFANA_PASSWORD=<ask_marcus>
+DB_PASS=<provided_securely>
+GRAFANA_PASSWORD=<provided_securely>
 ```
 
 ### 3. SSH Tunnel to Database
 The database runs on a remote server. To connect locally:
 ```bash
-ssh -i .secrets/oracle_key.pem -L 5432:localhost:5432 ubuntu@<server_ip> -N &
+ssh -i .secrets/oracle_key.pem -L 5432:localhost:5432 <ssh_user>@<db_host> -N &
 ```
 
-You'll need the SSH key file (`.secrets/oracle_key.pem`) - ask Marcus.
+You'll need the SSH key file (`.secrets/oracle_key.pem`) from a secure source.
 
 ### 4. Install Python Dependencies
 ```bash
@@ -125,9 +125,9 @@ pytest tests/
 ## Monitoring
 
 ### Dashboards (VPN/SSH required)
-- **Status Dashboard**: http://<server_ip>:8080
-- **Grafana**: http://<server_ip>:3001
-- **Prometheus**: http://<server_ip>:9090
+- **Status Dashboard**: http://<monitoring_host>:8080
+- **Grafana**: http://<monitoring_host>:3001
+- **Prometheus**: http://<monitoring_host>:9090
 
 ---
 
@@ -146,7 +146,7 @@ ssh -i .secrets/oracle_key.pem -L 5432:localhost:5432 ubuntu@<server_ip> -N &
 ```
 
 ### Missing SSH key
-Ask Marcus for the `.secrets/oracle_key.pem` file.
+Request the `.secrets/oracle_key.pem` file via a secure channel.
 
 ---
 
