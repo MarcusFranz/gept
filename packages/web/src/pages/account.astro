@@ -103,6 +103,28 @@ const user = Astro.locals.user;
         </div>
       </section>
 
+      <!-- Predictions Section -->
+      <section class="account-section">
+        <div class="section-header">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+          </svg>
+          <h2>Predictions</h2>
+        </div>
+        <div class="section-content">
+          <div class="toggle-option">
+            <div class="option-info">
+              <h3>Use beta model if available</h3>
+              <p class="text-secondary">Try our latest prediction model. Beta models may be less stable but can offer improved accuracy.</p>
+            </div>
+            <label class="toggle">
+              <input type="checkbox" id="beta-model-toggle" />
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </div>
+      </section>
+
       <!-- Notifications Section -->
       <section class="account-section">
         <div class="section-header">
@@ -327,6 +349,32 @@ const user = Astro.locals.user;
       alert('Something went wrong. Please try again.');
       deleteAccountBtn.textContent = 'Delete Account';
       (deleteAccountBtn as HTMLButtonElement).disabled = false;
+    }
+  });
+
+  // Beta model toggle
+  const betaModelToggle = document.getElementById('beta-model-toggle') as HTMLInputElement;
+
+  // Load current setting
+  fetch('/api/settings')
+    .then(res => res.json())
+    .then(data => {
+      if (data.success && betaModelToggle) {
+        betaModelToggle.checked = data.data.user.useBetaModel === true;
+      }
+    })
+    .catch(() => {});
+
+  betaModelToggle?.addEventListener('change', async () => {
+    try {
+      await fetch('/api/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ useBetaModel: betaModelToggle.checked })
+      });
+    } catch {
+      // Revert on failure
+      betaModelToggle.checked = !betaModelToggle.checked;
     }
   });
 
