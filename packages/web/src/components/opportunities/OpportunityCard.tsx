@@ -11,6 +11,7 @@ interface OpportunityCardProps {
   expanded?: boolean;
   onAddToTrades: () => void;
   loading?: boolean;
+  isBeta?: boolean;
 }
 
 export function OpportunityCard(props: OpportunityCardProps) {
@@ -62,7 +63,12 @@ export function OpportunityCard(props: OpportunityCardProps) {
       onClick={() => !props.expanded && props.onClick()}
     >
       <div class="opportunity-card-header">
-        <span class="opportunity-card-name">{opp().item}</span>
+        <span class="opportunity-card-name">
+          {opp().item}
+          <Show when={props.isBeta}>
+            <span class="beta-badge">Beta</span>
+          </Show>
+        </span>
         <span class="opportunity-card-profit">+{formatGold(opp().expectedProfit)}</span>
       </div>
 
@@ -161,21 +167,26 @@ export function OpportunityCard(props: OpportunityCardProps) {
 
       <style>{`
         .opportunity-card {
-          background: var(--bg-secondary);
+          background: var(--surface-1);
           border: 1px solid var(--border);
-          border-radius: var(--radius-lg);
-          padding: 0.875rem;
+          border-radius: var(--radius-xl);
+          padding: 1rem;
           cursor: pointer;
-          transition: border-color var(--transition-fast);
+          transition: border-color var(--transition-fast), box-shadow var(--transition-fast), transform var(--transition-fast), background var(--transition-fast);
+          box-shadow: var(--shadow-sm);
+          backdrop-filter: blur(16px);
         }
 
         .opportunity-card:hover {
-          border-color: var(--accent);
+          border-color: var(--border-light);
+          box-shadow: var(--shadow-md);
+          transform: translateY(-2px);
         }
 
         .opportunity-card-expanded {
           border-color: var(--accent);
           cursor: default;
+          background: var(--surface-2);
         }
 
         .opportunity-card-header {
@@ -206,9 +217,23 @@ export function OpportunityCard(props: OpportunityCardProps) {
         .confidence-badge {
           font-size: var(--font-size-xs);
           font-weight: 600;
-          padding: 0.0625rem 0.375rem;
-          border-radius: var(--radius-sm);
+          padding: 0.2rem 0.55rem;
+          border-radius: var(--radius-full);
           cursor: default;
+        }
+
+        .beta-badge {
+          display: inline-block;
+          font-size: 0.6rem;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.04em;
+          padding: 0.15rem 0.4rem;
+          border-radius: var(--radius-full);
+          background: var(--accent);
+          color: var(--btn-text-dark);
+          margin-left: 0.4rem;
+          vertical-align: middle;
         }
 
         .opportunity-card-sparkline {
@@ -227,9 +252,10 @@ export function OpportunityCard(props: OpportunityCardProps) {
           justify-content: space-between;
           gap: 0.5rem;
           margin-bottom: 1rem;
-          padding: 0.75rem;
-          background: var(--bg-tertiary);
-          border-radius: var(--radius-md);
+          padding: 0.85rem;
+          background: var(--surface-2);
+          border: 1px solid var(--border);
+          border-radius: var(--radius-lg);
         }
 
         .price-box {
@@ -286,8 +312,8 @@ export function OpportunityCard(props: OpportunityCardProps) {
 
         .chip {
           font-size: var(--font-size-xs);
-          padding: 0.25rem 0.5rem;
-          border-radius: var(--radius-sm);
+          padding: 0.3rem 0.6rem;
+          border-radius: var(--radius-full);
           white-space: nowrap;
         }
 
@@ -333,10 +359,11 @@ export function OpportunityCard(props: OpportunityCardProps) {
           background: var(--action);
           color: var(--btn-text-dark);
           border: none;
-          border-radius: var(--radius-md);
+          border-radius: var(--radius-full);
           font-weight: 600;
           cursor: pointer;
           margin-top: 1rem;
+          box-shadow: 0 10px 22px var(--accent-glow);
         }
 
         .opportunity-card-cta:hover:not(:disabled) {
@@ -351,9 +378,10 @@ export function OpportunityCard(props: OpportunityCardProps) {
         .opportunity-card-close {
           width: 100%;
           padding: 0.5rem;
-          background: transparent;
+          background: var(--surface-2);
           color: var(--text-secondary);
-          border: none;
+          border: 1px solid var(--border);
+          border-radius: var(--radius-full);
           cursor: pointer;
           margin-top: 0.5rem;
         }
