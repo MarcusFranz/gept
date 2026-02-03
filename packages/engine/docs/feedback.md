@@ -32,6 +32,13 @@ This feedback is used for model improvement and identifying systematic issues wi
 POST /api/v1/feedback
 ```
 
+### Headers
+
+```
+X-API-Key: <INTERNAL_API_KEY>
+Content-Type: application/json
+```
+
 ### Request Body
 
 ```json
@@ -73,6 +80,8 @@ POST /api/v1/feedback
   "feedbackId": 42
 }
 ```
+
+If the outcome database is not configured, the endpoint returns `503 Feedback database not available`.
 
 ## Analytics Endpoint
 

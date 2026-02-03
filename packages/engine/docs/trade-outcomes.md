@@ -26,6 +26,7 @@ Currently no authentication required. The endpoint validates that user IDs are p
 ### Headers
 
 ```
+X-API-Key: <INTERNAL_API_KEY>
 Content-Type: application/json
 ```
 
