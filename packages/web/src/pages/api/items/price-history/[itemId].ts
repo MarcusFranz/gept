@@ -2,7 +2,7 @@ import type { APIRoute } from 'astro';
 import { createHash } from 'crypto';
 import { cache, cacheKey, TTL, KEY } from '../../../../lib/cache';
 
-const PREDICTION_API = import.meta.env.PREDICTION_API;
+const PREDICTION_API = process.env.PREDICTION_API ?? import.meta.env.PREDICTION_API;
 const API_KEY = process.env.PREDICTION_API_KEY ?? import.meta.env.PREDICTION_API_KEY;
 const API_KEY_SOURCE = process.env.PREDICTION_API_KEY
   ? 'process.env'
