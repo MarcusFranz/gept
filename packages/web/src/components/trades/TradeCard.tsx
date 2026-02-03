@@ -112,21 +112,25 @@ export function TradeCard(props: TradeCardProps) {
 
       <style>{`
         .trade-card {
-          background: var(--bg-secondary);
-          border: 1px solid var(--border);
+          background: linear-gradient(145deg, var(--surface-2), var(--surface-1));
+          border: 1px solid var(--glass-border);
           border-radius: var(--radius-lg);
           padding: 0.875rem;
           cursor: pointer;
-          transition: border-color var(--transition-fast);
+          transition: border-color var(--transition-fast), box-shadow var(--transition-fast), transform var(--transition-fast);
+          box-shadow: var(--shadow-sm);
+          backdrop-filter: blur(12px);
         }
 
         .trade-card:hover {
-          border-color: var(--accent);
+          border-color: var(--border-light);
+          box-shadow: var(--shadow-md);
+          transform: translateY(-2px);
         }
 
         .trade-card-expanded {
           border-color: var(--accent);
-          background: var(--bg-tertiary);
+          background: linear-gradient(145deg, var(--surface-3), var(--surface-1));
         }
 
         .trade-card-header {
@@ -177,8 +181,8 @@ export function TradeCard(props: TradeCardProps) {
         .trade-card-bar {
           width: 100%;
           height: 6px;
-          background: var(--bg-tertiary);
-          border-radius: var(--radius-sm);
+          background: rgba(255, 255, 255, 0.06);
+          border-radius: var(--radius-full);
           overflow: hidden;
         }
 
@@ -233,8 +237,8 @@ export function TradeCard(props: TradeCardProps) {
           height: 24px;
           min-width: 24px;
           padding: 0;
-          background: none;
-          border: 1px solid var(--border);
+          background: var(--glass-bg);
+          border: 1px solid var(--glass-border);
           border-radius: var(--radius-sm);
           color: var(--text-muted);
           font-size: 1rem;
@@ -254,7 +258,7 @@ export function TradeCard(props: TradeCardProps) {
           font-size: var(--font-size-xs);
           font-weight: 600;
           padding: 0.125rem 0.5rem;
-          border-radius: var(--radius-sm);
+          border-radius: var(--radius-full);
           white-space: nowrap;
         }
 

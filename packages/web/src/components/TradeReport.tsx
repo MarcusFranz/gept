@@ -212,7 +212,8 @@ export default function TradeReport(props: TradeReportProps) {
 
         .prefilled-info {
           padding: var(--space-3);
-          background-color: var(--bg-tertiary);
+          background-color: var(--glass-bg);
+          border: 1px solid var(--glass-border);
           border-radius: var(--radius-md);
           margin-bottom: var(--space-4);
         }
@@ -234,8 +235,8 @@ export default function TradeReport(props: TradeReportProps) {
 
         .profit-toggle {
           padding: var(--space-2) var(--space-3);
-          border: 2px solid var(--border);
-          background-color: var(--bg-tertiary);
+          border: 1px solid var(--glass-border);
+          background-color: var(--glass-bg);
           border-radius: var(--radius-md);
           cursor: pointer;
           transition: all var(--transition-fast);

@@ -381,7 +381,8 @@ export default function ActiveTrades(props: ActiveTradesProps) {
           justify-content: center;
           gap: var(--space-4);
           padding: var(--space-3);
-          background-color: var(--bg-tertiary);
+          background-color: var(--glass-bg);
+          border: 1px solid var(--glass-border);
           border-radius: var(--radius-md);
           margin-bottom: var(--space-3);
         }
@@ -438,7 +439,8 @@ export default function ActiveTrades(props: ActiveTradesProps) {
           font-size: var(--font-size-xl);
           font-weight: 700;
           padding: var(--space-3);
-          background-color: var(--bg-tertiary);
+          background-color: var(--glass-bg);
+          border: 1px solid var(--glass-border);
           border-radius: var(--radius-md);
           text-align: center;
         }

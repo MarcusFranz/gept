@@ -167,7 +167,7 @@ export default function FeedbackWidget() {
           align-items: center;
           gap: var(--space-2);
           padding: var(--space-3) var(--space-4);
-          background: var(--action);
+          background: linear-gradient(135deg, var(--accent) 0%, var(--action) 100%);
           color: var(--btn-text-dark);
           border: none;
           border-radius: var(--radius-full);
@@ -181,7 +181,7 @@ export default function FeedbackWidget() {
 
         .feedback-trigger:hover {
           transform: translateY(-2px);
-          box-shadow: 0 8px 24px rgba(201, 166, 107, 0.3);
+          box-shadow: 0 12px 28px var(--accent-glow-strong);
         }
 
         .feedback-overlay {
@@ -190,7 +190,7 @@ export default function FeedbackWidget() {
           left: 0;
           right: 0;
           bottom: 0;
-          background: rgba(0, 0, 0, 0.7);
+          background: rgba(8, 10, 15, 0.7);
           display: flex;
           align-items: flex-end;
           justify-content: flex-end;
@@ -199,14 +199,16 @@ export default function FeedbackWidget() {
         }
 
         .feedback-panel {
-          background: var(--bg-primary);
+          background: linear-gradient(145deg, var(--surface-2), var(--surface-1));
+          border: 1px solid var(--glass-border);
           border-radius: var(--radius-lg);
           width: 360px;
           max-width: 100%;
           max-height: calc(100vh - 2rem);
           overflow-y: auto;
-          box-shadow: var(--shadow-xl);
+          box-shadow: var(--shadow-lg);
           animation: slideUp 0.2s ease-out;
+          backdrop-filter: blur(16px);
         }
 
         @keyframes slideUp {
@@ -260,13 +262,14 @@ export default function FeedbackWidget() {
           align-items: center;
           gap: var(--space-1);
           padding: var(--space-3);
-          background: var(--bg-secondary);
-          border: 2px solid var(--border);
+          background: var(--glass-bg);
+          border: 1px solid var(--glass-border);
           border-radius: var(--radius-md);
           color: var(--text-secondary);
           font-size: var(--font-size-xs);
           cursor: pointer;
           transition: all var(--transition-fast);
+          backdrop-filter: blur(10px);
         }
 
         .feedback-type-btn:hover {
@@ -276,8 +279,8 @@ export default function FeedbackWidget() {
 
         .feedback-type-btn.active {
           border-color: var(--accent);
-          background: rgba(139, 195, 74, 0.1);
-          color: var(--accent);
+          background: var(--accent-subtle);
+          color: var(--text-primary);
         }
 
         .feedback-field {
@@ -295,9 +298,9 @@ export default function FeedbackWidget() {
         .feedback-field input {
           width: 100%;
           padding: var(--space-3);
-          border: 1px solid var(--border);
+          border: 1px solid var(--glass-border);
           border-radius: var(--radius-md);
-          background: var(--bg-secondary);
+          background: var(--glass-bg);
           color: var(--text-primary);
           font-family: inherit;
           font-size: var(--font-size-sm);

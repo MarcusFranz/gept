@@ -248,8 +248,7 @@ export function TradeList(props: TradeListProps) {
         .trade-list {
           max-width: 720px;
           margin: 0 auto;
-          padding: 1rem;
-          padding-bottom: 5rem;
+          padding: 1.5rem 1rem 5rem;
         }
 
         .trade-list-header {
@@ -262,12 +261,18 @@ export function TradeList(props: TradeListProps) {
         .trade-list-header h1 {
           margin: 0;
           font-size: var(--font-size-2xl);
+          letter-spacing: -0.01em;
         }
 
         .trade-list-empty {
           text-align: center;
           padding: 3rem 1rem;
           color: var(--text-secondary);
+          background: var(--glass-bg);
+          border: 1px solid var(--glass-border);
+          border-radius: var(--radius-lg);
+          box-shadow: var(--shadow-sm);
+          backdrop-filter: blur(10px);
         }
 
         .trade-list-empty-icon {
@@ -293,16 +298,17 @@ export function TradeList(props: TradeListProps) {
         .trade-list-cta {
           margin-top: 1rem;
           padding: 0.75rem 1.5rem;
-          background: var(--action);
+          background: linear-gradient(135deg, var(--accent) 0%, var(--action) 100%);
           color: var(--btn-text-dark);
           border: none;
           border-radius: var(--radius-lg);
           font-weight: 600;
           cursor: pointer;
+          box-shadow: 0 10px 22px var(--accent-glow);
         }
 
         .trade-list-cta:hover {
-          background: var(--action-hover);
+          filter: brightness(1.05);
         }
 
         .trade-list-items {
@@ -316,8 +322,9 @@ export function TradeList(props: TradeListProps) {
           justify-content: space-between;
           align-items: center;
           padding: 0.75rem 1rem;
-          background: var(--danger-light);
+          background: linear-gradient(145deg, rgba(255, 107, 107, 0.2), rgba(255, 107, 107, 0.06));
           color: var(--danger);
+          border: 1px solid rgba(255, 107, 107, 0.4);
           border-radius: var(--radius-md);
           margin-bottom: 1rem;
           font-size: var(--font-size-sm);

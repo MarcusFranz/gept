@@ -14,14 +14,16 @@
   white-space: normal;
   max-width: 220px;
   text-align: center;
-  background-color: var(--bg-tertiary);
+  background-color: var(--surface-2);
   color: var(--text-primary);
   border-radius: var(--radius-md);
-  border: 1px solid var(--border);
+  border: 1px solid var(--glass-border);
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
   transition: opacity 0.15s ease, visibility 0.15s ease;
+  backdrop-filter: blur(12px);
+  box-shadow: var(--shadow-sm);
 }
 
 .tooltip-content.visible {

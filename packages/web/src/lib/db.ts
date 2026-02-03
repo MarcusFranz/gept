@@ -5,7 +5,8 @@ let _sql: NeonQueryFunction<false, false> | null = null;
 
 export function sql<T = Record<string, unknown>>(strings: TemplateStringsArray, ...values: unknown[]): Promise<T[]> {
   if (!_sql) {
-    const connectionString = process.env.DATABASE_URL;
+    const env = import.meta.env as Record<string, string | undefined>;
+    const connectionString = process.env.DATABASE_URL ?? env.DATABASE_URL;
     if (!connectionString) {
       throw new Error('DATABASE_URL environment variable is not set');
     }
