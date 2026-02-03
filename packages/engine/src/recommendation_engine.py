@@ -222,9 +222,10 @@ class RecommendationEngine:
         slots_in_use = len(active_trades)
         available_slots = max(0, slots - slots_in_use)
 
-        # Get item IDs to exclude (already tracking + explicit exclusions)
+        # Get item IDs to exclude (already tracking + explicit exclusions + blocklist)
         excluded_items = {t["itemId"] for t in active_trades}
         excluded_items.update(exclude_item_ids)
+        excluded_items.update(self.config.blocked_item_ids)
 
         if remaining_capital < 1000 or available_slots < 1:
             logger.info(
@@ -437,9 +438,10 @@ class RecommendationEngine:
         capital_in_use = sum(t["quantity"] * t["buyPrice"] for t in active_trades)
         remaining_capital = max(0, capital - capital_in_use)
 
-        # Get item IDs to exclude (already tracking + explicit exclusions)
+        # Get item IDs to exclude (already tracking + explicit exclusions + blocklist)
         excluded_items = {t["itemId"] for t in active_trades}
         excluded_items.update(exclude_item_ids)
+        excluded_items.update(self.config.blocked_item_ids)
 
         if remaining_capital < 1000:
             logger.info(f"No capacity: remaining_capital={remaining_capital}")
@@ -2186,6 +2188,14 @@ class RecommendationEngine:
         if predictions_df.empty:
             logger.warning("No predictions found for opportunities browsing")
             return []
+
+        # Remove blocked items
+        if self.config.blocked_item_ids:
+            predictions_df = predictions_df[
+                ~predictions_df["item_id"].isin(self.config.blocked_item_ids)
+            ]
+            if predictions_df.empty:
+                return []
 
         # Batch fetch all per-item data upfront (eliminates N+1 queries)
         candidate_item_ids = predictions_df["item_id"].unique().tolist()
