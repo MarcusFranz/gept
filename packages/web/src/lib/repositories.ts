@@ -43,6 +43,7 @@ export const userRepo = {
         min_roi = COALESCE(${(data as Record<string, unknown>).min_roi ?? null}, min_roi),
         tier = COALESCE(${(data as Record<string, unknown>).tier ?? null}, tier),
         tutorial_completed = COALESCE(${(data as Record<string, unknown>).tutorial_completed ?? null}, tutorial_completed),
+        use_beta_model = COALESCE(${(data as Record<string, unknown>).use_beta_model ?? null}, use_beta_model),
         updated_at = NOW()
       WHERE id = ${id}
     `;

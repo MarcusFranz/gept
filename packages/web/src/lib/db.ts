@@ -36,6 +36,7 @@ export interface User {
   tier: 'beta' | 'free' | 'premium';
   tutorial_completed: boolean;
   excluded_items: string[];
+  use_beta_model: boolean;
   daily_query_count: number;
   daily_reset_date: string | null;
   weekly_query_count: number;
