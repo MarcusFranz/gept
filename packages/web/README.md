@@ -25,6 +25,15 @@ There's nothing special about `src/components/`, but that's where we like to put
 
 Any static assets, like images, can be placed in the `public/` directory.
 
+## Environment
+
+Active-trade price alerts require webhook configuration:
+
+- `ENGINE_WEBHOOK_URL` (engine endpoint that receives trade lifecycle events)
+- `WEBHOOK_SECRET` (shared HMAC secret used by both web and engine)
+
+Copy `.env.example` to `.env.local` and set the required variables for your environment.
+
 ## 🧞 Commands
 
 All commands are run from the root of the project, from a terminal:

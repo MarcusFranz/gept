@@ -216,6 +216,10 @@ class Config:
     )
 
     # Price drop monitor thresholds
+    price_drop_monitor_enabled: bool = field(
+        default_factory=lambda: environ.get("PRICE_DROP_MONITOR_ENABLED", "true").lower()
+        == "true"
+    )
     price_drop_monitor_interval: int = field(
         default_factory=lambda: int(environ.get("PRICE_DROP_MONITOR_INTERVAL", "300"))
     )
@@ -254,6 +258,10 @@ class Config:
     web_app_webhook_url: str = field(
         default_factory=lambda: environ.get("WEB_APP_WEBHOOK_URL", "")
     )
+    # Web app endpoint for resyncing active trades after engine restart
+    web_app_resync_url: str = field(
+        default_factory=lambda: environ.get("WEB_APP_RESYNC_URL", "")
+    )
 
     def validate(self) -> list[str]:
         """Validate configuration and return list of errors."""
@@ -265,6 +273,15 @@ class Config:
                 "INTERNAL_API_KEY is required. "
                 "Generate one: python -c \"import secrets; print(secrets.token_urlsafe(32))\""
             )
+        if self.price_drop_monitor_enabled:
+            if not self.webhook_secret:
+                errors.append(
+                    "WEBHOOK_SECRET is required when PRICE_DROP_MONITOR_ENABLED=true"
+                )
+            if not self.web_app_webhook_url:
+                errors.append(
+                    "WEB_APP_WEBHOOK_URL is required when PRICE_DROP_MONITOR_ENABLED=true"
+                )
         return errors
 
 

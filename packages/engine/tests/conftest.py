@@ -21,10 +21,24 @@ def _clear_api_key():
     import src.config as config_module
 
     original = config_module.config.internal_api_key
+    original_webhook_secret = config_module.config.webhook_secret
+    original_webhook_url = config_module.config.web_app_webhook_url
     config_module.config.internal_api_key = ""
-    with patch.dict(os.environ, {"INTERNAL_API_KEY": ""}, clear=False):
+    config_module.config.webhook_secret = "test-webhook-secret"
+    config_module.config.web_app_webhook_url = "https://example.com/api/webhooks/alerts"
+    with patch.dict(
+        os.environ,
+        {
+            "INTERNAL_API_KEY": "",
+            "WEBHOOK_SECRET": "test-webhook-secret",
+            "WEB_APP_WEBHOOK_URL": "https://example.com/api/webhooks/alerts",
+        },
+        clear=False,
+    ):
         yield
     config_module.config.internal_api_key = original
+    config_module.config.webhook_secret = original_webhook_secret
+    config_module.config.web_app_webhook_url = original_webhook_url
 
 
 @pytest.fixture
