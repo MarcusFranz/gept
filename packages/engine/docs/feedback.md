@@ -49,6 +49,13 @@ POST /api/v1/feedback
 }
 ```
 
+### Headers
+
+```
+Content-Type: application/json
+X-API-Key: <your_internal_api_key>
+```
+
 ### Fields
 
 | Field | Type | Required | Description |
@@ -71,6 +78,16 @@ POST /api/v1/feedback
   "success": true,
   "message": "Feedback recorded",
   "feedbackId": 42
+}
+```
+
+### 401 Unauthorized
+
+Returned when `X-API-Key` is missing or invalid.
+
+```json
+{
+  "detail": "Missing API key. Include X-API-Key header."
 }
 ```
 

@@ -1,52 +1,58 @@
-# Astro Starter Kit: Minimal
+# GePT Web App
 
-```sh
-npm create astro@latest -- --template minimal
+Frontend for GePT (Grand Exchange Prediction Tool). This Astro app powers the public site and user flows for active-trade alerts.
+
+## Quick Start
+
+```bash
+# From repo root
+npm install
+npm run dev:web
 ```
 
-> 🧑‍🚀 **Seasoned astronaut?** Delete this file. Have fun!
+Local dev server defaults to `http://localhost:4321`.
 
-## 🚀 Project Structure
+## Environment Setup
 
-Inside of your Astro project, you'll see the following folders and files:
+Copy the example file and fill in required values:
+
+```bash
+cp packages/web/.env.example packages/web/.env.local
+```
+
+Required variables for local development:
+- `DATABASE_URL` (Neon/Postgres connection string)
+- `BETTER_AUTH_SECRET` (min 32 chars)
+- `BETTER_AUTH_URL` (local base URL for callbacks)
+- `PUBLIC_APP_URL` (public base URL)
+- `SITE` (canonical site URL)
+
+Optional but common:
+- `RESEND_API_KEY` and `EMAIL_FROM` for email flows
+- `PREDICTION_API` to use live engine data
+- `ENGINE_WEBHOOK_URL` + `WEBHOOK_SECRET` for active-trade alerts
+
+## Useful Commands
+
+| Command | Where | Action |
+| --- | --- | --- |
+| `npm run dev:web` | repo root | Start Astro dev server |
+| `npm run build:web` | repo root | Build production bundle |
+| `npm run preview --workspace=@gept/web` | repo root | Preview the build |
+| `npm run dev` | `packages/web` | Start dev server (local only) |
+
+## Project Structure
 
 ```text
-/
-├── public/
-├── src/
-│   └── pages/
-│       └── index.astro
-└── package.json
+packages/web/
+├── src/            # Astro pages/components
+├── public/         # Static assets
+├── astro.config.mjs
+├── package.json
+└── .env.example
 ```
 
-Astro looks for `.astro` or `.md` files in the `src/pages/` directory. Each page is exposed as a route based on its file name.
+## Notes
 
-There's nothing special about `src/components/`, but that's where we like to put any Astro/React/Vue/Svelte/Preact components.
-
-Any static assets, like images, can be placed in the `public/` directory.
-
-## Environment
-
-Active-trade price alerts require webhook configuration:
-
-- `ENGINE_WEBHOOK_URL` (engine endpoint that receives trade lifecycle events)
-- `WEBHOOK_SECRET` (shared HMAC secret used by both web and engine)
-
-Copy `.env.example` to `.env.local` and set the required variables for your environment.
-
-## 🧞 Commands
-
-All commands are run from the root of the project, from a terminal:
-
-| Command                   | Action                                           |
-| :------------------------ | :----------------------------------------------- |
-| `npm install`             | Installs dependencies                            |
-| `npm run dev`             | Starts local dev server at `localhost:4321`      |
-| `npm run build`           | Build your production site to `./dist/`          |
-| `npm run preview`         | Preview your build locally, before deploying     |
-| `npm run astro ...`       | Run CLI commands like `astro add`, `astro check` |
-| `npm run astro -- --help` | Get help using the Astro CLI                     |
-
-## 👀 Want to learn more?
-
-Feel free to check [our documentation](https://docs.astro.build) or jump into our [Discord server](https://astro.build/chat).
+- Active-trade price alerts rely on the webhook config in `.env.local`.
+- If `PREDICTION_API` is unset, the app falls back to mock data.

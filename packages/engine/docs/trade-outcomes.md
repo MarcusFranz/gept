@@ -27,6 +27,7 @@ Currently no authentication required. The endpoint validates that user IDs are p
 
 ```
 Content-Type: application/json
+X-API-Key: <your_internal_api_key>
 ```
 
 ### URL Parameters
@@ -80,6 +81,13 @@ Content-Type: application/json
 ```json
 {
   "detail": "userId must be SHA256 hash (64 hex characters)"
+}
+```
+
+#### 401 Unauthorized - Missing or invalid API key
+```json
+{
+  "detail": "Missing API key. Include X-API-Key header."
 }
 ```
 

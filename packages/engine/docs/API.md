@@ -7,6 +7,18 @@
 
 OSRS Grand Exchange flipping recommendation API. Provides optimized trade recommendations based on ML predictions, user capital, trading style, and risk tolerance.
 
+## Authentication
+
+All endpoints require an API key unless you are running with auth disabled in local tests.
+
+Send the key in the `X-API-Key` header:
+
+```
+X-API-Key: <your_internal_api_key>
+```
+
+If the key is missing or invalid, the API returns `401`.
+
 ---
 
 ## Endpoints
@@ -18,6 +30,11 @@ GET /api/v1/health
 ```
 
 Check system health status including database connectivity and prediction freshness.
+
+**Headers:**
+```
+X-API-Key: <your_internal_api_key>
+```
 
 **Response:**
 ```json
@@ -81,6 +98,12 @@ Main endpoint for Discord bot to fetch flip recommendations with full context.
 }
 ```
 
+**Headers:**
+```
+Content-Type: application/json
+X-API-Key: <your_internal_api_key>
+```
+
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `style` | string | No | `passive`, `hybrid`, `active` (default: `hybrid`) |
@@ -94,6 +117,11 @@ Main endpoint for Discord bot to fetch flip recommendations with full context.
 
 ```
 GET /api/v1/recommendations?style=active&capital=10000000&risk=medium&slots=4
+```
+
+**Headers:**
+```
+X-API-Key: <your_internal_api_key>
 ```
 
 Alternative endpoint using query parameters.
@@ -142,6 +170,11 @@ GET /api/v1/recommendations/item/{item_id}
 
 Get recommendation for a specific OSRS item by its ID.
 
+**Headers:**
+```
+X-API-Key: <your_internal_api_key>
+```
+
 **Parameters:**
 
 | Parameter | Location | Type | Required | Description |
@@ -163,6 +196,11 @@ GET /api/v1/recommendations/item?name=dragon+bones&capital=10000000
 
 Search for item by name with fuzzy matching.
 
+**Headers:**
+```
+X-API-Key: <your_internal_api_key>
+```
+
 **Parameters:**
 
 | Parameter | Type | Required | Description |
@@ -183,6 +221,11 @@ GET /api/v1/recommendations/{rec_id}
 
 Retrieve a specific stored recommendation by its ID. Used when user clicks "Mark Ordered" in Discord.
 
+**Headers:**
+```
+X-API-Key: <your_internal_api_key>
+```
+
 ---
 
 ### Search Items
@@ -192,6 +235,11 @@ GET /api/v1/items/search?q=dragon&limit=10
 ```
 
 Search for items by name with fuzzy matching for Discord autocomplete.
+
+**Headers:**
+```
+X-API-Key: <your_internal_api_key>
+```
 
 **Parameters:**
 
@@ -217,6 +265,11 @@ GET /api/v1/predictions/{item_id}
 ```
 
 Get full prediction details for a specific item including all hour/offset combinations.
+
+**Headers:**
+```
+X-API-Key: <your_internal_api_key>
+```
 
 **Response:**
 ```json
@@ -246,6 +299,12 @@ POST /api/v1/recommendations/{rec_id}/outcome
 
 Record a trade outcome for ML feedback loop.
 
+**Headers:**
+```
+Content-Type: application/json
+X-API-Key: <your_internal_api_key>
+```
+
 **Request Body:**
 ```json
 {
@@ -272,6 +331,12 @@ POST /api/v1/feedback
 ```
 
 Submit structured feedback on a recommendation for model improvement.
+
+**Headers:**
+```
+Content-Type: application/json
+X-API-Key: <your_internal_api_key>
+```
 
 **Request Body:**
 ```json
@@ -322,6 +387,11 @@ GET /api/v1/feedback/analytics?period=week
 ```
 
 Get aggregated feedback statistics for model improvement analysis.
+
+**Headers:**
+```
+X-API-Key: <your_internal_api_key>
+```
 
 **Parameters:**
 
@@ -400,6 +470,16 @@ Get aggregated feedback statistics for model improvement analysis.
       "type": "value_error.missing"
     }
   ]
+}
+```
+
+### 401 Unauthorized
+
+Returned when `X-API-Key` is missing or invalid.
+
+```json
+{
+  "detail": "Missing API key. Include X-API-Key header."
 }
 ```
 

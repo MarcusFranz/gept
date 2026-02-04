@@ -30,6 +30,33 @@ OSRS Wiki API → Docker Collectors → PostgreSQL/TimescaleDB → ML Pipeline
 - PostgreSQL 14+ with TimescaleDB
 - Python 3.10+
 
+### Environment
+
+`docker-compose.yml` expects a `.env` file in this directory.
+
+Minimum required values:
+- `DB_HOST`
+- `DB_PORT`
+- `DB_NAME`
+- `DB_USER`
+- `DB_PASS`
+
+Optional but common:
+- `USER_AGENT` (override the default collector UA string)
+- `COLLECTION_INTERVAL_*` and `METRICS_PORT_*` (override defaults in `shared/config.py`)
+
+Example (copy to `.env`):
+
+```bash
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=osrs_data
+DB_USER=osrs_user
+DB_PASS=your_db_password
+```
+
+For the export service, see `gept-export.env.example`.
+
 ### Deployment
 
 1. **Configure Environment**:
