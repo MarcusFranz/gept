@@ -8,6 +8,8 @@ git clone https://github.com/MarcusFranz/gept-foundations.git
 cd gept-foundations
 ```
 
+If you already have the repo checked out, skip this step.
+
 ### 2. Set Up Environment Variables
 ```bash
 cp .env.example .env
@@ -26,7 +28,7 @@ GRAFANA_PASSWORD=<ask_marcus>
 ### 3. SSH Tunnel to Database
 The database runs on a remote server. To connect locally:
 ```bash
-ssh -i .secrets/oracle_key.pem -L 5432:localhost:5432 ubuntu@<server_ip> -N &
+ssh -i .secrets/oracle_key.pem -L 5432:localhost:5432 ubuntu@<REDACTED_HOST> -N &
 ```
 
 You'll need the SSH key file (`.secrets/oracle_key.pem`) - ask Marcus.
@@ -125,9 +127,11 @@ pytest tests/
 ## Monitoring
 
 ### Dashboards (VPN/SSH required)
-- **Status Dashboard**: http://<server_ip>:8080
-- **Grafana**: http://<server_ip>:3001
-- **Prometheus**: http://<server_ip>:9090
+- **Status Dashboard**: http://<REDACTED_HOST>:8080
+- **Grafana**: http://<REDACTED_HOST>:3001
+- **Prometheus**: http://<REDACTED_HOST>:9090
+
+Ask the team for the current host value and access method.
 
 ---
 

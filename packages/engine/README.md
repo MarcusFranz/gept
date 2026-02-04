@@ -53,6 +53,21 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
+### Environment
+
+Create a local environment file from the template:
+
+```bash
+cp packages/engine/.env.example packages/engine/.env
+```
+
+Minimum required settings for local dev:
+- `DB_CONNECTION_STRING` (points at the predictions database)
+
+Optional (but commonly used):
+- `OUTCOME_DB_CONNECTION_STRING` (enables trade-outcome writes)
+- `WEBHOOK_SECRET`, `WEB_APP_WEBHOOK_URL`, `WEB_APP_RESYNC_URL` (active-trade alerts)
+
 ### Database Connection
 
 Create an SSH tunnel to the Ampere server:

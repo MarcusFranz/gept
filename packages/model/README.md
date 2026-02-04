@@ -43,6 +43,18 @@ See `collectors/` for Docker-based collection services. Deploy with:
 - PostgreSQL with TimescaleDB
 - PatchTST model checkpoint in `models/patchtst/` directory
 
+## Environment
+
+Most scripts expect the database credentials to be available as environment variables:
+- `DB_HOST`
+- `DB_PORT`
+- `DB_NAME`
+- `DB_USER`
+- `DB_PASS`
+
+For the full setup (SSH tunnel, `.env` workflow, and common troubleshooting), see
+`packages/model/DEVELOPER_SETUP.md`.
+
 ## License
 
 Private - All rights reserved
