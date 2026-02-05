@@ -1,52 +1,50 @@
-# Astro Starter Kit: Minimal
+# GePT Web App
 
-```sh
-npm create astro@latest -- --template minimal
+Frontend for GePT (Grand Exchange Prediction Tool). Serves the website and API routes for account/auth and trade workflows.
+
+## Quick Start
+
+```bash
+# From repo root
+npm install
+npm run dev:web
 ```
 
-> 🧑‍🚀 **Seasoned astronaut?** Delete this file. Have fun!
+Or run directly from this package:
 
-## 🚀 Project Structure
-
-Inside of your Astro project, you'll see the following folders and files:
-
-```text
-/
-├── public/
-├── src/
-│   └── pages/
-│       └── index.astro
-└── package.json
+```bash
+cd packages/web
+npm install
+npm run dev
 ```
 
-Astro looks for `.astro` or `.md` files in the `src/pages/` directory. Each page is exposed as a route based on its file name.
-
-There's nothing special about `src/components/`, but that's where we like to put any Astro/React/Vue/Svelte/Preact components.
-
-Any static assets, like images, can be placed in the `public/` directory.
+Astro will start the dev server (default `http://localhost:4321`).
 
 ## Environment
 
-Active-trade price alerts require webhook configuration:
+Copy the template and set required values:
 
-- `ENGINE_WEBHOOK_URL` (engine endpoint that receives trade lifecycle events)
-- `WEBHOOK_SECRET` (shared HMAC secret used by both web and engine)
+```bash
+cp .env.example .env.local
+```
 
-Copy `.env.example` to `.env.local` and set the required variables for your environment.
+Key variables to double-check for local dev:
 
-## 🧞 Commands
+- `PUBLIC_APP_URL` and `BETTER_AUTH_URL` should match your dev server URL
+- `DATABASE_URL` must point at your Postgres instance
+- `PREDICTION_API` should point at the engine API (uses mock data if unset)
+- `ENGINE_WEBHOOK_URL` and `WEBHOOK_SECRET` are required for active-trade alerts
 
-All commands are run from the root of the project, from a terminal:
+## Common Scripts
 
-| Command                   | Action                                           |
-| :------------------------ | :----------------------------------------------- |
-| `npm install`             | Installs dependencies                            |
-| `npm run dev`             | Starts local dev server at `localhost:4321`      |
-| `npm run build`           | Build your production site to `./dist/`          |
-| `npm run preview`         | Preview your build locally, before deploying     |
-| `npm run astro ...`       | Run CLI commands like `astro add`, `astro check` |
-| `npm run astro -- --help` | Get help using the Astro CLI                     |
+| Command | Description |
+| --- | --- |
+| `npm run dev` | Start Astro dev server |
+| `npm run build` | Build the production bundle |
+| `npm run preview` | Preview the production build |
+| `npm run start` | Run the built server (`dist/server/entry.mjs`) |
 
-## 👀 Want to learn more?
+## Related Docs
 
-Feel free to check [our documentation](https://docs.astro.build) or jump into our [Discord server](https://astro.build/chat).
+- Engine API reference: `packages/engine/docs/API.md`
+- Engine webhook details: `packages/engine/docs/DISCORD_BOT_INTEGRATION.md`

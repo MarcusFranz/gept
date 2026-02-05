@@ -7,6 +7,16 @@
 
 OSRS Grand Exchange flipping recommendation API. Provides optimized trade recommendations based on ML predictions, user capital, trading style, and risk tolerance.
 
+## Authentication
+
+All endpoints require an `X-API-Key` header. The engine reads the key from `INTERNAL_API_KEY` in its environment.
+
+Example header:
+
+```
+X-API-Key: <your-internal-api-key>
+```
+
 ---
 
 ## Endpoints
@@ -67,6 +77,19 @@ POST /api/v1/recommendations
 
 Main endpoint for Discord bot to fetch flip recommendations with full context.
 
+**Example:**
+```bash
+curl -X POST "http://localhost:8000/api/v1/recommendations" \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: $API_KEY" \
+  -d '{
+    "style": "active",
+    "capital": 10000000,
+    "risk": "medium",
+    "slots": 4
+  }'
+```
+
 **Request Body:**
 ```json
 {
@@ -97,6 +120,12 @@ GET /api/v1/recommendations?style=active&capital=10000000&risk=medium&slots=4
 ```
 
 Alternative endpoint using query parameters.
+
+**Example:**
+```bash
+curl -H "X-API-Key: $API_KEY" \
+  "http://localhost:8000/api/v1/recommendations?style=active&capital=10000000&risk=medium&slots=4"
+```
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
@@ -402,6 +431,20 @@ Get aggregated feedback statistics for model improvement analysis.
   ]
 }
 ```
+
+### 401 Unauthorized
+
+Returned when the `X-API-Key` header is missing or invalid.
+
+```json
+{
+  "detail": "Missing API key. Include X-API-Key header."
+}
+```
+
+### 429 Too Many Requests
+
+Returned when the request rate exceeds the configured limit.
 
 ### 503 Service Unavailable
 

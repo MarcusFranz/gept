@@ -22,6 +22,13 @@ psql postgresql://[USER]:[PASS]@[HOST]:5432/gept
 psql postgresql://[USER]:[PASS]@[HOST]:5432/gept -f migrations/001_create_trade_outcomes_table.sql
 ```
 
+### Using a connection env var (recommended)
+
+```bash
+export DATABASE_URL="postgresql://user:pass@host:5432/gept"
+psql "$DATABASE_URL" -f migrations/001_create_trade_outcomes_table.sql
+```
+
 ## Migration Files
 
 - `001_create_trade_outcomes_table.sql` - Creates the `trade_outcomes` table for storing user-reported trade results

@@ -4,32 +4,31 @@
 
 ### 1. Clone the Repository
 ```bash
-git clone https://github.com/MarcusFranz/gept-foundations.git
-cd gept-foundations
+git clone https://github.com/MarcusFranz/gept.git
+cd gept
 ```
 
 ### 2. Set Up Environment Variables
+Create a local `.env` in `packages/model` with the values provided by the maintainer:
 ```bash
-cp .env.example .env
-```
-
-Edit `.env` with the actual credentials (ask Marcus for values):
-```bash
+cd packages/model
+cat <<'EOF' > .env
 DB_HOST=localhost
 DB_PORT=5432
 DB_NAME=osrs_data
 DB_USER=osrs_user
-DB_PASS=<ask_marcus>
-GRAFANA_PASSWORD=<ask_marcus>
+DB_PASS=<provided_secure_value>
+GRAFANA_PASSWORD=<provided_secure_value>
+EOF
 ```
 
 ### 3. SSH Tunnel to Database
 The database runs on a remote server. To connect locally:
 ```bash
-ssh -i .secrets/oracle_key.pem -L 5432:localhost:5432 ubuntu@<server_ip> -N &
+ssh -i .secrets/your-key.pem -L 5432:localhost:5432 ubuntu@your-inference-host -N &
 ```
 
-You'll need the SSH key file (`.secrets/oracle_key.pem`) - ask Marcus.
+You'll need the SSH key file in `.secrets/` from the maintainer.
 
 ### 4. Install Python Dependencies
 ```bash
@@ -84,7 +83,7 @@ ORDER BY timestamp;
 ## Project Structure
 
 ```
-gept-foundations/
+packages/model/
 ├── src/                    # Core ML/prediction code
 │   ├── db_utils.py         # Database connections (use this!)
 │   ├── feature_engine.py   # Feature computation
@@ -93,7 +92,7 @@ gept-foundations/
 ├── collectors/             # Data collection services
 ├── training/               # Model training scripts
 ├── scripts/                # Utility scripts
-└── .env.example            # Environment template
+└── .env                    # Local env file (not committed)
 ```
 
 ---
@@ -124,10 +123,7 @@ pytest tests/
 
 ## Monitoring
 
-### Dashboards (VPN/SSH required)
-- **Status Dashboard**: http://<server_ip>:8080
-- **Grafana**: http://<server_ip>:3001
-- **Prometheus**: http://<server_ip>:9090
+Dashboards are available on internal hosts. Request the current URLs and access details from the maintainer.
 
 ---
 
@@ -142,11 +138,11 @@ source .env
 ### "Connection refused on port 5432"
 SSH tunnel not running:
 ```bash
-ssh -i .secrets/oracle_key.pem -L 5432:localhost:5432 ubuntu@<server_ip> -N &
+ssh -i .secrets/your-key.pem -L 5432:localhost:5432 ubuntu@your-inference-host -N &
 ```
 
 ### Missing SSH key
-Ask Marcus for the `.secrets/oracle_key.pem` file.
+Request the `.secrets/` SSH key from the maintainer.
 
 ---
 

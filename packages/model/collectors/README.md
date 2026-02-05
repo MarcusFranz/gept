@@ -4,7 +4,7 @@ Production data collection infrastructure for OSRS Grand Exchange market data.
 
 ## Overview
 
-This directory contains all data collection services that continuously gather market data from the OSRS Wiki API and store it in PostgreSQL/TimescaleDB. These services run on the Ampere A1 server and provide the foundational data for the GePT ML prediction system.
+This directory contains all data collection services that continuously gather market data from the OSRS Wiki API and store it in PostgreSQL/TimescaleDB. These services run on a private host and provide the foundational data for the GePT ML prediction system.
 
 ## Architecture
 
@@ -34,8 +34,8 @@ OSRS Wiki API → Docker Collectors → PostgreSQL/TimescaleDB → ML Pipeline
 
 1. **Configure Environment**:
    ```bash
-   cp .env.example .env
-   # Edit .env with your database credentials
+   # Create collectors/.env (gitignored) with DB credentials
+   # See Environment Variables below for required values
    ```
 
 2. **Deploy with Docker Compose**:
@@ -250,6 +250,8 @@ CREATE INDEX idx_news_category ON osrs_news (category);
 
 ### Environment Variables
 
+Create `packages/model/collectors/.env` with the required values:
+
 ```bash
 # Database (PostgreSQL)
 DB_HOST=localhost
@@ -266,6 +268,8 @@ DATA_DIR=/data
 # Dashboard
 DASHBOARD_PORT=8080
 ```
+
+For the export service, use `gept-export.env.example` as a template.
 
 ### Docker Compose Override
 
@@ -352,8 +356,6 @@ pg_dump -h localhost -U osrs_user osrs_data \
 ```
 
 ### Disk Space Management
-
-**Current Usage**: 79GB / 98GB (85%)
 
 **Immediate Actions**:
 1. Enable TimescaleDB compression (can save 50-90%)
@@ -560,7 +562,7 @@ Before deploying to production:
 
 **Logs Location**: `docker-compose logs`
 
-**Monitoring**: `http://$AMPERE_IP:8080` (dashboard, see `config/servers.env` for IP)
+**Monitoring**: Dashboard URL depends on the deployment host and should be shared internally only.
 
 ## License
 

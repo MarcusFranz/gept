@@ -6,8 +6,7 @@ Transforms raw ML predictions into optimized OSRS Grand Exchange trade recommend
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                        Ampere Server                            │
-│                    (<SERVER_IP>)                           │
+│                 Private Inference Host (redacted)               │
 │                                                                 │
 │  ┌──────────────┐     ┌──────────────┐     ┌──────────────┐   │
 │  │   Cron Job   │────▶│  Inference   │────▶│  PostgreSQL  │   │
@@ -30,20 +29,20 @@ Transforms raw ML predictions into optimized OSRS Grand Exchange trade recommend
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-The engine reads pre-computed fill probability predictions from the Ampere server's `predictions` table and applies user constraints (capital, trading style, risk tolerance, GE slots) to generate optimized trade recommendations.
+The engine reads pre-computed fill probability predictions from a private inference host's `predictions` table and applies user constraints (capital, trading style, risk tolerance, GE slots) to generate optimized trade recommendations.
 
 ## Quick Start
 
 ### Prerequisites
 
 - Python 3.11+
-- SSH access to Ampere server (for database tunnel)
-- `oracle_key.pem` SSH key
+- SSH access to the inference host (for database tunnel)
+- SSH key with database tunnel access
 
 ### Installation
 
 ```bash
-cd gept-engine
+cd packages/engine
 
 # Create virtual environment
 python -m venv venv
@@ -55,10 +54,10 @@ pip install -r requirements.txt
 
 ### Database Connection
 
-Create an SSH tunnel to the Ampere server:
+Create an SSH tunnel to the inference host:
 
 ```bash
-ssh -i oracle_key.pem -L 5432:localhost:5432 ubuntu@<SERVER_IP>
+ssh -i /path/to/your-key.pem -L 5432:localhost:5432 ubuntu@your-inference-host
 ```
 
 Keep this running in a separate terminal.
@@ -154,7 +153,7 @@ curl "http://localhost:8000/api/v1/recommendations?style=active&capital=10000000
 ## Project Structure
 
 ```
-gept-engine/
+packages/engine/
 ├── src/
 │   ├── api.py                  # FastAPI server
 │   ├── config.py               # Configuration
@@ -168,7 +167,7 @@ gept-engine/
 
 ## Configuration
 
-Environment variables (see `.env.example`):
+Environment variables (see `.env.example`). Copy it to `.env` for local runs:
 
 ```bash
 # Database (via SSH tunnel)
@@ -183,9 +182,15 @@ API_HOST=0.0.0.0
 API_PORT=8000
 ```
 
+### API Authentication
+
+All endpoints require an `X-API-Key` header. Set `INTERNAL_API_KEY` in your `.env` and pass that value in API requests.
+
+For detailed request/response examples, see `docs/API.md`.
+
 ## Database Schema
 
-The engine reads from the `predictions` table on Ampere:
+The engine reads from the `predictions` table on the inference host:
 
 ```sql
 SELECT
