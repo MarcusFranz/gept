@@ -32,6 +32,13 @@ This feedback is used for model improvement and identifying systematic issues wi
 POST /api/v1/feedback
 ```
 
+### Headers
+
+```
+Content-Type: application/json
+X-API-Key: <your-internal-api-key>
+```
+
 ### Request Body
 
 ```json
@@ -73,6 +80,10 @@ POST /api/v1/feedback
   "feedbackId": 42
 }
 ```
+
+### Errors
+
+- `401 Unauthorized` when the `X-API-Key` header is missing or invalid.
 
 ## Analytics Endpoint
 
@@ -160,7 +171,8 @@ CREATE TABLE recommendation_feedback (
 Query analytics filtered by item to see if certain items consistently receive negative feedback:
 
 ```bash
-curl "http://localhost:8000/api/v1/feedback/analytics?item_id=536"
+curl -H "X-API-Key: $API_KEY" \
+  "http://localhost:8000/api/v1/feedback/analytics?item_id=536"
 ```
 
 ### Model Improvement

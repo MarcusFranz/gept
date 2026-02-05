@@ -8,6 +8,23 @@ Inference engine and data collectors for the GePT Grand Exchange prediction syst
 - **Collectors**: Data ingestion services (5min, 1min, hourly prices + news + player counts)
 - **Scripts**: Deployment, backup, and migration utilities
 
+## Quick Start (Local)
+
+```bash
+cd packages/model
+python -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+
+# Create and load your .env (see DEVELOPER_SETUP.md for required values)
+source .env
+
+# Dry run (no database writes)
+python run_inference.py --dry-run
+```
+
+For full environment setup and SSH tunneling instructions, see `DEVELOPER_SETUP.md`.
+
 ## Running Inference
 
 ```bash

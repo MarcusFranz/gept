@@ -19,7 +19,7 @@ POST /api/v1/recommendations/{recId}/outcome
 
 ## Authentication
 
-Currently no authentication required. The endpoint validates that user IDs are properly hashed for privacy.
+All requests require an `X-API-Key` header. The endpoint also validates that user IDs are properly hashed for privacy.
 
 ## Request Format
 
@@ -27,6 +27,7 @@ Currently no authentication required. The endpoint validates that user IDs are p
 
 ```
 Content-Type: application/json
+X-API-Key: <your-internal-api-key>
 ```
 
 ### URL Parameters
@@ -110,6 +111,13 @@ Content-Type: application/json
 }
 ```
 
+#### 401 Unauthorized - Missing/invalid API key
+```json
+{
+  "detail": "Missing API key. Include X-API-Key header."
+}
+```
+
 #### 503 Service Unavailable - Outcome database not available
 ```json
 {
@@ -164,6 +172,7 @@ hashed_id = hash_user_id('123456789012345678')
 ```bash
 curl -X POST "https://api.example.com/api/v1/recommendations/rec_5295_2026010923/outcome" \
   -H "Content-Type: application/json" \
+  -H "X-API-Key: $API_KEY" \
   -d '{
     "userId": "a1b2c3d4e5f6...",
     "itemId": 5295,
@@ -187,6 +196,7 @@ async function reportTradeOutcome(outcome) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'X-API-Key': apiKey,
       },
       body: JSON.stringify({
         userId: hashUserId(discordUserId),

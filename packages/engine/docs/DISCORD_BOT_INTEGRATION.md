@@ -6,6 +6,10 @@ This document tracks integration details and coordination between the Discord bo
 
 ## Status: Active Integration (January 2026)
 
+### Authentication
+
+All bot requests must include the `X-API-Key` header. The key is configured via `INTERNAL_API_KEY` on the engine.
+
 ### Endpoints Being Used
 
 | Endpoint | Bot Usage | Status |
