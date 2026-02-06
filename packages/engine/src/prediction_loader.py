@@ -659,6 +659,33 @@ class PredictionLoader:
 
         return (datetime.now(timezone.utc) - latest).total_seconds()
 
+    def get_item_name(self, item_id: int) -> Optional[str]:
+        """Get an item's human-readable name.
+
+        The engine schema does not maintain an authoritative item-name mapping
+        table today; the best available source is the predictions table's
+        denormalized `item_name` column.
+
+        Returns:
+            Item name if found, otherwise None.
+        """
+        query = select(p.c.item_name).where(p.c.item_id == item_id)
+        if self.preferred_model_id:
+            query = query.where(p.c.model_id == self.preferred_model_id)
+        query = query.order_by(p.c.time.desc()).limit(1)
+
+        try:
+            with self.engine.connect() as conn:
+                result = conn.execute(query).fetchone()
+
+            if result and result[0]:
+                return str(result[0])
+            return None
+
+        except Exception as e:
+            logger.debug(f"Could not fetch item name for item {item_id}: {e}")
+            return None
+
     def get_item_buy_limit(self, item_id: int) -> Optional[int]:
         """Get GE buy limit for an item.
 
