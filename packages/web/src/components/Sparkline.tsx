@@ -51,22 +51,45 @@ export function Sparkline(props: SparklineProps) {
     const highs = props.highs;
     const lows = props.lows;
     const len = Math.min(highs?.length ?? 0, lows?.length ?? 0);
-    if (len < 2) return null;
+    if (len < 1) return null;
 
     const allValues = [...highs.slice(0, len), ...lows.slice(0, len)];
     const min = Math.min(...allValues);
     const max = Math.max(...allValues);
-    const range = max - min || 1;
+    const range = max - min;
 
     const w = width();
     const h = height();
-    const xStep = (w - padding * 2) / (len - 1);
-    const toY = (val: number) => padding + (1 - (val - min) / range) * (h - padding * 2);
+    const innerH = h - padding * 2;
+    const toY = (val: number) => {
+      if (!(range > 0)) return padding + innerH * 0.5;
+      return padding + (1 - (val - min) / range) * innerH;
+    };
 
+    if (len === 1) {
+      const x = padding + (w - padding * 2) * 0.5;
+      return {
+        highPts: [{ x, y: toY(highs[0]) }],
+        lowPts: [{ x, y: toY(lows[0]) }],
+      };
+    }
+
+    const xStep = (w - padding * 2) / (len - 1);
     const highPts = highs.slice(0, len).map((v, i) => ({ x: padding + i * xStep, y: toY(v) }));
     const lowPts = lows.slice(0, len).map((v, i) => ({ x: padding + i * xStep, y: toY(v) }));
 
     return { highPts, lowPts };
+  });
+
+  const empty = createMemo(() => {
+    const w = width();
+    const h = height();
+    const y = padding + (h - padding * 2) * 0.5;
+    return {
+      line: `${padding},${y} ${w - padding},${y}`,
+      dotX: w - padding,
+      dotY: y,
+    };
   });
 
   // Spread band: highs forward, lows reversed
@@ -117,6 +140,21 @@ export function Sparkline(props: SparklineProps) {
               cy={placeholder().last.y}
               r="2"
               class="sparkline-placeholder-dot"
+            />
+          </>
+        )}
+
+        {!props.loading && !points() && (
+          <>
+            <polyline
+              points={empty().line}
+              class="sparkline-empty"
+            />
+            <circle
+              cx={empty().dotX}
+              cy={empty().dotY}
+              r="1.75"
+              class="sparkline-empty-dot"
             />
           </>
         )}
@@ -202,6 +240,21 @@ export function Sparkline(props: SparklineProps) {
           fill: var(--accent);
           opacity: 0;
           animation: sparklinePlaceholderDot 1.25s linear infinite;
+        }
+
+        .sparkline-empty {
+          fill: none;
+          stroke: color-mix(in srgb, var(--text-muted) 35%, transparent);
+          stroke-width: 1.15;
+          stroke-linejoin: round;
+          stroke-linecap: round;
+          stroke-dasharray: 3 6;
+          opacity: 0.6;
+        }
+
+        .sparkline-empty-dot {
+          fill: color-mix(in srgb, var(--text-muted) 55%, transparent);
+          opacity: 0.7;
         }
 
         @keyframes sparklinePlaceholderDraw {

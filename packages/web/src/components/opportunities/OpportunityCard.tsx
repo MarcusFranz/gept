@@ -162,19 +162,17 @@ export function OpportunityCard(props: OpportunityCardProps) {
               <span class="price-value">{formatExactGold(opp().sellPrice)}</span>
             </div>
           </div>
-          <Show when={!historyAttempted() || historyLoading() || priceHistory()}>
-            <div class="opportunity-card-sparkline-wrap">
-              <div class="opportunity-card-sparkline" aria-label="Price history">
-                <Sparkline
-                  highs={priceHistory()?.highs ?? []}
-                  lows={priceHistory()?.lows ?? []}
-                  loading={!priceHistory() && !historyAttempted()}
-                  width={280}
-                  height={56}
-                />
-              </div>
+          <div class="opportunity-card-sparkline-wrap">
+            <div class="opportunity-card-sparkline" aria-label="Price history">
+              <Sparkline
+                highs={priceHistory()?.highs ?? []}
+                lows={priceHistory()?.lows ?? []}
+                loading={!priceHistory() && !historyAttempted()}
+                width={280}
+                height={56}
+              />
             </div>
-          </Show>
+          </div>
           <div class="opportunity-card-quantity" onClick={(e) => e.stopPropagation()}>
             <span class="quantity-label">Quantity</span>
             <div class="quantity-control">
