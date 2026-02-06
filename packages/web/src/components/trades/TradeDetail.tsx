@@ -36,7 +36,13 @@ export function TradeDetail(props: TradeDetailProps) {
     setHistoryLoading(true);
     (async () => {
       try {
-        const data = await fetchPriceHistoryWithFallback(props.trade.itemId);
+        let data = await fetchPriceHistoryWithFallback(props.trade.itemId);
+
+        // Retry once after 2s if the first attempt fails (transient engine errors)
+        if (!data && !disposed) {
+          await sleep(2000);
+          data = await fetchPriceHistoryWithFallback(props.trade.itemId);
+        }
 
         // Dev-only: force the Death rune sparkline to "feel slow" so the
         // placeholder animation is easy to see in action.

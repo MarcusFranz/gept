@@ -1,9 +1,11 @@
 // packages/web/src/components/HomePage.tsx
-import { createSignal, Show } from 'solid-js';
+import { createSignal, createMemo, Show } from 'solid-js';
 import { TradeList } from './trades';
 import { OpportunityBrowser } from './opportunities';
 import type { ActiveTrade } from '../lib/db';
+import type { UpdateRecommendation } from '../lib/types';
 import { useAlerts } from '../lib/useAlerts';
+import { useTradeUpdates } from '../lib/useTradeUpdates';
 import { addToast } from './ToastContainer';
 
 interface HomePageProps {
@@ -17,7 +19,23 @@ export function HomePage(props: HomePageProps) {
   const [activeTab, setActiveTab] = createSignal<Tab>('trades');
   const [trades, setTrades] = createSignal(props.initialTrades);
 
-  const { alerts, dismissAlert } = useAlerts();
+  const { alerts: sseAlerts, dismissAlert: dismissSseAlert } = useAlerts();
+  const { updates: polledAlerts, dismissUpdate: dismissPolledAlert } = useTradeUpdates(trades);
+
+  // Merge SSE (real-time) and polled alerts — SSE takes priority
+  const alerts = createMemo(() => {
+    const merged = new Map<string, UpdateRecommendation>(polledAlerts());
+    // SSE overwrites polled for same tradeId
+    for (const [id, alert] of sseAlerts()) {
+      merged.set(id, alert);
+    }
+    return merged;
+  });
+
+  const dismissAlert = (tradeId: string) => {
+    dismissSseAlert(tradeId);
+    dismissPolledAlert(tradeId);
+  };
 
   // Active trade item IDs (for filtering opportunities)
   const activeTradeItemIds = () => trades().map(t => t.item_id);

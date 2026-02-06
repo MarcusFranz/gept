@@ -429,37 +429,17 @@ export function OpportunityCard(props: OpportunityCardProps) {
 
         .beta-badge {
           display: inline-block;
-          font-size: 0.7rem;
-          font-weight: 800;
+          font-size: 0.45rem;
+          font-weight: 700;
           text-transform: uppercase;
-          letter-spacing: 0.08em;
-          padding: 0.25rem 0.6rem;
+          letter-spacing: 0.04em;
+          padding: 0.1rem 0.3rem;
           border-radius: var(--radius-full);
-          background: linear-gradient(135deg, var(--accent) 0%, var(--accent-hover) 100%);
-          color: var(--btn-text-dark);
-          box-shadow: 0 10px 22px rgba(168, 240, 8, 0.45);
-          border: 1px solid color-mix(in srgb, var(--accent) 80%, transparent);
-          text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5);
-          margin-left: 0.4rem;
+          background: color-mix(in srgb, var(--accent) 18%, transparent);
+          color: var(--accent);
+          border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+          margin-left: 0.3rem;
           vertical-align: middle;
-          animation: betaPulse 2.6s ease-in-out infinite;
-        }
-
-        @keyframes betaPulse {
-          0%, 100% {
-            transform: translateY(0);
-            box-shadow: 0 10px 22px rgba(168, 240, 8, 0.45);
-          }
-          50% {
-            transform: translateY(-1px);
-            box-shadow: 0 14px 28px rgba(168, 240, 8, 0.6);
-          }
-        }
-
-        @media (prefers-reduced-motion: reduce) {
-          .beta-badge {
-            animation: none;
-          }
         }
 
         .opportunity-card-sparkline-wrap {
