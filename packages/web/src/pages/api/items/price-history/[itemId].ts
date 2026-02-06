@@ -68,7 +68,13 @@ export const GET: APIRoute = async ({ params, locals }) => {
     let data: PriceHistoryCache | null = null;
     try {
       const cached = await cache.get<PriceHistoryCache>(redisCacheKey);
-      if (cached && Array.isArray(cached.highs) && Array.isArray(cached.lows)) {
+      if (
+        cached &&
+        Array.isArray(cached.highs) &&
+        Array.isArray(cached.lows) &&
+        cached.highs.length > 0 &&
+        cached.lows.length > 0
+      ) {
         data = cached;
       }
     } catch (err) {
@@ -111,10 +117,13 @@ export const GET: APIRoute = async ({ params, locals }) => {
         trend: trendToFrontend[raw.trend] ?? 'stable',
       };
 
-      // Cache for 5 minutes (prices update every ~5 min)
-      cache.set(redisCacheKey, data, TTL.PRICE_HISTORY).catch((err) => {
-        console.warn('[PriceHistory] Cache write failed:', err?.message);
-      });
+      // Cache for 5 minutes (prices update every ~5 min). Don't cache empty arrays:
+      // empty history can be caused by transient engine/data issues.
+      if (highs.length > 0 && lows.length > 0) {
+        cache.set(redisCacheKey, data, TTL.PRICE_HISTORY).catch((err) => {
+          console.warn('[PriceHistory] Cache write failed:', err?.message);
+        });
+      }
     }
 
     return new Response(JSON.stringify({

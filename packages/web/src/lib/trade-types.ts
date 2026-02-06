@@ -124,6 +124,11 @@ export function toTradeViewModel(trade: ActiveTrade): TradeViewModel {
   const now = new Date();
   const createdAt = new Date(trade.created_at);
   const nextCheckIn = trade.next_check_in ? new Date(trade.next_check_in) : null;
+  const expectedHoursRaw = trade.expected_hours;
+  const expectedHoursNum =
+    typeof expectedHoursRaw === 'number' ? expectedHoursRaw : Number(expectedHoursRaw);
+  const expectedHours =
+    Number.isFinite(expectedHoursNum) && expectedHoursNum > 0 ? expectedHoursNum : 4;
 
   // Compute status
   let status: TradeStatus = 'on_track';
@@ -149,7 +154,7 @@ export function toTradeViewModel(trade: ActiveTrade): TradeViewModel {
     targetProfit: (trade.sell_price - trade.buy_price) * trade.quantity,
     quantity: trade.quantity,
     createdAt,
-    expectedHours: trade.expected_hours || 4, // Default 4 hours
+    expectedHours,
     lastCheckIn: trade.last_check_in ? new Date(trade.last_check_in) : null,
     nextCheckIn,
     recId: trade.rec_id,
