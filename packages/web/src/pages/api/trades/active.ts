@@ -1,6 +1,7 @@
 import type { APIRoute } from 'astro';
 import { activeTradesRepo } from '../../../lib/repositories';
 import { dispatchWebhook } from '../../../lib/webhook';
+import { createMockTrade, getMockTrades } from '../../../lib/mock-data';
 
 export const GET: APIRoute = async ({ locals }) => {
   try {
@@ -15,6 +16,16 @@ export const GET: APIRoute = async ({ locals }) => {
     }
 
     const userId = locals.user.id;
+    const isDevUser = import.meta.env.DEV && userId === 'dev-user';
+    if (isDevUser) {
+      return new Response(JSON.stringify({
+        success: true,
+        data: getMockTrades()
+      }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
     const trades = await activeTradesRepo.findByUserId(userId);
 
     return new Response(JSON.stringify({
@@ -49,6 +60,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
     }
 
     const userId = locals.user.id;
+    const isDevUser = import.meta.env.DEV && userId === 'dev-user';
     const body = await request.json();
     const { itemId, itemName, buyPrice, sellPrice, quantity, recId, modelId, expectedHours, confidence, fillProbability, expectedProfit } = body;
 
@@ -152,6 +164,30 @@ export const POST: APIRoute = async ({ request, locals }) => {
         error: 'Invalid expected profit'
       }), {
         status: 400,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    if (isDevUser) {
+      const trade = createMockTrade({
+        user_id: userId,
+        item_id: itemId,
+        item_name: itemName,
+        buy_price: buyPrice,
+        sell_price: sellPrice,
+        quantity,
+        rec_id: recId || null,
+        model_id: modelId || null,
+        expected_hours: expectedHours ?? undefined,
+        confidence: confidence ?? null,
+        fill_probability: fillProbability ?? null,
+        expected_profit: expectedProfit ?? null,
+      });
+      return new Response(JSON.stringify({
+        success: true,
+        data: trade
+      }), {
+        status: 201,
         headers: { 'Content-Type': 'application/json' }
       });
     }

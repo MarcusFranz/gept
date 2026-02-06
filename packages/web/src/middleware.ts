@@ -1,5 +1,4 @@
 import { defineMiddleware } from 'astro:middleware';
-import { auth } from './lib/auth';
 
 // Security headers for production
 const securityHeaders: Record<string, string> = {
@@ -10,15 +9,55 @@ const securityHeaders: Record<string, string> = {
   'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
 };
 
+const isDev = (import.meta as { env?: { DEV?: boolean } }).env?.DEV ?? process.env.NODE_ENV === 'development';
+
+const createDevSession = () => ({
+  user: {
+    id: 'dev-user',
+    email: 'dev@gept.local',
+    name: 'Dev User',
+    emailVerified: false,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    image: null,
+  },
+  session: {
+    id: 'dev-session',
+    userId: 'dev-user',
+    expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    token: 'dev-token',
+    ipAddress: null,
+    userAgent: null,
+  },
+});
+
+const getAuth = async () => {
+  try {
+    const mod = await import('./lib/auth');
+    return mod.auth;
+  } catch {
+    return null;
+  }
+};
+
 export const onRequest = defineMiddleware(async (context, next) => {
   // Get session from Better Auth with error handling
   let session = null;
   try {
-    session = await auth.api.getSession({
-      headers: context.request.headers,
-    });
+    const auth = await getAuth();
+    if (auth) {
+      session = await auth.api.getSession({
+        headers: context.request.headers,
+      });
+    }
   } catch {
-    // Continue without session on auth errors
+    session = null;
+  }
+
+  if (!session && isDev) {
+    session = createDevSession();
   }
 
   if (session?.user) {

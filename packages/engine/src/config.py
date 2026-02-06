@@ -196,6 +196,12 @@ class Config:
         default_factory=lambda: environ.get("BETA_MODEL_ID", "")
     )
 
+    # Item blocklist - items that should never appear in recommendations
+    # These are excluded at the engine level from all endpoints
+    blocked_item_ids: set[int] = field(default_factory=lambda: {
+        13190,  # Old school bond - requires conversion fee, not actually profitable
+    })
+
     # Logging configuration
     # LOG_LEVEL: DEBUG, INFO, WARNING, ERROR (default: INFO)
     # LOG_FORMAT: json (for production), text (for local development)

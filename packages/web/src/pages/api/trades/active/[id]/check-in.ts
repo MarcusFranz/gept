@@ -1,6 +1,7 @@
 // packages/web/src/pages/api/trades/active/[id]/check-in.ts
 import type { APIRoute } from 'astro';
 import { activeTradesRepo } from '../../../../../lib/repositories';
+import { findMockTrade, updateMockTradeProgress } from '../../../../../lib/mock-data';
 
 export const PUT: APIRoute = async ({ params, request, locals }) => {
   try {
@@ -25,9 +26,12 @@ export const PUT: APIRoute = async ({ params, request, locals }) => {
       });
     }
 
+    const userId = locals.user.id;
+    const isDevUser = import.meta.env.DEV && userId === 'dev-user';
+
     // Verify trade belongs to user
-    const trade = await activeTradesRepo.findById(id);
-    if (!trade || trade.user_id !== locals.user.id) {
+    const trade = isDevUser ? findMockTrade(id) : await activeTradesRepo.findById(id);
+    if (!trade || trade.user_id !== userId) {
       return new Response(JSON.stringify({
         success: false,
         error: 'Trade not found'
@@ -67,7 +71,9 @@ export const PUT: APIRoute = async ({ params, request, locals }) => {
     nextCheckIn.setMinutes(nextCheckIn.getMinutes() + (checkInIntervalHours * 60));
 
     // Update trade progress
-    const updatedTrade = await activeTradesRepo.updateProgress(id, progress, nextCheckIn);
+    const updatedTrade = isDevUser
+      ? updateMockTradeProgress(id, progress, nextCheckIn)
+      : await activeTradesRepo.updateProgress(id, progress, nextCheckIn);
 
     // TODO: Add guidance logic here based on progress vs expected
     // For now, return simple response

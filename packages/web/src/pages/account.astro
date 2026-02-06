@@ -11,7 +11,6 @@ const user = Astro.locals.user;
     </nav>
 
     <header class="page-header">
-      <h1>Account</h1>
       <p class="text-secondary">Manage your profile and subscription</p>
     </header>
 
@@ -117,10 +116,11 @@ const user = Astro.locals.user;
               <h3>Use beta model if available</h3>
               <p class="text-secondary">Try our latest prediction model. Beta models may be less stable but can offer improved accuracy.</p>
             </div>
-            <label class="toggle">
+            <div class="hero-toggle" data-hero-toggle>
               <input type="checkbox" id="beta-model-toggle" />
-              <span class="toggle-slider"></span>
-            </label>
+              <span class="toggle-knob" aria-hidden="true"></span>
+              <button type="button" class="toggle-hit" aria-label="Toggle setting"></button>
+            </div>
           </div>
         </div>
       </section>
@@ -140,40 +140,44 @@ const user = Astro.locals.user;
               <h3>Email Notifications</h3>
               <p class="text-secondary">Receive updates about your trades</p>
             </div>
-            <label class="toggle">
+            <div class="hero-toggle" data-hero-toggle>
               <input type="checkbox" checked />
-              <span class="toggle-slider"></span>
-            </label>
+              <span class="toggle-knob" aria-hidden="true"></span>
+              <button type="button" class="toggle-hit" aria-label="Toggle setting"></button>
+            </div>
           </div>
           <div class="toggle-option">
             <div class="option-info">
               <h3>Price Alerts</h3>
               <p class="text-secondary">Get notified when prices change significantly</p>
             </div>
-            <label class="toggle">
+            <div class="hero-toggle" data-hero-toggle>
               <input type="checkbox" checked />
-              <span class="toggle-slider"></span>
-            </label>
+              <span class="toggle-knob" aria-hidden="true"></span>
+              <button type="button" class="toggle-hit" aria-label="Toggle setting"></button>
+            </div>
           </div>
           <div class="toggle-option">
             <div class="option-info">
               <h3>Weekly Summary</h3>
               <p class="text-secondary">Receive a weekly report of your trading activity</p>
             </div>
-            <label class="toggle">
+            <div class="hero-toggle" data-hero-toggle>
               <input type="checkbox" />
-              <span class="toggle-slider"></span>
-            </label>
+              <span class="toggle-knob" aria-hidden="true"></span>
+              <button type="button" class="toggle-hit" aria-label="Toggle setting"></button>
+            </div>
           </div>
           <div class="toggle-option">
             <div class="option-info">
               <h3>Marketing Emails</h3>
               <p class="text-secondary">News and updates about GePT</p>
             </div>
-            <label class="toggle">
+            <div class="hero-toggle" data-hero-toggle>
               <input type="checkbox" />
-              <span class="toggle-slider"></span>
-            </label>
+              <span class="toggle-knob" aria-hidden="true"></span>
+              <button type="button" class="toggle-hit" aria-label="Toggle setting"></button>
+            </div>
           </div>
         </div>
       </section>
@@ -361,9 +365,68 @@ const user = Astro.locals.user;
     .then(data => {
       if (data.success && betaModelToggle) {
         betaModelToggle.checked = data.data.user.useBetaModel === true;
+        heroToggleSyncMap.get(betaModelToggle)?.();
       }
     })
     .catch(() => {});
+
+  const heroToggleSyncMap = new Map<HTMLInputElement, () => void>();
+
+  const initHeroToggles = () => {
+    const groups = document.querySelectorAll<HTMLElement>('[data-hero-toggle]');
+    const updateToggle = (group: HTMLElement) => {
+      const input = group.querySelector<HTMLInputElement>('input[type=\"checkbox\"]');
+      if (!input) return;
+      const isOn = input.checked;
+      const label = group.querySelector<HTMLElement>('.toggle-label');
+      if (label) {
+        label.textContent = isOn ? 'ON' : 'OFF';
+      }
+    };
+
+    groups.forEach((group) => {
+      const input = group.querySelector<HTMLInputElement>('input[type=\"checkbox\"]');
+      const buttons = Array.from(group.querySelectorAll<HTMLButtonElement>('button'));
+      if (!input || buttons.length < 1) return;
+
+      const sync = () => {
+        const isOn = input.checked;
+        group.classList.toggle('is-on', isOn);
+        buttons.forEach((btn) => {
+          const onButton = btn.dataset.value === 'on';
+          const active = isOn ? onButton : !onButton;
+          btn.classList.toggle('active', active);
+          btn.setAttribute('aria-pressed', active ? 'true' : 'false');
+        });
+        updateToggle(group);
+      };
+
+      heroToggleSyncMap.set(input, sync);
+
+      buttons.forEach((btn) => {
+        btn.addEventListener('click', () => {
+          if (btn.dataset.value) {
+            const shouldOn = btn.dataset.value === 'on';
+            if (input.checked === shouldOn) return;
+            input.checked = shouldOn;
+          } else {
+            input.checked = !input.checked;
+          }
+          input.dispatchEvent(new Event('change', { bubbles: true }));
+          sync();
+        });
+      });
+
+      input.addEventListener('change', sync);
+      sync();
+    });
+
+    window.addEventListener('resize', () => {
+      groups.forEach((group) => updateToggle(group));
+    });
+  };
+
+  initHeroToggles();
 
   betaModelToggle?.addEventListener('change', async () => {
     try {
@@ -378,6 +441,7 @@ const user = Astro.locals.user;
     } catch {
       // Revert on failure
       betaModelToggle.checked = !betaModelToggle.checked;
+      heroToggleSyncMap.get(betaModelToggle)?.();
     }
   });
 
@@ -414,14 +478,6 @@ const user = Astro.locals.user;
   .page-header {
     text-align: center;
     margin-bottom: var(--space-5);
-  }
-
-  .page-header h1 {
-    margin-bottom: var(--space-2);
-    font-family: 'Barlow Condensed', sans-serif;
-    font-size: var(--font-size-3xl);
-    font-weight: 600;
-    letter-spacing: 1px;
   }
 
   .account-grid {
@@ -535,7 +591,8 @@ const user = Astro.locals.user;
   }
 
   .plan-card.active.is-pro {
-    background: linear-gradient(135deg, var(--bg-tertiary) 0%, rgba(139, 195, 74, 0.1) 100%);
+    background: var(--surface-2);
+    border-color: color-mix(in srgb, var(--gold) 55%, transparent);
   }
 
   .dev-toggle-section {
@@ -615,7 +672,8 @@ const user = Astro.locals.user;
   }
 
   .plan-badge.beta {
-    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+    background: rgba(96, 99, 241, 0.18);
+    border: 1px solid rgba(96, 99, 241, 0.45);
     color: #fff;
   }
 
@@ -695,8 +753,19 @@ const user = Astro.locals.user;
     align-items: center;
     justify-content: space-between;
     padding: var(--space-3);
-    background-color: var(--bg-tertiary);
+    background-color: var(--surface-1);
     border-radius: var(--radius-md);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-sm);
+    transition: transform 0.35s var(--ease-hero), box-shadow 0.35s var(--ease-hero), border-color 0.22s ease;
+  }
+
+  .security-option:hover,
+  .toggle-option:hover,
+  .danger-option:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+    border-color: var(--border-light);
   }
 
   .option-info h3 {
@@ -708,51 +777,65 @@ const user = Astro.locals.user;
     font-size: var(--font-size-sm);
   }
 
-  /* Toggle Switch */
-  .toggle {
+  /* Hero-style Toggle */
+  .hero-toggle {
     position: relative;
-    display: inline-block;
-    width: 48px;
-    height: 26px;
+    display: inline-flex;
+    gap: 0;
+    --toggle-width: 61px;
+    --toggle-height: 29px;
+    --toggle-pad: 5px;
+    width: var(--toggle-width);
+    height: var(--toggle-height);
+    padding: var(--toggle-pad);
+    border-radius: var(--radius-md);
+    background: color-mix(in srgb, var(--surface-2) 85%, #ffffff);
+    border: none;
+    min-width: var(--toggle-width);
+    overflow: hidden;
+    margin-right: var(--space-1);
+    box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.45), inset 0 -1px 0 rgba(255, 255, 255, 0.04);
   }
 
-  .toggle input {
+  .hero-toggle input {
+    position: absolute;
     opacity: 0;
-    width: 0;
-    height: 0;
+    pointer-events: none;
   }
 
-  .toggle-slider {
+  .hero-toggle.is-on {
+    background: var(--accent);
+  }
+
+  .toggle-knob {
     position: absolute;
+    top: var(--toggle-pad);
+    left: var(--toggle-pad);
+    width: calc(var(--toggle-height) - (2 * var(--toggle-pad)));
+    height: calc(var(--toggle-height) - (2 * var(--toggle-pad)));
+    border-radius: calc(var(--radius-md) - var(--toggle-pad) + 2px);
+    background: var(--surface-3);
+    border: 1px solid rgba(0, 0, 0, 0.35);
+    box-shadow: none;
+    transform: translateY(0px);
+    transition: transform 0.2s ease-out;
+    z-index: 2;
+  }
+
+  .hero-toggle.is-on .toggle-knob {
+    transform: translateX(calc(var(--toggle-width) - (2 * var(--toggle-pad)) - (var(--toggle-height) - (2 * var(--toggle-pad))))) translateY(0px);
+    background: #ffffff;
+    border-color: rgba(255, 255, 255, 0.55);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+  }
+
+  .toggle-hit {
+    position: absolute;
+    inset: 0;
+    border: none;
+    background: transparent;
     cursor: pointer;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-color: var(--bg-hover);
-    border-radius: 26px;
-    transition: var(--transition-fast);
-  }
-
-  .toggle-slider:before {
-    position: absolute;
-    content: "";
-    height: 20px;
-    width: 20px;
-    left: 3px;
-    bottom: 3px;
-    background-color: var(--text-secondary);
-    border-radius: 50%;
-    transition: var(--transition-fast);
-  }
-
-  .toggle input:checked + .toggle-slider {
-    background-color: var(--accent);
-  }
-
-  .toggle input:checked + .toggle-slider:before {
-    transform: translateX(22px);
-    background-color: white;
+    z-index: 3;
   }
 
   /* Buttons */
@@ -762,27 +845,31 @@ const user = Astro.locals.user;
     font-weight: 500;
     border-radius: var(--radius-md);
     cursor: pointer;
-    transition: all var(--transition-fast);
-    border: none;
+    transition: transform 0.4s var(--ease-hero), box-shadow 0.4s var(--ease-hero), background 0.3s ease, border-color 0.3s ease;
+    border: 1px solid transparent;
   }
 
   .btn-primary {
     background-color: var(--accent);
     color: var(--bg-primary);
+    border-color: color-mix(in srgb, var(--accent) 70%, #000);
+    box-shadow: 0 18px 36px -24px rgba(168, 240, 8, 0.6);
   }
 
   .btn-primary:hover {
     background-color: var(--accent-hover);
+    transform: translateY(-2px) scale(1.01);
   }
 
   .btn-secondary {
-    background-color: var(--bg-hover);
+    background-color: var(--surface-2);
     color: var(--text-primary);
     border: 1px solid var(--border);
   }
 
   .btn-secondary:hover {
-    background-color: var(--bg-tertiary);
+    background-color: var(--surface-3);
+    transform: translateY(-1px);
   }
 
   .btn-accent {
@@ -837,4 +924,3 @@ const user = Astro.locals.user;
     }
   }
 </style>
-

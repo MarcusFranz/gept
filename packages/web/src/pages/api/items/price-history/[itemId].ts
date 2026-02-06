@@ -2,6 +2,8 @@ import type { APIRoute } from 'astro';
 import { createHash } from 'crypto';
 import { cache, cacheKey, TTL, KEY } from '../../../../lib/cache';
 
+const trendToFrontend: Record<string, string> = { Rising: 'up', Falling: 'down', Stable: 'stable' };
+
 const PREDICTION_API = process.env.PREDICTION_API ?? import.meta.env.PREDICTION_API;
 const API_KEY = process.env.PREDICTION_API_KEY ?? import.meta.env.PREDICTION_API_KEY;
 const API_KEY_SOURCE = process.env.PREDICTION_API_KEY
@@ -106,7 +108,7 @@ export const GET: APIRoute = async ({ params, locals }) => {
       data = {
         highs,
         lows,
-        trend: raw.trend ?? 'Stable',
+        trend: trendToFrontend[raw.trend] ?? 'stable',
       };
 
       // Cache for 5 minutes (prices update every ~5 min)

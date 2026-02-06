@@ -2,6 +2,7 @@ import type { APIRoute } from 'astro';
 import { activeTradesRepo, tradeHistoryRepo } from '../../../../../lib/repositories';
 import { reportTradeOutcome } from '../../../../../lib/api';
 import { dispatchWebhook } from '../../../../../lib/webhook';
+import { deleteMockTrade, findMockTrade } from '../../../../../lib/mock-data';
 
 export const POST: APIRoute = async ({ params, request, locals }) => {
   try {
@@ -27,13 +28,24 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
       });
     }
 
-    const trade = await activeTradesRepo.findById(tradeId);
+    const isDevUser = import.meta.env.DEV && userId === 'dev-user';
+    const trade = isDevUser ? findMockTrade(tradeId) : await activeTradesRepo.findById(tradeId);
     if (!trade || trade.user_id !== userId) {
       return new Response(JSON.stringify({
         success: false,
         error: 'Trade not found'
       }), {
         status: 404,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    if (isDevUser) {
+      deleteMockTrade(tradeId);
+      return new Response(JSON.stringify({
+        success: true
+      }), {
+        status: 200,
         headers: { 'Content-Type': 'application/json' }
       });
     }

@@ -56,21 +56,28 @@ export function HomePage(props: HomePageProps) {
   return (
     <div class="home-page">
       <nav class="home-nav">
-        <button
-          class={`nav-tab ${activeTab() === 'trades' ? 'nav-tab-active' : ''}`}
-          onClick={() => setActiveTab('trades')}
-        >
-          My Trades
-          <Show when={trades().length > 0}>
-            <span class="nav-tab-badge">{trades().length}</span>
-          </Show>
-        </button>
-        <button
-          class={`nav-tab ${activeTab() === 'opportunities' ? 'nav-tab-active' : ''}`}
-          onClick={() => setActiveTab('opportunities')}
-        >
-          Opportunities
-        </button>
+        <div class="nav-switch" role="tablist" aria-label="Trade views">
+          <span class={`nav-switch-blob ${activeTab() === 'opportunities' ? 'is-right' : ''}`} aria-hidden="true" />
+          <button
+            class={`nav-switch-tab ${activeTab() === 'trades' ? 'is-active' : ''}`}
+            onClick={() => setActiveTab('trades')}
+            role="tab"
+            aria-selected={activeTab() === 'trades'}
+          >
+            My Trades
+            <Show when={trades().length > 0}>
+              <span class="nav-switch-badge">{trades().length}</span>
+            </Show>
+          </button>
+          <button
+            class={`nav-switch-tab ${activeTab() === 'opportunities' ? 'is-active' : ''}`}
+            onClick={() => setActiveTab('opportunities')}
+            role="tab"
+            aria-selected={activeTab() === 'opportunities'}
+          >
+            Opportunities
+          </button>
+        </div>
       </nav>
 
       <main class="home-content">
@@ -96,51 +103,132 @@ export function HomePage(props: HomePageProps) {
       <style>{`
         .home-page {
           min-height: 100vh;
-          background: var(--bg-primary);
+          background: transparent;
         }
 
         .home-nav {
+          --nav-scrim-h: 18px;
           display: flex;
           justify-content: center;
-          gap: 0.5rem;
           padding: 1rem;
-          background: var(--bg-secondary);
-          border-bottom: 1px solid var(--border);
           position: sticky;
-          top: 56px;
+          top: 64px;
           z-index: 10;
+          isolation: isolate;
+          /* Match the content area's background so this doesn't read as a separate "title bar". */
+          background-color: var(--bg-primary);
+          background-image: var(--page-gradient);
+          background-attachment: fixed;
+          background-repeat: no-repeat;
         }
 
-        .nav-tab {
-          padding: 0.625rem 1.25rem;
+        /* Bottom scrim that fades cards as they scroll under the sticky tabs. */
+        .home-nav::after {
+          content: '';
+          position: absolute;
+          bottom: calc(-1 * var(--nav-scrim-h));
+          left: 0;
+          right: 0;
+          height: var(--nav-scrim-h);
+          /* Paint the actual page background, then mask it into a fade. */
+          background-color: var(--bg-primary);
+          background-image: var(--page-gradient);
+          background-attachment: fixed;
+          background-repeat: no-repeat;
+          -webkit-mask-image: linear-gradient(
+            to bottom,
+            rgba(0, 0, 0, 1) 0%,
+            rgba(0, 0, 0, 0.82) 30%,
+            rgba(0, 0, 0, 0.38) 68%,
+            rgba(0, 0, 0, 0) 100%
+          );
+          mask-image: linear-gradient(
+            to bottom,
+            rgba(0, 0, 0, 1) 0%,
+            rgba(0, 0, 0, 0.82) 30%,
+            rgba(0, 0, 0, 0.38) 68%,
+            rgba(0, 0, 0, 0) 100%
+          );
+          pointer-events: none;
+          z-index: 0;
+        }
+
+        .nav-switch {
+          --switch-pad: 0px;
+          --switch-gap: 6px;
+          --switch-border: 1px;
+          position: relative;
+          z-index: 1;
+          display: inline-flex;
+          align-items: center;
+          gap: var(--switch-gap);
+          padding: var(--switch-pad);
+          border-radius: 999px;
+          background: color-mix(in srgb, var(--accent) 60%, #0b0c0f);
+          border: 1px solid color-mix(in srgb, var(--accent) 55%, #0b0c0f);
+          overflow: hidden;
+          box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.35);
+        }
+
+        .nav-switch-blob {
+          position: absolute;
+          inset: calc(var(--switch-pad) + var(--switch-border));
+          width: calc((100% - (2 * var(--switch-pad)) - (2 * var(--switch-border)) - var(--switch-gap)) / 2);
+          border-radius: calc(999px - (var(--switch-pad) + var(--switch-border)) + 2px);
+          background: var(--surface-2);
+          border: 1px solid color-mix(in srgb, #000 40%, transparent);
+          box-shadow: 0 1px 1px rgba(255, 255, 255, 0.06), inset 0 0 0 1px rgba(255, 255, 255, 0.03);
+          transition: transform 0.32s var(--ease-hero), width 0.32s var(--ease-hero);
+          z-index: 0;
+        }
+
+        .nav-switch-blob.is-right {
+          transform: translateX(calc(100% + var(--switch-gap)));
+        }
+
+        .nav-switch-tab {
+          position: relative;
+          z-index: 1;
+          padding: 0.55rem 1.3rem;
           background: transparent;
-          color: var(--text-secondary);
+          color: var(--text-primary);
           border: none;
-          border-radius: var(--radius-md);
+          border-radius: 999px;
           font-weight: 600;
           cursor: pointer;
-          display: flex;
+          display: inline-flex;
           align-items: center;
           gap: 0.5rem;
-          transition: background var(--transition-fast), color var(--transition-fast);
+          transition: color 0.2s ease, transform 0.2s ease;
         }
 
-        .nav-tab:hover:not(.nav-tab-active) {
+        .nav-switch-tab:hover {
+          transform: translateY(-1px);
+        }
+
+        .nav-switch-tab.is-active {
           color: var(--text-primary);
-          background: var(--bg-hover);
         }
 
-        .nav-tab-active,
-        .nav-tab-active:hover {
-          background: var(--action);
-          color: var(--btn-text-dark);
-        }
-
-        .nav-tab-badge {
-          background: rgba(0,0,0,0.2);
-          padding: 0.125rem 0.5rem;
+        .nav-switch-badge {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          background: rgba(0, 0, 0, 0.18);
+          color: var(--text-primary);
+          padding: 0 0.42rem;
+          height: 18px;
+          min-width: 24px;
           border-radius: var(--radius-full);
           font-size: var(--font-size-xs);
+        }
+
+        .nav-switch-tab.is-active .nav-switch-badge {
+          background: color-mix(in srgb, var(--accent) 80%, #0b0c0f);
+          color: #0b0c0f;
+          transform: none;
+          border: none;
+          box-shadow: none;
         }
 
         .home-content {

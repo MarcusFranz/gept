@@ -169,19 +169,19 @@ export default function FeedbackWidget() {
           padding: var(--space-3) var(--space-4);
           background: var(--action);
           color: var(--btn-text-dark);
-          border: none;
+          border: 1px solid color-mix(in srgb, var(--action) 70%, #000);
           border-radius: var(--radius-full);
           font-weight: 600;
           font-size: var(--font-size-sm);
           cursor: pointer;
           box-shadow: var(--shadow-lg);
-          transition: all var(--transition-fast);
+          transition: transform 0.4s var(--ease-hero), box-shadow 0.4s var(--ease-hero), background 0.3s ease, border-color 0.3s ease;
           z-index: 100;
         }
 
         .feedback-trigger:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 8px 24px rgba(201, 166, 107, 0.3);
+          transform: translateY(-3px) scale(1.01);
+          box-shadow: 0 20px 40px -24px rgba(168, 240, 8, 0.55);
         }
 
         .feedback-overlay {
@@ -190,7 +190,7 @@ export default function FeedbackWidget() {
           left: 0;
           right: 0;
           bottom: 0;
-          background: rgba(0, 0, 0, 0.7);
+          background: var(--overlay-dark);
           display: flex;
           align-items: flex-end;
           justify-content: flex-end;
@@ -199,13 +199,14 @@ export default function FeedbackWidget() {
         }
 
         .feedback-panel {
-          background: var(--bg-primary);
+          background: var(--surface-1);
           border-radius: var(--radius-lg);
+          border: 1px solid var(--border);
           width: 360px;
           max-width: 100%;
           max-height: calc(100vh - 2rem);
           overflow-y: auto;
-          box-shadow: var(--shadow-xl);
+          box-shadow: var(--shadow-lg);
           animation: slideUp 0.2s ease-out;
         }
 
@@ -260,9 +261,9 @@ export default function FeedbackWidget() {
           align-items: center;
           gap: var(--space-1);
           padding: var(--space-3);
-          background: var(--bg-secondary);
-          border: 2px solid var(--border);
-          border-radius: var(--radius-md);
+          background: var(--surface-2);
+          border: 1px solid var(--border);
+          border-radius: var(--radius-lg);
           color: var(--text-secondary);
           font-size: var(--font-size-xs);
           cursor: pointer;
@@ -276,7 +277,7 @@ export default function FeedbackWidget() {
 
         .feedback-type-btn.active {
           border-color: var(--accent);
-          background: rgba(139, 195, 74, 0.1);
+          background: var(--accent-light);
           color: var(--accent);
         }
 
@@ -297,7 +298,7 @@ export default function FeedbackWidget() {
           padding: var(--space-3);
           border: 1px solid var(--border);
           border-radius: var(--radius-md);
-          background: var(--bg-secondary);
+          background: var(--surface-2);
           color: var(--text-primary);
           font-family: inherit;
           font-size: var(--font-size-sm);
@@ -312,6 +313,7 @@ export default function FeedbackWidget() {
         .feedback-field input:focus {
           outline: none;
           border-color: var(--accent);
+          box-shadow: 0 0 0 2px var(--accent-light);
         }
 
         .feedback-error {

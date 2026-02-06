@@ -15,6 +15,38 @@ export const GET: APIRoute = async ({ locals }) => {
     }
 
     const userId = locals.user.id;
+    const isDevUser = import.meta.env.DEV && userId === 'dev-user';
+    if (isDevUser) {
+      return new Response(JSON.stringify({
+        success: true,
+        data: {
+          user: {
+            capital: 2500000,
+            style: 'hybrid',
+            risk: 'medium',
+            margin: 'moderate',
+            slots: 6,
+            min_roi: 1.5,
+            tier: 'beta',
+            tutorialCompleted: true,
+            useBetaModel: false
+          },
+          rateLimit: {
+            daily: {
+              used: 0,
+              limit: 250,
+              remaining: 250,
+              resetAt: new Date().toISOString()
+            },
+            tier: 'beta'
+          }
+        }
+      }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
     const user = await userRepo.findOrCreate(userId, locals.user.email);
     const rateLimit = await userRepo.getRateLimitInfo(userId);
 
@@ -62,6 +94,7 @@ export const PUT: APIRoute = async ({ request, locals }) => {
     }
 
     const userId = locals.user.id;
+    const isDevUser = import.meta.env.DEV && userId === 'dev-user';
     const body = await request.json();
     const { capital, style, risk, margin, slots, min_roi, tutorialCompleted, useBetaModel } = body;
 
@@ -97,6 +130,26 @@ export const PUT: APIRoute = async ({ request, locals }) => {
 
     if (useBetaModel !== undefined && typeof useBetaModel === 'boolean') {
       updates.use_beta_model = useBetaModel;
+    }
+
+    if (isDevUser) {
+      return new Response(JSON.stringify({
+        success: true,
+        data: {
+          capital: (updates.capital as number | undefined) ?? 2500000,
+          style: (updates.style as string | undefined) ?? 'hybrid',
+          risk: (updates.risk as string | undefined) ?? 'medium',
+          margin: (updates.margin as string | undefined) ?? 'moderate',
+          slots: (updates.slots as number | undefined) ?? 6,
+          min_roi: (updates.min_roi as number | undefined) ?? 1.5,
+          tier: 'beta',
+          tutorialCompleted: (updates.tutorial_completed as boolean | undefined) ?? true,
+          useBetaModel: (updates.use_beta_model as boolean | undefined) ?? false
+        }
+      }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' }
+      });
     }
 
     if (Object.keys(updates).length > 0) {

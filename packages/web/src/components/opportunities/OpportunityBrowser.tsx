@@ -13,6 +13,136 @@ interface OpportunityBrowserProps {
 }
 
 const WIKI_WARNING_DISMISSED_KEY = 'gept:wiki-warning-dismissed';
+const isDev = typeof import.meta !== 'undefined' && (import.meta as any).env?.DEV;
+
+const buildMockOpportunities = (): Opportunity[] => ([
+  {
+    id: '9QK4M7A',
+    itemId: 560,
+    item: 'Death rune',
+    buyPrice: 196,
+    sellPrice: 212,
+    quantity: 7000,
+    capitalRequired: 1372000,
+    expectedProfit: 112000,
+    expectedHours: 2.3,
+    confidence: 'high',
+    fillProbability: 0.36,
+    volume24h: 240000,
+    trend: 'up',
+    category: 'runes',
+    whyChips: [
+      { icon: '🎯', label: 'High confidence', type: 'positive' },
+      { icon: '⚡', label: 'Fast fill', type: 'positive' },
+      { icon: '📈', label: 'Trending up', type: 'positive' },
+      { icon: '🔥', label: 'High volume', type: 'positive' },
+    ],
+  },
+  {
+    id: 'V7X2L9C',
+    itemId: 563,
+    item: 'Law rune',
+    buyPrice: 252,
+    sellPrice: 270,
+    quantity: 6000,
+    capitalRequired: 1512000,
+    expectedProfit: 108000,
+    expectedHours: 3.8,
+    confidence: 'medium',
+    fillProbability: 0.28,
+    volume24h: 190000,
+    trend: 'up',
+    category: 'runes',
+    whyChips: [
+      { icon: '🎯', label: 'Med confidence', type: 'neutral' },
+      { icon: '📊', label: 'Good volume', type: 'neutral' },
+      { icon: '⚡', label: 'Fast fill', type: 'positive' },
+    ],
+  },
+  {
+    id: 'P4N8Z1H',
+    itemId: 6686,
+    item: 'Saradomin brew(4)',
+    buyPrice: 7420,
+    sellPrice: 7700,
+    quantity: 500,
+    capitalRequired: 3710000,
+    expectedProfit: 140000,
+    expectedHours: 4.6,
+    confidence: 'medium',
+    fillProbability: 0.22,
+    volume24h: 68000,
+    trend: 'down',
+    category: 'potions',
+    whyChips: [
+      { icon: '📊', label: 'Good volume', type: 'neutral' },
+      { icon: '📉', label: 'Trending down', type: 'negative' },
+      { icon: '🕐', label: 'Longer hold', type: 'neutral' },
+    ],
+  },
+  {
+    id: 'T6R3W8M',
+    itemId: 995,
+    item: 'Dragon bones',
+    buyPrice: 2840,
+    sellPrice: 3000,
+    quantity: 1200,
+    capitalRequired: 3408000,
+    expectedProfit: 192000,
+    expectedHours: 2.0,
+    confidence: 'high',
+    fillProbability: 0.34,
+    volume24h: 150000,
+    trend: 'up',
+    category: 'bones',
+    whyChips: [
+      { icon: '🎯', label: 'High confidence', type: 'positive' },
+      { icon: '⚡', label: 'Fast fill', type: 'positive' },
+      { icon: '📈', label: 'Trending up', type: 'positive' },
+    ],
+  },
+  {
+    id: 'K5D2J7Q',
+    itemId: 5295,
+    item: 'Ranarr weed',
+    buyPrice: 7350,
+    sellPrice: 7640,
+    quantity: 350,
+    capitalRequired: 2572500,
+    expectedProfit: 101500,
+    expectedHours: 3.2,
+    confidence: 'medium',
+    fillProbability: 0.26,
+    volume24h: 52000,
+    trend: 'up',
+    category: 'herbs',
+    whyChips: [
+      { icon: '📊', label: 'Good volume', type: 'neutral' },
+      { icon: '⏱', label: 'Quick flip', type: 'positive' },
+    ],
+  },
+  {
+    id: 'B8S4Y2F',
+    itemId: 245,
+    item: 'Zamorak wine',
+    buyPrice: 720,
+    sellPrice: 780,
+    quantity: 3000,
+    capitalRequired: 2160000,
+    expectedProfit: 180000,
+    expectedHours: 1.6,
+    confidence: 'high',
+    fillProbability: 0.4,
+    volume24h: 98000,
+    trend: 'up',
+    category: 'ingredients',
+    whyChips: [
+      { icon: '🎯', label: 'High confidence', type: 'positive' },
+      { icon: '⚡', label: 'Fast fill', type: 'positive' },
+      { icon: '📈', label: 'Trending up', type: 'positive' },
+    ],
+  },
+]);
 
 export function OpportunityBrowser(props: OpportunityBrowserProps) {
   const [opportunities, setOpportunities] = createSignal<Opportunity[]>([]);
@@ -28,6 +158,15 @@ export function OpportunityBrowser(props: OpportunityBrowserProps) {
     typeof localStorage !== 'undefined' && localStorage.getItem(WIKI_WARNING_DISMISSED_KEY) === '1'
   );
   const [isBeta, setIsBeta] = createSignal(false);
+
+  const injectMockOpportunities = () => {
+    const items = buildMockOpportunities();
+    setOpportunities(items);
+    setHasMore(false);
+    setTotal(items.length);
+    setIsBeta(false);
+    setError(null);
+  };
 
   // Load saved filters on mount
   createEffect(() => {
@@ -73,10 +212,20 @@ export function OpportunityBrowser(props: OpportunityBrowserProps) {
         })
       });
 
-      if (!res.ok) throw new Error('Failed to load opportunities');
+      if (!res.ok) {
+        if (isDev) {
+          injectMockOpportunities();
+          return;
+        }
+        throw new Error('Failed to load opportunities');
+      }
       const data = await res.json();
 
       if (data.success) {
+        if (isDev && (!data.data?.items || data.data.items.length === 0)) {
+          injectMockOpportunities();
+          return;
+        }
         if (append) {
           setOpportunities(prev => [...prev, ...data.data.items]);
         } else {
@@ -86,10 +235,18 @@ export function OpportunityBrowser(props: OpportunityBrowserProps) {
         setTotal(data.data.total);
         if (data.isBeta !== undefined) setIsBeta(data.isBeta);
       } else {
+        if (isDev) {
+          injectMockOpportunities();
+          return;
+        }
         setError(data.error || 'Failed to load opportunities');
       }
     } catch (err) {
-      setError('Failed to load opportunities');
+      if (isDev) {
+        injectMockOpportunities();
+      } else {
+        setError('Failed to load opportunities');
+      }
     } finally {
       setLoading(false);
       setLoadingMore(false);
@@ -108,8 +265,9 @@ export function OpportunityBrowser(props: OpportunityBrowserProps) {
   );
 
   // Add to trades
-  const handleAddToTrades = async (opp: Opportunity) => {
+  const handleAddToTrades = async (opp: Opportunity, quantityOverride?: number) => {
     setAddingId(opp.id);
+    const quantity = quantityOverride ?? opp.quantity;
 
     try {
       const res = await fetch('/api/trades/active', {
@@ -120,7 +278,7 @@ export function OpportunityBrowser(props: OpportunityBrowserProps) {
           itemName: opp.item,
           buyPrice: opp.buyPrice,
           sellPrice: opp.sellPrice,
-          quantity: opp.quantity,
+          quantity,
           recId: opp.id,
           expectedHours: opp.expectedHours,
           modelId: opp.modelId,
@@ -167,15 +325,6 @@ export function OpportunityBrowser(props: OpportunityBrowserProps) {
 
   return (
     <div class="opportunity-browser">
-      <header class="opportunity-browser-header">
-        <h1>Opportunities</h1>
-      </header>
-
-      <FilterBar
-        filters={filters()}
-        onChange={setFilters}
-      />
-
       <Show when={!wikiWarningDismissed()}>
         <div class="opportunity-browser-warning">
           <div class="opportunity-browser-warning-content">
@@ -200,6 +349,11 @@ export function OpportunityBrowser(props: OpportunityBrowserProps) {
           </button>
         </div>
       </Show>
+
+      <FilterBar
+        filters={filters()}
+        onChange={setFilters}
+      />
 
       <Show when={error()}>
         <div class="opportunity-browser-error">
@@ -232,7 +386,7 @@ export function OpportunityBrowser(props: OpportunityBrowserProps) {
                   opportunity={opp}
                   expanded={expandedId() === opp.id}
                   onClick={() => setExpandedId(expandedId() === opp.id ? null : opp.id)}
-                  onAddToTrades={() => handleAddToTrades(opp)}
+                  onAddToTrades={(qty) => handleAddToTrades(opp, qty)}
                   loading={addingId() === opp.id}
                   isBeta={isBeta()}
                 />
@@ -266,23 +420,12 @@ export function OpportunityBrowser(props: OpportunityBrowserProps) {
           margin-bottom: 0.75rem;
         }
 
-        .opportunity-browser-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: 1rem;
-        }
-
-        .opportunity-browser-header h1 {
-          margin: 0;
-          font-size: var(--font-size-2xl);
-        }
-
         .opportunity-browser-error {
-          background: var(--danger-light);
+          background: var(--surface-2);
           color: var(--danger);
           padding: 1rem;
           border-radius: var(--radius-lg);
+          border: 1px solid color-mix(in srgb, var(--danger) 35%, transparent);
           margin-bottom: 1rem;
           display: flex;
           justify-content: space-between;
@@ -291,10 +434,10 @@ export function OpportunityBrowser(props: OpportunityBrowserProps) {
 
         .opportunity-browser-error button {
           background: var(--danger);
-          color: white;
-          border: none;
+          color: var(--btn-text-light);
+          border: 1px solid color-mix(in srgb, var(--danger) 65%, transparent);
           padding: 0.5rem 1rem;
-          border-radius: var(--radius-md);
+          border-radius: var(--radius-full);
           cursor: pointer;
         }
 
@@ -311,7 +454,7 @@ export function OpportunityBrowser(props: OpportunityBrowserProps) {
           color: var(--btn-text-dark);
           border: none;
           padding: 0.5rem 1rem;
-          border-radius: var(--radius-md);
+          border-radius: var(--radius-full);
           cursor: pointer;
         }
 
@@ -325,7 +468,7 @@ export function OpportunityBrowser(props: OpportunityBrowserProps) {
           width: 100%;
           margin-top: 1rem;
           padding: 0.75rem;
-          background: var(--bg-secondary);
+          background: var(--surface-1);
           color: var(--text-secondary);
           border: 1px solid var(--border);
           border-radius: var(--radius-lg);
@@ -341,11 +484,11 @@ export function OpportunityBrowser(props: OpportunityBrowserProps) {
           display: flex;
           align-items: flex-start;
           gap: 0.75rem;
-          background: var(--warning-light);
-          border: 1px solid var(--warning);
+          background: var(--surface-2);
+          border: 1px solid color-mix(in srgb, var(--warning) 40%, transparent);
           border-radius: var(--radius-lg);
           padding: 0.75rem 1rem;
-          margin-bottom: 1rem;
+          margin-bottom: 0.65rem;
         }
 
         .opportunity-browser-warning-content {

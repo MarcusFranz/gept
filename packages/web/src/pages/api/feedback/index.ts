@@ -14,6 +14,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
     }
 
     const userId = locals.user.id;
+    const isDevUser = import.meta.env.DEV && userId === 'dev-user';
     const body = await request.json();
     const { type, rating, message, email, recommendation } = body;
 
@@ -63,6 +64,16 @@ export const POST: APIRoute = async ({ request, locals }) => {
           headers: { 'Content-Type': 'application/json' }
         });
       }
+    }
+
+    if (isDevUser) {
+      return new Response(JSON.stringify({
+        success: true,
+        data: { id: `mock-feedback-${Date.now()}` }
+      }), {
+        status: 201,
+        headers: { 'Content-Type': 'application/json' }
+      });
     }
 
     const feedback = await feedbackRepo.create({

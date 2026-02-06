@@ -1,10 +1,7 @@
 // packages/web/src/components/trades/TradeCard.tsx
-import { createSignal, onMount } from 'solid-js';
 import type { TradeViewModel } from '../../lib/trade-types';
 import type { UpdateRecommendation } from '../../lib/types';
 import Tooltip from '../Tooltip';
-import { Sparkline } from '../Sparkline';
-import { fetchPriceHistory, type PriceHistoryData } from '../../lib/price-history';
 
 interface TradeCardProps {
   trade: TradeViewModel;
@@ -15,14 +12,6 @@ interface TradeCardProps {
 }
 
 export function TradeCard(props: TradeCardProps) {
-  const [priceHistory, setPriceHistory] = createSignal<PriceHistoryData | null>(null);
-
-  onMount(() => {
-    fetchPriceHistory(props.trade.itemId).then(data => {
-      if (data) setPriceHistory(data);
-    });
-  });
-
   const formatGold = (amount: number) => {
     if (amount >= 1_000_000) {
       return (amount / 1_000_000).toFixed(1) + 'M';
@@ -30,6 +19,24 @@ export function TradeCard(props: TradeCardProps) {
       return Math.round(amount / 1_000) + 'K';
     }
     return amount.toLocaleString();
+  };
+
+  const timeInTradeMinutes = () =>
+    Math.max(0, Math.round((Date.now() - props.trade.createdAt.getTime()) / (1000 * 60)));
+
+  const isOverdue = () => {
+    const expectedHours = props.trade.expectedHours;
+    if (!Number.isFinite(expectedHours) || expectedHours <= 0) return false;
+    return timeInTradeMinutes() > expectedHours * 60;
+  };
+
+  const timeInTradeText = () => {
+    const mins = timeInTradeMinutes();
+    if (props.expanded) {
+      if (mins >= 60) return `${Math.floor(mins / 60)}h ${mins % 60}m`;
+      return `${mins}m`;
+    }
+    return `${Math.round(mins / 60)}h`;
   };
 
   const getStatusBadge = () => {
@@ -45,7 +52,7 @@ export function TradeCard(props: TradeCardProps) {
       case 'ready':
         return <span class="status-badge status-ready">Ready</span>;
       default:
-        return null;
+        return <span class="status-badge status-on-track">On track</span>;
     }
   };
 
@@ -60,143 +67,163 @@ export function TradeCard(props: TradeCardProps) {
         <div class="trade-card-item">
           <span class="trade-card-name">{props.trade.itemName}</span>
         </div>
-        <span class={`trade-card-phase phase-${props.trade.phase}`}>
-          {props.trade.phase.toUpperCase()}
-        </span>
-      </div>
-
-      {priceHistory() && (
-        <div class="trade-card-sparkline">
-          <Sparkline
-            highs={priceHistory()!.highs}
-            lows={priceHistory()!.lows}
-            width={160}
-            height={28}
-          />
+        <div class="trade-card-center">
+          {(props.alert || props.trade.suggestedSellPrice) ? (
+            <span class="status-badge status-alert">Price alert</span>
+          ) : (props.trade.status === 'on_track' && isOverdue()) ? (
+            <span class="status-badge status-overdue">Overdue</span>
+          ) : (
+            getStatusBadge()
+          )}
         </div>
-      )}
-
-      <div class="trade-card-progress">
-        <Tooltip text={`${props.trade.phase === 'buying' ? 'Buy' : 'Sell'} progress: ${Math.round(props.trade.progress)}%`} position="top">
-          <div class="trade-card-bar">
-            <div
-              class={`trade-card-bar-fill bar-fill-${props.trade.phase}`}
-              style={{ width: `${props.trade.progress}%` }}
-            />
-          </div>
-        </Tooltip>
-        <span class="trade-card-profit">+{formatGold(props.trade.targetProfit)}</span>
+        <div class="trade-card-profit">
+          <span class="trade-card-kicker">PRED. PROFIT</span>
+          <span class="trade-card-profit-value">+{formatGold(props.trade.targetProfit)}</span>
+        </div>
       </div>
 
       <div class="trade-card-footer">
-        <span class="trade-card-time">
-          {Math.round((Date.now() - props.trade.createdAt.getTime()) / (1000 * 60 * 60))}h in trade
-        </span>
-        <div class="trade-card-footer-right">
-          {(props.alert || props.trade.suggestedSellPrice) && <span class="status-badge status-alert">Price alert</span>}
-          {getStatusBadge()}
-          <Tooltip text="Cancel trade" position="bottom" delay={200}>
-            <button
-              class="trade-card-cancel"
-              onClick={(e) => {
-                e.stopPropagation();
-                props.onCancel();
-              }}
-              aria-label={`Cancel trade for ${props.trade.itemName}`}
-            >
-              ×
-            </button>
-          </Tooltip>
+        <div class="trade-card-footer-labels" aria-hidden="true">
+          <span>QTY</span>
+          <span>TIME IN TRADE</span>
+          <span>STATUS</span>
+        </div>
+        <div class="trade-card-footer-values">
+          <span class="trade-card-qty-value">{props.trade.quantity.toLocaleString()}</span>
+          <span class="trade-card-time-value">{timeInTradeText()}</span>
+          <span class={`trade-card-phase-pill ${props.trade.phase === 'buying' ? 'badge-success' : 'badge-warning'}`}>
+            {props.trade.phase === 'buying' ? 'Buying' : 'Selling'}
+          </span>
         </div>
       </div>
 
       <style>{`
         .trade-card {
-          background: var(--bg-secondary);
+          position: relative;
+          background: var(--surface-1);
           border: 1px solid var(--border);
-          border-radius: var(--radius-lg);
-          padding: 0.875rem;
+          border-radius: var(--radius-xl);
+          padding: 0.95rem;
           cursor: pointer;
-          transition: border-color var(--transition-fast);
+          transition: border-color 0.3s ease, box-shadow 0.6s var(--ease-hero), transform 0.6s var(--ease-hero), background 0.3s ease;
+          box-shadow: var(--shadow-sm);
+        }
+
+        .trade-card::before {
+          display: none;
+        }
+
+        .trade-card::after {
+          display: none;
+        }
+
+        .trade-card > * {
+          position: relative;
+          z-index: 1;
         }
 
         .trade-card:hover {
-          border-color: var(--accent);
+          border-color: var(--border-light);
+          transform: translateY(-4px) scale(1.01);
+          box-shadow: var(--shadow-md);
+        }
+
+        .trade-card:focus {
+          outline: none;
         }
 
         .trade-card-expanded {
-          border-color: var(--accent);
-          background: var(--bg-tertiary);
+          border-color: var(--border-light);
+          background: var(--surface-2);
+          border-bottom-left-radius: 0;
+          border-bottom-right-radius: 0;
+          border-bottom: none;
+          box-shadow: none;
+          transform: translateY(0) scale(1);
+        }
+
+        .trade-card-expanded:hover {
+          transform: translateY(0) scale(1);
+          box-shadow: none;
+          border-color: var(--border-light);
+        }
+
+        .trade-card-expanded::before,
+        .trade-card-expanded::after {
+          opacity: 0;
         }
 
         .trade-card-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: 0.5rem;
-        }
-
-        .trade-card-name {
-          font-weight: 600;
-          color: var(--text-primary);
-        }
-
-        .trade-card-phase {
-          font-size: var(--font-size-xs);
-          font-weight: 700;
-          padding: 0.125rem 0.5rem;
-          border-radius: var(--radius-sm);
-        }
-
-        .phase-buying {
-          background: var(--phase-buy-light);
-          color: var(--phase-buy);
-        }
-
-        .phase-selling {
-          background: var(--phase-sell-light);
-          color: var(--phase-sell);
-        }
-
-        .trade-card-sparkline {
-          margin-bottom: 0.5rem;
-        }
-
-        .trade-card-progress {
-          display: flex;
-          align-items: center;
+          display: grid;
+          grid-template-columns: 1fr auto 1fr;
+          align-items: start;
           gap: 0.75rem;
-          margin-bottom: 0.5rem;
+          margin-bottom: 0.75rem;
         }
 
-        .trade-card-progress .tooltip-wrapper {
-          flex: 1;
+        .trade-card-item {
+          grid-column: 1;
+          justify-self: start;
+          min-width: 0;
+          display: flex;
+          flex-direction: column;
+          gap: 0.3rem;
+        }
+
+        .trade-card-center {
+          grid-column: 2;
+          justify-self: center;
+          display: flex;
+          align-items: center;
           min-width: 0;
         }
 
-        .trade-card-bar {
-          width: 100%;
-          height: 6px;
-          background: var(--bg-tertiary);
-          border-radius: var(--radius-sm);
+        .trade-card-name {
+          display: block;
+          font-weight: 600;
+          color: var(--text-primary);
           overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
         }
 
-        .trade-card-bar-fill {
-          height: 100%;
-          transition: width 0.3s ease;
-        }
-
-        .bar-fill-buying {
-          background: var(--phase-buy);
-        }
-
-        .bar-fill-selling {
-          background: var(--phase-sell);
+        .trade-card-phase-pill {
+          display: inline-block;
+          font-size: var(--font-size-xs);
+          font-weight: 600;
+          padding: 0.2rem 0.55rem;
+          border-radius: var(--radius-full);
+          cursor: default;
+          white-space: nowrap;
+          line-height: 1.2;
         }
 
         .trade-card-profit {
-          font-weight: 600;
+          grid-column: 3;
+          justify-self: end;
+          display: flex;
+          flex-direction: column;
+          align-items: flex-end;
+          gap: 0.125rem;
+          text-align: right;
+          line-height: 1.05;
+          min-width: 0;
+        }
+
+        .trade-card-kicker {
+          display: block;
+          font-size: 0.6rem;
+          letter-spacing: 0.16em;
+          text-transform: uppercase;
+          color: var(--text-muted);
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          max-width: 100%;
+        }
+
+        .trade-card-profit-value {
+          font-weight: 700;
           color: var(--success);
           font-size: var(--font-size-sm);
           white-space: nowrap;
@@ -204,58 +231,76 @@ export function TradeCard(props: TradeCardProps) {
 
         .trade-card-footer {
           display: flex;
-          justify-content: space-between;
+          flex-direction: column;
+          align-items: stretch;
+          gap: 0.2rem;
+          font-size: var(--font-size-sm);
+          color: var(--text-secondary);
+        }
+
+        .trade-card-footer-labels,
+        .trade-card-footer-values {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
           align-items: center;
           gap: 0.5rem;
         }
 
-        .trade-card-footer-right {
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-          flex-shrink: 0;
-        }
-
-        .trade-card-time {
-          font-size: var(--font-size-xs);
+        .trade-card-footer-labels {
+          font-size: 0.62rem;
+          letter-spacing: 0.18em;
+          text-transform: uppercase;
           color: var(--text-muted);
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
+        }
+
+        .trade-card-footer-values {
+          font-weight: 600;
+          color: var(--text-primary);
           min-width: 0;
         }
 
-        .trade-card-cancel {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          width: 24px;
-          height: 24px;
-          min-width: 24px;
-          padding: 0;
-          background: none;
-          border: 1px solid var(--border);
-          border-radius: var(--radius-sm);
-          color: var(--text-muted);
-          font-size: 1rem;
-          line-height: 1;
-          cursor: pointer;
-          flex-shrink: 0;
-          transition: color var(--transition-fast), border-color var(--transition-fast), background var(--transition-fast);
+        .trade-card-footer-labels > *:nth-child(1),
+        .trade-card-footer-values > *:nth-child(1) {
+          justify-self: start;
         }
 
-        .trade-card-cancel:hover {
-          color: var(--danger);
-          border-color: var(--danger);
-          background: var(--danger-light);
+        .trade-card-footer-labels > *:nth-child(2),
+        .trade-card-footer-values > *:nth-child(2) {
+          justify-self: center;
+        }
+
+        .trade-card-footer-labels > *:nth-child(3),
+        .trade-card-footer-values > *:nth-child(3) {
+          justify-self: end;
+        }
+
+        .trade-card-qty-value {
+          font-family: var(--font-mono);
+          white-space: nowrap;
+        }
+
+        .trade-card-time-value {
+          white-space: nowrap;
         }
 
         .status-badge {
+          display: inline-flex;
+          align-items: center;
           font-size: var(--font-size-xs);
           font-weight: 600;
-          padding: 0.125rem 0.5rem;
-          border-radius: var(--radius-sm);
+          padding: 0.2rem 0.55rem;
+          border-radius: var(--radius-full);
           white-space: nowrap;
+        }
+
+        .status-on-track {
+          background: var(--success-light);
+          color: var(--success);
+        }
+
+        .status-overdue {
+          background: var(--warning-light);
+          color: var(--warning);
         }
 
         .status-check-in {
@@ -274,16 +319,20 @@ export function TradeCard(props: TradeCardProps) {
         }
 
         .status-alert {
-          background: var(--warning-light);
-          color: var(--warning);
+          background: var(--danger-light);
+          color: var(--danger);
         }
 
         .trade-card-alert {
-          border-color: var(--warning);
+          border-color: color-mix(in srgb, var(--warning) 60%, transparent);
         }
 
         .trade-card-alert:hover {
-          border-color: var(--warning);
+          border-color: color-mix(in srgb, var(--warning) 60%, transparent);
+        }
+
+        .trade-card-alert.trade-card-expanded {
+          border-color: color-mix(in srgb, var(--warning) 60%, transparent);
         }
       `}</style>
     </div>
