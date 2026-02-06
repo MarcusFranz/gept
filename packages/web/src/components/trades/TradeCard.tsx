@@ -70,7 +70,7 @@ export function TradeCard(props: TradeCardProps) {
         <div class="trade-card-center">
           {(props.alert || props.trade.suggestedSellPrice) ? (
             <span class="status-badge status-alert">Price alert</span>
-          ) : isOverdue() ? (
+          ) : (props.trade.status === 'on_track' && isOverdue()) ? (
             <span class="status-badge status-overdue">Overdue</span>
           ) : (
             getStatusBadge()
