@@ -124,6 +124,11 @@ export function toTradeViewModel(trade: ActiveTrade): TradeViewModel {
   const now = new Date();
   const createdAt = new Date(trade.created_at);
   const nextCheckIn = trade.next_check_in ? new Date(trade.next_check_in) : null;
+  // Neon returns DECIMAL columns as strings by default.
+  const expectedHoursRaw = (trade as unknown as { expected_hours?: unknown }).expected_hours;
+  const expectedHoursParsed = Number(expectedHoursRaw ?? 4);
+  const expectedHours =
+    Number.isFinite(expectedHoursParsed) && expectedHoursParsed > 0 ? expectedHoursParsed : 4;
 
   // Compute status
   let status: TradeStatus = 'on_track';
@@ -149,7 +154,7 @@ export function toTradeViewModel(trade: ActiveTrade): TradeViewModel {
     targetProfit: (trade.sell_price - trade.buy_price) * trade.quantity,
     quantity: trade.quantity,
     createdAt,
-    expectedHours: trade.expected_hours || 4, // Default 4 hours
+    expectedHours, // Default 4 hours
     lastCheckIn: trade.last_check_in ? new Date(trade.last_check_in) : null,
     nextCheckIn,
     recId: trade.rec_id,
