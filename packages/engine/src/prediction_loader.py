@@ -659,6 +659,33 @@ class PredictionLoader:
 
         return (datetime.now(timezone.utc) - latest).total_seconds()
 
+    def get_item_name(self, item_id: int) -> Optional[str]:
+        """Get an item's human-readable name.
+
+        The engine schema does not maintain an authoritative item-name mapping
+        table today; the best available source is the predictions table's
+        denormalized `item_name` column.
+
+        Returns:
+            Item name if found, otherwise None.
+        """
+        query = select(p.c.item_name).where(p.c.item_id == item_id)
+        if self.preferred_model_id:
+            query = query.where(p.c.model_id == self.preferred_model_id)
+        query = query.order_by(p.c.time.desc()).limit(1)
+
+        try:
+            with self.engine.connect() as conn:
+                result = conn.execute(query).fetchone()
+
+            if result and result[0]:
+                return str(result[0])
+            return None
+
+        except Exception as e:
+            logger.debug(f"Could not fetch item name for item {item_id}: {e}")
+            return None
+
     def get_item_buy_limit(self, item_id: int) -> Optional[int]:
         """Get GE buy limit for an item.
 
@@ -1006,8 +1033,13 @@ class PredictionLoader:
         Returns:
             List of dicts with 'timestamp' and 'price' (midpoint) keys
         """
+        bucket = func.date_trunc("hour", v.c.timestamp).label("bucket")
         query = (
-            select(v.c.timestamp, v.c.avg_high_price, v.c.avg_low_price)
+            select(
+                bucket,
+                func.avg(v.c.avg_high_price).label("avg_high_price"),
+                func.avg(v.c.avg_low_price).label("avg_low_price"),
+            )
             .where(
                 and_(
                     v.c.item_id == item_id,
@@ -1016,19 +1048,21 @@ class PredictionLoader:
                     ),
                 )
             )
-            .order_by(v.c.timestamp.asc())
+            .group_by(bucket)
+            # Take most-recent buckets, then reverse in Python so the caller gets asc timestamps.
+            .order_by(bucket.desc())
             .limit(hours)
         )
 
         try:
             with self.engine.connect() as conn:
-                result = conn.execute(query).fetchall()
+                result = list(reversed(conn.execute(query).fetchall()))
 
             history = []
             for row in result:
                 timestamp, high, low = row
                 if high is not None and low is not None:
-                    midpoint = (high + low) // 2
+                    midpoint = int((float(high) + float(low)) / 2)
                     history.append(
                         {
                             "timestamp": (
@@ -1058,13 +1092,14 @@ class PredictionLoader:
         Returns:
             List of dicts with 'timestamp', 'high', 'low', 'avgHigh', 'avgLow' keys
         """
+        bucket = func.date_trunc("hour", v.c.timestamp).label("bucket")
         query = (
             select(
-                v.c.timestamp,
-                v.c.high_price,
-                v.c.low_price,
-                v.c.avg_high_price,
-                v.c.avg_low_price,
+                bucket,
+                func.max(v.c.avg_high_price).label("high"),
+                func.min(v.c.avg_low_price).label("low"),
+                func.avg(v.c.avg_high_price).label("avg_high_price"),
+                func.avg(v.c.avg_low_price).label("avg_low_price"),
             )
             .where(
                 and_(
@@ -1074,22 +1109,24 @@ class PredictionLoader:
                     ),
                 )
             )
-            .order_by(v.c.timestamp.asc())
+            .group_by(bucket)
+            # Take most-recent buckets, then reverse in Python so the caller gets asc timestamps.
+            .order_by(bucket.desc())
             .limit(hours)
         )
 
         try:
             with self.engine.connect() as conn:
-                result = conn.execute(query).fetchall()
+                result = list(reversed(conn.execute(query).fetchall()))
 
             history = []
             for row in result:
                 timestamp, high, low, avg_high, avg_low = row
-                # Use available price data, falling back as needed
+                # Use available price data, falling back as needed.
                 actual_high = high if high is not None else avg_high
                 actual_low = low if low is not None else avg_low
-                actual_avg_high = avg_high if avg_high is not None else high
-                actual_avg_low = avg_low if avg_low is not None else low
+                actual_avg_high = avg_high if avg_high is not None else actual_high
+                actual_avg_low = avg_low if avg_low is not None else actual_low
 
                 if actual_high is not None and actual_low is not None:
                     history.append(
@@ -1099,17 +1136,17 @@ class PredictionLoader:
                                 if hasattr(timestamp, "isoformat")
                                 else str(timestamp)
                             ),
-                            "high": int(actual_high),
-                            "low": int(actual_low),
+                            "high": int(round(float(actual_high))),
+                            "low": int(round(float(actual_low))),
                             "avgHigh": (
-                                int(actual_avg_high)
-                                if actual_avg_high
-                                else int(actual_high)
+                                int(round(float(actual_avg_high)))
+                                if actual_avg_high is not None
+                                else int(round(float(actual_high)))
                             ),
                             "avgLow": (
-                                int(actual_avg_low)
-                                if actual_avg_low
-                                else int(actual_low)
+                                int(round(float(actual_avg_low)))
+                                if actual_avg_low is not None
+                                else int(round(float(actual_low)))
                             ),
                         }
                     )
