@@ -54,8 +54,6 @@ price_data_5min = Table(
     metadata,
     Column("item_id", Integer, nullable=False),
     Column("timestamp", DateTime(timezone=True), nullable=False),
-    Column("high_price", Integer),
-    Column("low_price", Integer),
     Column("high_price_volume", Integer),
     Column("low_price_volume", Integer),
     Column("avg_high_price", Integer),
