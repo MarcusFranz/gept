@@ -12,13 +12,13 @@ The prediction engine runs every 5 minutes, generating fill probability predicti
 
 ### Ampere Server Details
 
-Server configuration is centralized in `config/servers.env`. Override via environment variables.
+Server configuration is centralized in `config/servers.env` (values redacted). Override via environment variables.
 
 | Property | Variable | Default |
 |----------|----------|---------|
-| Host | `$AMPERE_IP` | `150.136.170.128` |
-| User@Host | `$AMPERE_HOST` | `ubuntu@150.136.170.128` |
-| SSH Key | `$AMPERE_SSH_KEY` | `.secrets/oracle_key.pem` |
+| Host | `$AMPERE_IP` | `<set in environment>` |
+| User@Host | `$AMPERE_HOST` | `<set in environment>` |
+| SSH Key | `$AMPERE_SSH_KEY` | `<path to key>` |
 | Database Port | - | `5432` |
 
 ### SSH Connection
@@ -28,7 +28,7 @@ Server configuration is centralized in `config/servers.env`. Override via enviro
 ssh -i $AMPERE_SSH_KEY $AMPERE_HOST
 
 # Or with defaults
-ssh -i .secrets/oracle_key.pem ubuntu@150.136.170.128
+ssh -i <ssh_key_path> <ssh_user>@<host>
 ```
 
 ### Database Connection (from Ampere server)

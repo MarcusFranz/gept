@@ -13,23 +13,23 @@ cd gept-foundations
 cp .env.example .env
 ```
 
-Edit `.env` with the actual credentials (ask Marcus for values):
+Edit `.env` with the actual credentials (request via a secure channel):
 ```bash
 DB_HOST=localhost
 DB_PORT=5432
 DB_NAME=osrs_data
 DB_USER=osrs_user
-DB_PASS=<ask_marcus>
-GRAFANA_PASSWORD=<ask_marcus>
+DB_PASS=<secure_value>
+GRAFANA_PASSWORD=<secure_value>
 ```
 
 ### 3. SSH Tunnel to Database
 The database runs on a remote server. To connect locally:
 ```bash
-ssh -i .secrets/oracle_key.pem -L 5432:localhost:5432 ubuntu@<server_ip> -N &
+ssh -i <ssh_key_path> -L 5432:localhost:5432 <ssh_user>@<host> -N &
 ```
 
-You'll need the SSH key file (`.secrets/oracle_key.pem`) - ask Marcus.
+You'll need the SSH key file from the repository maintainer.
 
 ### 4. Install Python Dependencies
 ```bash
@@ -125,9 +125,9 @@ pytest tests/
 ## Monitoring
 
 ### Dashboards (VPN/SSH required)
-- **Status Dashboard**: http://<server_ip>:8080
-- **Grafana**: http://<server_ip>:3001
-- **Prometheus**: http://<server_ip>:9090
+- **Status Dashboard**: internal URL (redacted)
+- **Grafana**: internal URL (redacted)
+- **Prometheus**: internal URL (redacted)
 
 ---
 
@@ -198,4 +198,4 @@ pip-sync requirements.txt
 
 ## Contact
 
-Questions? Reach out to Marcus.
+Questions? Reach out to the repository maintainer.
