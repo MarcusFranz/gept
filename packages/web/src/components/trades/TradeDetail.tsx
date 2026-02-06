@@ -175,17 +175,15 @@ export function TradeDetail(props: TradeDetailProps) {
         </div>
       </div>
 
-      <Show when={historyLoading() || priceHistory()}>
-        <div class="trade-detail-sparkline">
-          <Sparkline
-            highs={priceHistory()?.highs ?? []}
-            lows={priceHistory()?.lows ?? []}
-            loading={historyLoading() && !priceHistory()}
-            width={280}
-            height={56}
-          />
-        </div>
-      </Show>
+      <div class="trade-detail-sparkline">
+        <Sparkline
+          highs={priceHistory()?.highs ?? []}
+          lows={priceHistory()?.lows ?? []}
+          loading={historyLoading() && !priceHistory()}
+          width={280}
+          height={56}
+        />
+      </div>
 
       <Show when={props.alert}>
         <AlertBanner
