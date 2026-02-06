@@ -9,6 +9,17 @@ OSRS Grand Exchange flipping recommendation API. Provides optimized trade recomm
 
 ---
 
+## Authentication
+
+All endpoints require the `X-API-Key` header (set `INTERNAL_API_KEY` in the engine environment).
+
+Example:
+```bash
+curl -H "X-API-Key: $INTERNAL_API_KEY" http://localhost:8000/api/v1/health
+```
+
+---
+
 ## Endpoints
 
 ### Health Check
@@ -18,6 +29,11 @@ GET /api/v1/health
 ```
 
 Check system health status including database connectivity and prediction freshness.
+
+**Headers:**
+```
+X-API-Key: <token>
+```
 
 **Response:**
 ```json
@@ -67,6 +83,14 @@ POST /api/v1/recommendations
 
 Main endpoint for Discord bot to fetch flip recommendations with full context.
 
+**Example:**
+```bash
+curl -X POST "http://localhost:8000/api/v1/recommendations" \
+  -H "X-API-Key: $INTERNAL_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"style":"active","capital":10000000,"risk":"medium","slots":4}'
+```
+
 **Request Body:**
 ```json
 {
@@ -97,6 +121,12 @@ GET /api/v1/recommendations?style=active&capital=10000000&risk=medium&slots=4
 ```
 
 Alternative endpoint using query parameters.
+
+**Example:**
+```bash
+curl -H "X-API-Key: $INTERNAL_API_KEY" \
+  "http://localhost:8000/api/v1/recommendations?style=active&capital=10000000&risk=medium&slots=4"
+```
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
@@ -388,6 +418,14 @@ Get aggregated feedback statistics for model improvement analysis.
 ---
 
 ## Error Responses
+
+### 401 Unauthorized
+
+```json
+{
+  "detail": "Missing API key. Include X-API-Key header."
+}
+```
 
 ### 422 Validation Error
 

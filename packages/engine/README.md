@@ -6,8 +6,8 @@ Transforms raw ML predictions into optimized OSRS Grand Exchange trade recommend
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                        Ampere Server                            │
-│                    (<SERVER_IP>)                           │
+│                    Prediction Host (redacted)                   │
+│                         (<HOST>)                                │
 │                                                                 │
 │  ┌──────────────┐     ┌──────────────┐     ┌──────────────┐   │
 │  │   Cron Job   │────▶│  Inference   │────▶│  PostgreSQL  │   │
@@ -30,15 +30,15 @@ Transforms raw ML predictions into optimized OSRS Grand Exchange trade recommend
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-The engine reads pre-computed fill probability predictions from the Ampere server's `predictions` table and applies user constraints (capital, trading style, risk tolerance, GE slots) to generate optimized trade recommendations.
+The engine reads pre-computed fill probability predictions from the `predictions` table and applies user constraints (capital, trading style, risk tolerance, GE slots) to generate optimized trade recommendations.
 
 ## Quick Start
 
 ### Prerequisites
 
 - Python 3.11+
-- SSH access to Ampere server (for database tunnel)
-- `oracle_key.pem` SSH key
+- SSH access to the prediction database host (for database tunnel)
+- SSH key for the database host
 
 ### Installation
 
@@ -55,10 +55,10 @@ pip install -r requirements.txt
 
 ### Database Connection
 
-Create an SSH tunnel to the Ampere server:
+Create an SSH tunnel to the prediction database host:
 
 ```bash
-ssh -i oracle_key.pem -L 5432:localhost:5432 ubuntu@<SERVER_IP>
+ssh -i <ssh_key>.pem -L 5432:localhost:5432 <user>@<host>
 ```
 
 Keep this running in a separate terminal.
@@ -151,6 +151,14 @@ curl "http://localhost:8000/api/v1/recommendations?style=active&capital=10000000
 }
 ```
 
+## Authentication
+
+All API endpoints require the `X-API-Key` header. Example:
+
+```bash
+curl -H "X-API-Key: $INTERNAL_API_KEY" http://localhost:8000/api/v1/health
+```
+
 ## Project Structure
 
 ```
@@ -174,6 +182,9 @@ Environment variables (see `.env.example`):
 # Database (via SSH tunnel)
 DB_CONNECTION_STRING=postgresql://user:password@localhost:5432/osrs_data
 
+# API auth (required)
+INTERNAL_API_KEY=replace-with-random-token
+
 # Thresholds
 MIN_EV_THRESHOLD=0.005
 DATA_STALE_SECONDS=600
@@ -183,9 +194,15 @@ API_HOST=0.0.0.0
 API_PORT=8000
 ```
 
+Generate a key if you don't have one yet:
+
+```bash
+python -c "import secrets; print(secrets.token_urlsafe(32))"
+```
+
 ## Database Schema
 
-The engine reads from the `predictions` table on Ampere:
+The engine reads from the `predictions` table in the prediction database:
 
 ```sql
 SELECT

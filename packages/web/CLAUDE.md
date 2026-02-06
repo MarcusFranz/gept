@@ -59,7 +59,7 @@ GePT is a Grand Exchange flipping assistant for Old School RuneScape. This repo 
 ### gept-recommendation-engine
 - **Repo**: `MarcusFranz/gept-recommendation-engine`
 - **Purpose**: Prediction API that serves flip recommendations
-- **URL**: `http://150.136.170.128:8000` (Ampere server)
+- **URL**: `<prediction-api-url>` (redacted)
 - **Use this repo for**: Any API changes, new endpoints, database schema changes, ML model updates
 
 When you need changes to the prediction API (new endpoints, response format changes, etc.), create an issue on `gept-recommendation-engine` rather than trying to work around it in the frontend.

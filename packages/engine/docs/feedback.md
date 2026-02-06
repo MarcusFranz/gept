@@ -32,6 +32,14 @@ This feedback is used for model improvement and identifying systematic issues wi
 POST /api/v1/feedback
 ```
 
+### Authentication
+
+All requests require the `X-API-Key` header.
+
+```
+X-API-Key: <token>
+```
+
 ### Request Body
 
 ```json

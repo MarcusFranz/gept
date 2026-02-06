@@ -20,6 +20,10 @@ python run_inference.py
 
 Inference runs every 5 minutes via cron, generating predictions across 7 horizons and 5 quantiles per item.
 
+## Local Setup
+
+For full environment setup (database tunnel, env vars, dependencies), see `DEVELOPER_SETUP.md`.
+
 ## Data Collectors
 
 See `collectors/` for Docker-based collection services. Deploy with:

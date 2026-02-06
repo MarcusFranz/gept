@@ -239,6 +239,7 @@ export function OpportunityCard(props: OpportunityCardProps) {
           cursor: pointer;
           transition: border-color 0.3s ease, box-shadow 0.6s var(--ease-hero), transform 0.6s var(--ease-hero), background 0.3s ease;
           box-shadow: var(--shadow-sm);
+          backdrop-filter: blur(16px);
         }
 
         .opportunity-card:hover {
