@@ -1,12 +1,12 @@
 // packages/web/src/components/trades/TradeDetail.tsx
-import { createSignal, onMount, Show } from 'solid-js';
+import { createSignal, onCleanup, onMount, Show } from 'solid-js';
 import type { TradeViewModel, Guidance } from '../../lib/trade-types';
 import type { UpdateRecommendation } from '../../lib/types';
 import { CheckInBar } from './CheckInBar';
 import { GuidancePrompt } from './GuidancePrompt';
 import { AlertBanner } from './AlertBanner';
 import { Sparkline } from '../Sparkline';
-import { fetchPriceHistory, type PriceHistoryData } from '../../lib/price-history';
+import { fetchPriceHistoryWithFallback, type PriceHistoryData } from '../../lib/price-history';
 
 interface TradeDetailProps {
   trade: TradeViewModel;
@@ -18,19 +18,42 @@ interface TradeDetailProps {
   onAcceptAlert?: () => void;
   onDismissAlert?: () => void;
   onAcknowledgePrice?: () => void;
+  showHeader?: boolean;
 }
+
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 export function TradeDetail(props: TradeDetailProps) {
   const [priceHistory, setPriceHistory] = createSignal<PriceHistoryData | null>(null);
+  const [historyLoading, setHistoryLoading] = createSignal(true);
 
   onMount(() => {
-    fetchPriceHistory(props.trade.itemId).then(data => {
-      if (data) setPriceHistory(data);
+    let disposed = false;
+    onCleanup(() => {
+      disposed = true;
     });
+
+    setHistoryLoading(true);
+    (async () => {
+      try {
+        const data = await fetchPriceHistoryWithFallback(props.trade.itemId);
+
+        // Dev-only: force the Death rune sparkline to "feel slow" so the
+        // placeholder animation is easy to see in action.
+        if (import.meta.env.DEV && props.trade.itemId === 560) {
+          await sleep(5000);
+        }
+
+        if (!disposed && data) setPriceHistory(data);
+      } finally {
+        if (!disposed) setHistoryLoading(false);
+      }
+    })();
   });
   const [loading, setLoading] = createSignal(false);
   const [guidance, setGuidance] = createSignal<Guidance | undefined>(undefined);
   const [pendingProgress, setPendingProgress] = createSignal<number | undefined>(undefined);
+  const [closing, setClosing] = createSignal(false);
 
   const formatGold = (amount: number) => {
     if (amount >= 1_000_000) {
@@ -94,18 +117,28 @@ export function TradeDetail(props: TradeDetailProps) {
   // Use getter functions for reactive prop access
   const actualBuy = () => props.trade.actualBuyPrice || props.trade.buyPrice;
   const actualSell = () => props.trade.actualSellPrice || props.trade.sellPrice;
-  const timeInTradeMinutes = () => Math.round((Date.now() - props.trade.createdAt.getTime()) / (1000 * 60));
+
+  const handleClose = () => {
+    if (closing()) return;
+    setClosing(true);
+    setTimeout(() => {
+      props.onClose();
+    }, 320);
+  };
 
   return (
-    <div class="trade-detail">
-      <button class="trade-detail-close" onClick={() => props.onClose()} aria-label="Close trade detail">×</button>
-
-      <div class="trade-detail-header">
-        <h3 class="trade-detail-title">{props.trade.itemName}</h3>
-        <span class={`trade-detail-phase phase-${props.trade.phase}`}>
-          {props.trade.phase.toUpperCase()}
-        </span>
-      </div>
+    <div class={`trade-detail ${closing() ? 'is-closing' : 'is-open'}`}>
+      <Show when={props.showHeader !== false}>
+        <div class="trade-detail-header">
+          <h3 class="trade-detail-title">{props.trade.itemName}</h3>
+          <div class={`trade-detail-actions ${closing() ? 'is-closing' : 'is-open'}`}>
+            <span class={`trade-detail-phase phase-${props.trade.phase}`}>
+              {props.trade.phase.toUpperCase()}
+            </span>
+            <button class="trade-detail-close" onClick={handleClose} aria-label="Close trade detail">×</button>
+          </div>
+        </div>
+      </Show>
 
       <div class="trade-detail-prices-exact">
         <div class="price-box buy-price">
@@ -136,20 +169,17 @@ export function TradeDetail(props: TradeDetailProps) {
         </div>
       </div>
 
-      <Show when={priceHistory()}>
+      <Show when={historyLoading() || priceHistory()}>
         <div class="trade-detail-sparkline">
           <Sparkline
-            highs={priceHistory()!.highs}
-            lows={priceHistory()!.lows}
+            highs={priceHistory()?.highs ?? []}
+            lows={priceHistory()?.lows ?? []}
+            loading={historyLoading() && !priceHistory()}
             width={280}
-            height={48}
+            height={56}
           />
         </div>
       </Show>
-
-      <div class="trade-detail-profit">
-        Target profit: <strong>+{formatGold(props.trade.targetProfit)}</strong>
-      </div>
 
       <Show when={props.alert}>
         <AlertBanner
@@ -159,8 +189,6 @@ export function TradeDetail(props: TradeDetailProps) {
           loading={loading()}
         />
       </Show>
-
-      <hr class="trade-detail-divider" />
 
       {guidance() ? (
         <GuidancePrompt
@@ -191,21 +219,6 @@ export function TradeDetail(props: TradeDetailProps) {
 
       <hr class="trade-detail-divider" />
 
-      <div class="trade-detail-stats">
-        <div class="trade-detail-stat">
-          <span class="stat-label">Time in trade</span>
-          <span class="stat-value">
-            {timeInTradeMinutes() >= 60
-              ? `${Math.floor(timeInTradeMinutes() / 60)}h ${timeInTradeMinutes() % 60}m`
-              : `${timeInTradeMinutes()}m`}
-          </span>
-        </div>
-        <div class="trade-detail-stat">
-          <span class="stat-label">Quantity</span>
-          <span class="stat-value">{props.trade.quantity.toLocaleString()}</span>
-        </div>
-      </div>
-
       <button
         class="trade-detail-cancel"
         onClick={() => props.onCancel()}
@@ -216,28 +229,20 @@ export function TradeDetail(props: TradeDetailProps) {
 
       <style>{`
         .trade-detail {
-          background: var(--bg-secondary);
-          border: 1px solid var(--accent);
-          border-radius: var(--radius-lg);
-          padding: 1rem;
+          background: var(--surface-2);
+          border: 1px solid var(--border);
+          border-radius: var(--radius-xl);
+          padding: 1.1rem;
           position: relative;
+          box-shadow: none;
         }
 
-        .trade-detail-close {
-          position: absolute;
-          top: 0.5rem;
-          right: 0.5rem;
-          background: none;
-          border: none;
-          color: var(--text-muted);
-          font-size: 1.5rem;
-          cursor: pointer;
-          padding: 0.25rem 0.5rem;
-          line-height: 1;
+        .trade-detail.is-open {
+          animation: none;
         }
 
-        .trade-detail-close:hover {
-          color: var(--text-primary);
+        .trade-detail.is-closing {
+          animation: none;
         }
 
         .trade-detail-header {
@@ -245,6 +250,7 @@ export function TradeDetail(props: TradeDetailProps) {
           justify-content: space-between;
           align-items: center;
           margin-bottom: 0.5rem;
+          gap: 0.75rem;
         }
 
         .trade-detail-title {
@@ -252,11 +258,19 @@ export function TradeDetail(props: TradeDetailProps) {
           font-size: var(--font-size-lg);
         }
 
+        .trade-detail-actions {
+          display: flex;
+          align-items: center;
+          gap: 0.35rem;
+          flex-shrink: 0;
+        }
+
         .trade-detail-phase {
           font-size: var(--font-size-xs);
           font-weight: 700;
           padding: 0.25rem 0.75rem;
-          border-radius: var(--radius-sm);
+          border-radius: var(--radius-full);
+          transition: none;
         }
 
         .phase-buying {
@@ -269,15 +283,42 @@ export function TradeDetail(props: TradeDetailProps) {
           color: var(--phase-sell);
         }
 
+        .trade-detail-close {
+          background: var(--surface-2);
+          border: 1px solid var(--border);
+          color: var(--text-muted);
+          font-size: 1.05rem;
+          cursor: pointer;
+          padding: 0.2rem 0.55rem;
+          line-height: 1;
+          border-radius: var(--radius-full);
+          opacity: 1;
+          transform: none;
+          transition: color var(--transition-fast), border-color var(--transition-fast), background var(--transition-fast);
+        }
+
+        .trade-detail-close:hover {
+          color: var(--text-primary);
+          border-color: var(--border-light);
+        }
+
+        .trade-detail-actions.is-open .trade-detail-phase,
+        .trade-detail-actions.is-open .trade-detail-close,
+        .trade-detail-actions.is-closing .trade-detail-phase,
+        .trade-detail-actions.is-closing .trade-detail-close {
+          animation: none;
+        }
+
         .trade-detail-prices-exact {
           display: flex;
           align-items: center;
           justify-content: space-between;
           gap: 0.5rem;
-          margin: 0.75rem 0;
-          padding: 0.75rem;
-          background: var(--bg-tertiary);
-          border-radius: var(--radius-md);
+          margin: 0.85rem 0;
+          padding: 0.85rem;
+          background: var(--surface-2);
+          border-radius: var(--radius-lg);
+          border: 1px solid var(--border);
         }
 
         .price-box {
@@ -329,8 +370,8 @@ export function TradeDetail(props: TradeDetailProps) {
           margin-left: 0.25rem;
           background: var(--success-light);
           color: var(--success);
-          border: 1px solid var(--success);
-          border-radius: var(--radius-sm);
+          border: 1px solid color-mix(in srgb, var(--success) 70%, transparent);
+          border-radius: var(--radius-full);
           font-size: 0.75rem;
           font-weight: 700;
           cursor: pointer;
@@ -348,7 +389,10 @@ export function TradeDetail(props: TradeDetailProps) {
         }
 
         .trade-detail-sparkline {
-          margin: 0.5rem 0;
+          margin: 0.85rem 0 1.05rem;
+          display: flex;
+          justify-content: center;
+          padding: 0.75rem 0.75rem;
         }
 
         .trade-detail-profit {
@@ -369,18 +413,21 @@ export function TradeDetail(props: TradeDetailProps) {
 
         .trade-detail-submit {
           width: 100%;
-          padding: 0.625rem;
+          padding: 0.7rem;
           background: var(--action);
           color: var(--btn-text-dark);
-          border: none;
-          border-radius: var(--radius-md);
+          border: 1px solid color-mix(in srgb, var(--action) 75%, #000);
+          border-radius: var(--radius-full);
           font-weight: 600;
           cursor: pointer;
           margin-top: 0.5rem;
+          transition: transform 0.4s var(--ease-hero), box-shadow 0.4s var(--ease-hero), background 0.3s ease;
         }
 
         .trade-detail-submit:hover:not(:disabled) {
           background: var(--action-hover);
+          transform: translateY(-2px) scale(1.01);
+          box-shadow: 0 20px 34px -22px rgba(168, 240, 8, 0.55);
         }
 
         .trade-detail-submit:disabled {
@@ -388,36 +435,16 @@ export function TradeDetail(props: TradeDetailProps) {
           cursor: not-allowed;
         }
 
-        .trade-detail-stats {
-          display: flex;
-          gap: 1.5rem;
-        }
-
-        .trade-detail-stat {
-          display: flex;
-          flex-direction: column;
-          gap: 0.125rem;
-        }
-
-        .stat-label {
-          font-size: var(--font-size-xs);
-          color: var(--text-muted);
-        }
-
-        .stat-value {
-          font-weight: 600;
-          color: var(--text-primary);
-        }
-
         .trade-detail-cancel {
           width: 100%;
-          padding: 0.5rem;
-          background: transparent;
+          padding: 0.6rem;
+          background: var(--surface-2);
           color: var(--danger);
-          border: 1px solid var(--danger);
-          border-radius: var(--radius-md);
+          border: 1px solid color-mix(in srgb, var(--danger) 65%, transparent);
+          border-radius: var(--radius-full);
           cursor: pointer;
           margin-top: 1rem;
+          transition: background var(--transition-fast), color var(--transition-fast);
         }
 
         .trade-detail-cancel:hover:not(:disabled) {

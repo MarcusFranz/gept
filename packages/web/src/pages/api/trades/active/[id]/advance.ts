@@ -1,6 +1,7 @@
 import type { APIRoute } from 'astro';
 import { activeTradesRepo, tradeHistoryRepo } from '../../../../../lib/repositories';
 import { dispatchWebhook } from '../../../../../lib/webhook';
+import { advanceMockTrade, findMockTrade } from '../../../../../lib/mock-data';
 
 export const POST: APIRoute = async ({ params, locals }) => {
   try {
@@ -25,14 +26,30 @@ export const POST: APIRoute = async ({ params, locals }) => {
       });
     }
 
+    const userId = locals.user.id;
+    const isDevUser = import.meta.env.DEV && userId === 'dev-user';
+
     // Verify trade belongs to user
-    const trade = await activeTradesRepo.findById(id);
-    if (!trade || trade.user_id !== locals.user.id) {
+    const trade = isDevUser ? findMockTrade(id) : await activeTradesRepo.findById(id);
+    if (!trade || trade.user_id !== userId) {
       return new Response(JSON.stringify({
         success: false,
         error: 'Trade not found'
       }), {
         status: 404,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    if (isDevUser) {
+      const result = advanceMockTrade(id);
+      return new Response(JSON.stringify({
+        success: true,
+        trade: result.trade,
+        profit: result.profit,
+        message: result.message
+      }), {
+        status: 200,
         headers: { 'Content-Type': 'application/json' }
       });
     }

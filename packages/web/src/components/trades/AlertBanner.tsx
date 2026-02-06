@@ -89,16 +89,16 @@ export function AlertBanner(props: AlertBannerProps) {
 
       <style>{`
         .alert-banner {
-          background: var(--warning-light);
-          border: 1px solid var(--warning);
+          background: var(--surface-2);
+          border: 1px solid color-mix(in srgb, var(--warning) 40%, transparent);
           border-radius: var(--radius-lg);
           padding: 1rem;
           margin: 1rem 0;
+          box-shadow: var(--shadow-sm);
         }
 
         .alert-banner-danger {
-          background: var(--danger-light);
-          border-color: var(--danger);
+          border-color: color-mix(in srgb, var(--danger) 40%, transparent);
         }
 
         .alert-banner-header {
@@ -145,9 +145,9 @@ export function AlertBanner(props: AlertBannerProps) {
 
         .alert-banner-btn {
           flex: 1;
-          padding: 0.625rem 1rem;
-          border: none;
-          border-radius: var(--radius-md);
+          padding: 0.65rem 1rem;
+          border: 1px solid transparent;
+          border-radius: var(--radius-full);
           font-weight: 600;
           cursor: pointer;
           transition: background var(--transition-fast);
@@ -161,6 +161,7 @@ export function AlertBanner(props: AlertBannerProps) {
         .alert-banner-btn-primary {
           background: var(--warning);
           color: var(--btn-text-dark);
+          border-color: color-mix(in srgb, var(--warning) 65%, transparent);
         }
 
         .alert-banner-btn-primary:hover:not(:disabled) {
@@ -170,6 +171,7 @@ export function AlertBanner(props: AlertBannerProps) {
         .alert-banner-btn-danger {
           background: var(--danger);
           color: var(--btn-text-dark);
+          border-color: color-mix(in srgb, var(--danger) 65%, transparent);
         }
 
         .alert-banner-btn-danger:hover:not(:disabled) {
@@ -177,12 +179,13 @@ export function AlertBanner(props: AlertBannerProps) {
         }
 
         .alert-banner-btn-secondary {
-          background: var(--bg-tertiary);
+          background: var(--surface-1);
           color: var(--text-primary);
+          border: 1px solid var(--border);
         }
 
         .alert-banner-btn-secondary:hover:not(:disabled) {
-          background: var(--bg-hover);
+          background: var(--surface-2);
         }
       `}</style>
     </div>

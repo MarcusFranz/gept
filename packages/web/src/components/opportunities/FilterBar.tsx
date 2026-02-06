@@ -45,7 +45,7 @@ export function FilterBar(props: FilterBarProps) {
           <input
             type="number"
             class="filter-input"
-            placeholder="Filter by GP"
+            placeholder="Max GP"
             value={props.filters.capitalMax || ''}
             onInput={(e) => updateFilter('capitalMax', e.currentTarget.value ? Number(e.currentTarget.value) : undefined)}
           />
@@ -67,9 +67,17 @@ export function FilterBar(props: FilterBarProps) {
         <div class="filter-group">
           <label class="filter-label">Confidence</label>
           <select
-            class="filter-select"
-            value={props.filters.confidence || ''}
-            onChange={(e) => updateFilter('confidence', e.currentTarget.value || undefined)}
+            class={`filter-select filter-select-confidence ${
+              props.filters.confidence === 'high'
+                ? 'is-high'
+                : props.filters.confidence === 'medium'
+                  ? 'is-medium'
+                  : props.filters.confidence === 'low'
+                    ? 'is-low'
+                    : 'is-any'
+            }`}
+            value={props.filters.confidence === 'low' ? '' : (props.filters.confidence || '')}
+            onChange={(e) => updateFilter('confidence', (e.currentTarget.value || undefined) as OpportunityFilters['confidence'])}
           >
             {confidenceOptions.map(opt => (
               <option value={opt.value || ''}>{opt.label}</option>
@@ -94,42 +102,129 @@ export function FilterBar(props: FilterBarProps) {
 
       <style>{`
         .filter-bar {
-          margin-bottom: 1rem;
+          margin-bottom: 0.65rem;
         }
 
         .filter-bar-content {
           display: flex;
-          align-items: flex-end;
-          gap: 1rem;
-          flex-wrap: wrap;
+          align-items: center;
+          gap: 0.65rem;
+          flex-wrap: nowrap;
+          background: color-mix(in srgb, var(--surface-1) 90%, #000 10%);
+          border: 1px solid var(--border);
+          border-radius: var(--radius-lg);
+          padding: 0.65rem;
+          box-shadow: none;
+          transition: border-color 0.18s ease, background 0.18s ease;
+        }
+
+        .filter-bar-content:hover {
+          border-color: var(--border-light);
         }
 
         .filter-group {
           display: flex;
           flex-direction: column;
           gap: 0.25rem;
+          flex: 1 1 0;
+          min-width: 0;
         }
 
         .filter-label {
-          font-size: var(--font-size-xs);
-          color: var(--text-secondary);
+          font-size: 0.6rem;
+          letter-spacing: 0.18em;
+          text-transform: uppercase;
+          color: var(--text-muted);
+          font-weight: 700;
+          white-space: nowrap;
         }
 
         .filter-input,
         .filter-select {
-          padding: 0.5rem 0.75rem;
-          background: var(--bg-secondary);
+          width: 100%;
+          min-width: 0;
+          padding: 0.45rem 0.6rem;
+          background: var(--surface-2);
           border: 1px solid var(--border);
-          border-radius: var(--radius-md);
+          border-radius: var(--radius-lg);
           color: var(--text-primary);
           font-size: var(--font-size-sm);
-          min-width: 140px;
+          height: 36px;
+        }
+
+        .filter-input::-webkit-outer-spin-button,
+        .filter-input::-webkit-inner-spin-button {
+          -webkit-appearance: none;
+          margin: 0;
+        }
+
+        .filter-input[type="number"] {
+          -moz-appearance: textfield;
+          appearance: textfield;
+        }
+
+        .filter-select {
+          appearance: none;
+          padding-right: 1.8rem;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          background-image:
+            linear-gradient(45deg, transparent 50%, rgba(244, 246, 242, 0.75) 50%),
+            linear-gradient(135deg, rgba(244, 246, 242, 0.75) 50%, transparent 50%),
+            linear-gradient(to right, transparent, transparent);
+          background-position:
+            calc(100% - 0.95rem) 55%,
+            calc(100% - 0.75rem) 55%,
+            0 0;
+          background-size:
+            6px 6px,
+            6px 6px,
+            100% 100%;
+          background-repeat: no-repeat;
+        }
+
+        .filter-select-confidence {
+          --conf-accent: color-mix(in srgb, var(--text-muted) 55%, transparent);
+          padding-left: 1.35rem;
+          background-image:
+            radial-gradient(circle at 0.7rem 50%, var(--conf-accent) 0 4px, transparent 5px),
+            linear-gradient(45deg, transparent 50%, rgba(244, 246, 242, 0.75) 50%),
+            linear-gradient(135deg, rgba(244, 246, 242, 0.75) 50%, transparent 50%),
+            linear-gradient(to right, transparent, transparent);
+          background-position:
+            0 0,
+            calc(100% - 0.95rem) 55%,
+            calc(100% - 0.75rem) 55%,
+            0 0;
+          background-size:
+            100% 100%,
+            6px 6px,
+            6px 6px,
+            100% 100%;
+          background-repeat: no-repeat;
+        }
+
+        .filter-select-confidence.is-high {
+          --conf-accent: var(--success);
+          border-color: color-mix(in srgb, var(--success) 45%, var(--border));
+        }
+
+        .filter-select-confidence.is-medium {
+          --conf-accent: var(--warning);
+          border-color: color-mix(in srgb, var(--warning) 45%, var(--border));
+        }
+
+        .filter-select-confidence.is-low {
+          --conf-accent: var(--danger);
+          border-color: color-mix(in srgb, var(--danger) 45%, var(--border));
         }
 
         .filter-input:focus,
         .filter-select:focus {
           outline: none;
-          border-color: var(--accent);
+          border-color: var(--border-light);
+          box-shadow: 0 0 0 3px rgba(168, 240, 8, 0.12);
         }
 
         .filter-input::placeholder {
@@ -137,16 +232,49 @@ export function FilterBar(props: FilterBarProps) {
         }
 
         .filter-clear-all {
-          background: none;
-          border: none;
-          color: var(--accent);
+          flex: 0 0 auto;
+          background: var(--surface-2);
+          border: 1px solid var(--border);
+          color: var(--text-secondary);
           cursor: pointer;
           font-size: var(--font-size-sm);
-          padding: 0.5rem 0;
+          padding: 0 0.7rem;
+          height: 36px;
+          border-radius: var(--radius-lg);
+          white-space: nowrap;
         }
 
         .filter-clear-all:hover {
-          text-decoration: underline;
+          background: var(--surface-3);
+          border-color: var(--border-light);
+        }
+
+        @media (max-width: 420px) {
+          .filter-bar-content {
+            gap: 0.5rem;
+            padding: 0.55rem;
+          }
+
+          .filter-label {
+            font-size: 0.58rem;
+            letter-spacing: 0.16em;
+          }
+
+          .filter-input,
+          .filter-select,
+          .filter-clear-all {
+            height: 34px;
+          }
+        }
+
+        @media (max-width: 360px) {
+          .filter-group {
+            gap: 0;
+          }
+
+          .filter-label {
+            display: none;
+          }
         }
       `}</style>
     </div>

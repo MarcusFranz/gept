@@ -3,6 +3,7 @@
 import Layout from '../layouts/Layout.astro';
 import { HomePage } from '../components/HomePage';
 import { activeTradesRepo, userRepo } from '../lib/repositories';
+import { getMockTrades } from '../lib/mock-data';
 
 // Check auth
 if (!Astro.locals.user) {
@@ -10,10 +11,13 @@ if (!Astro.locals.user) {
 }
 
 const user = Astro.locals.user;
+const isDevUser = import.meta.env.DEV && user.id === 'dev-user';
 
 // Fetch user data
-const userData = await userRepo.findOrCreate(user.id, user.email);
-const trades = await activeTradesRepo.findByUserId(user.id);
+if (!isDevUser) {
+  await userRepo.findOrCreate(user.id, user.email);
+}
+const trades = isDevUser ? getMockTrades() : await activeTradesRepo.findByUserId(user.id);
 ---
 
 <Layout title="GePT - My Trades">

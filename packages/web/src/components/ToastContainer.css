@@ -15,10 +15,10 @@
   align-items: flex-start;
   gap: var(--space-3);
   padding: var(--space-3) var(--space-4);
-  background-color: var(--bg-secondary);
+  background-color: var(--surface-1);
   border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
   animation: toastSlideIn 0.2s ease;
   pointer-events: auto;
 }
@@ -90,9 +90,9 @@
   font-size: var(--font-size-xs);
   font-weight: 500;
   color: var(--accent);
-  background: none;
-  border: 1px solid var(--accent);
-  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
   cursor: pointer;
 }
 
@@ -112,11 +112,11 @@
   border: none;
   color: var(--text-muted);
   cursor: pointer;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-full);
 }
 
 .toast-dismiss:hover {
-  background-color: var(--bg-hover);
+  background-color: var(--surface-2);
   color: var(--text-primary);
 }
 

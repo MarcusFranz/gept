@@ -3,6 +3,9 @@ import type { APIRoute } from 'astro';
 import { createHash } from 'crypto';
 import { cache, cacheKey, TTL, KEY } from '../../lib/cache';
 import { userRepo } from '../../lib/repositories';
+import { getMockOpportunities } from '../../lib/mock-data';
+
+const trendToFrontend: Record<string, string> = { Rising: 'up', Falling: 'down', Stable: 'stable' };
 
 const PREDICTION_API = process.env.PREDICTION_API ?? import.meta.env.PREDICTION_API;
 const API_KEY = process.env.PREDICTION_API_KEY ?? import.meta.env.PREDICTION_API_KEY;
@@ -34,26 +37,61 @@ export const POST: APIRoute = async ({ request, locals }) => {
     });
   }
 
-  if (!PREDICTION_API) {
-    console.error('[Opportunities] PREDICTION_API env var is not configured');
-    return new Response(JSON.stringify({
-      success: false,
-      error: 'Service misconfigured'
-    }), {
-      status: 503,
-      headers: { 'Content-Type': 'application/json' }
-    });
-  }
-
   try {
     // Parse filter parameters from body
     const filters = await request.json();
+
+    // Dev-only: allow running the UI without a DB or engine.
+    const isDevUser = import.meta.env.DEV && locals.user.id === 'dev-user';
+    if (isDevUser) {
+      const mock = getMockOpportunities({
+        profitMin: filters.profitMin,
+        profitMax: filters.profitMax,
+        timeMax: filters.timeMax,
+        confidence: filters.confidence,
+        capitalMax: filters.capitalMax,
+        category: Array.isArray(filters.categories) && filters.categories.length === 1
+          ? filters.categories[0]
+          : filters.category,
+        limit: filters.limit || 50,
+        offset: filters.offset || 0,
+      });
+
+      return new Response(JSON.stringify({
+        success: true,
+        data: {
+          items: mock.items,
+          total: mock.total,
+          hasMore: mock.hasMore,
+        },
+        isBeta: false,
+        isMock: true,
+      }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    if (!PREDICTION_API) {
+      console.error('[Opportunities] PREDICTION_API env var is not configured');
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Service misconfigured'
+      }), {
+        status: 503,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
 
     // Check if user wants beta model predictions
     const user = await userRepo.findById(locals.user.id);
     const useBetaModel = user?.use_beta_model === true;
 
     // Build the engine request payload
+    // Frontend sends `category` (string), engine expects `categories` (array).
+    const categories = filters.categories
+      ?? (filters.category ? [filters.category] : undefined);
+
     const enginePayload = {
       min_profit: filters.profitMin,
       max_profit: filters.profitMax,
@@ -61,7 +99,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
       max_hours: filters.timeMax,
       confidence: filters.confidence, // array of levels
       max_capital: filters.capitalMax,
-      categories: filters.categories,
+      categories,
       limit: filters.limit || 50,
       offset: filters.offset || 0,
       use_beta_model: useBetaModel
@@ -131,7 +169,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
           confidence: item.confidence ?? 'medium',
           fillProbability: item.fill_probability,
           volume24h: Number.isFinite(item.volume_24h) ? item.volume_24h : null,
-          trend: item.trend ?? 'Stable',
+          trend: trendToFrontend[item.trend] ?? 'stable',
           whyChips: item.why_chips ?? [],
           category: item.category,
           modelId: item.model_id

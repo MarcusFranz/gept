@@ -161,6 +161,10 @@ export function TradeList(props: TradeListProps) {
     pendingCancels.set(tradeId, { timer, toastId, trade, index });
   };
 
+  const startCollapse = () => {
+    setExpandedId(null);
+  };
+
   // Cleanup pending timers on unmount
   onCleanup(() => {
     for (const [tradeId, { timer }] of pendingCancels) {
@@ -171,10 +175,6 @@ export function TradeList(props: TradeListProps) {
 
   return (
     <div class="trade-list">
-      <header class="trade-list-header">
-        <h1>My Trades</h1>
-      </header>
-
       <Show when={error()}>
         <div class="trade-list-error">
           {error()}
@@ -204,42 +204,54 @@ export function TradeList(props: TradeListProps) {
       >
         <div class="trade-list-items">
           <For each={trades()}>
-            {(trade) => (
-              <Show
-                when={expandedId() === trade.id}
-                fallback={
+            {(trade) => {
+              const isAlert = Boolean(props.alerts?.get(trade.id) || trade.suggestedSellPrice);
+              return (
+              <div class={`trade-item ${expandedId() === trade.id ? 'is-expanded' : ''} ${isAlert ? 'trade-item-alert' : ''}`}>
+                <div class="trade-item-card">
                   <TradeCard
                     trade={trade}
-                    onClick={() => setExpandedId(trade.id)}
+                    expanded={expandedId() === trade.id}
+                    onClick={() => {
+                      if (expandedId() === trade.id) {
+                        startCollapse();
+                        return;
+                      }
+                      setExpandedId(trade.id);
+                    }}
                     onCancel={() => handleCancel(trade.id)}
                     alert={props.alerts?.get(trade.id)}
                   />
-                }
-              >
-                <TradeDetail
-                  trade={trade}
-                  onCheckIn={(progress) => handleCheckIn(trade.id, progress)}
-                  onAdvance={() => handleAdvance(trade.id)}
-                  onCancel={() => handleCancel(trade.id)}
-                  onClose={() => setExpandedId(null)}
-                  alert={props.alerts?.get(trade.id)}
-                  onAcceptAlert={() => {
-                    const alert = props.alerts?.get(trade.id);
-                    const newPrice = alert?.newSellPrice ?? alert?.adjustedSellPrice;
-                    if (newPrice) {
-                      props.onAcceptAlert?.(trade.id, newPrice);
-                    }
-                  }}
-                  onDismissAlert={() => props.onDismissAlert?.(trade.id)}
-                  onAcknowledgePrice={() => {
-                    const suggestedPrice = trade.suggestedSellPrice;
-                    if (suggestedPrice) {
-                      props.onAcceptAlert?.(trade.id, suggestedPrice);
-                    }
-                  }}
-                />
-              </Show>
-            )}
+                </div>
+                <div class={`trade-detail-wrap ${expandedId() === trade.id ? 'is-expanded' : ''}`}>
+                  <Show when={expandedId() === trade.id}>
+                    <TradeDetail
+                      trade={trade}
+                      onCheckIn={(progress) => handleCheckIn(trade.id, progress)}
+                      onAdvance={() => handleAdvance(trade.id)}
+                      onCancel={() => handleCancel(trade.id)}
+                      onClose={() => startCollapse()}
+                      showHeader={false}
+                      alert={props.alerts?.get(trade.id)}
+                      onAcceptAlert={() => {
+                        const alert = props.alerts?.get(trade.id);
+                      const newPrice = alert?.newSellPrice ?? alert?.adjustedSellPrice;
+                      if (newPrice) {
+                          props.onAcceptAlert?.(trade.id, newPrice);
+                        }
+                      }}
+                      onDismissAlert={() => props.onDismissAlert?.(trade.id)}
+                      onAcknowledgePrice={() => {
+                        const suggestedPrice = trade.suggestedSellPrice;
+                        if (suggestedPrice) {
+                          props.onAcceptAlert?.(trade.id, suggestedPrice);
+                        }
+                      }}
+                    />
+                  </Show>
+                </div>
+              </div>
+            )}}
           </For>
         </div>
       </Show>
@@ -250,18 +262,6 @@ export function TradeList(props: TradeListProps) {
           margin: 0 auto;
           padding: 1rem;
           padding-bottom: 5rem;
-        }
-
-        .trade-list-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: 1.5rem;
-        }
-
-        .trade-list-header h1 {
-          margin: 0;
-          font-size: var(--font-size-2xl);
         }
 
         .trade-list-empty {
@@ -296,9 +296,10 @@ export function TradeList(props: TradeListProps) {
           background: var(--action);
           color: var(--btn-text-dark);
           border: none;
-          border-radius: var(--radius-lg);
+          border-radius: var(--radius-full);
           font-weight: 600;
           cursor: pointer;
+          box-shadow: 0 18px 36px -26px rgba(168, 240, 8, 0.6);
         }
 
         .trade-list-cta:hover {
@@ -311,14 +312,51 @@ export function TradeList(props: TradeListProps) {
           gap: 0.75rem;
         }
 
+        .trade-item {
+          display: flex;
+          flex-direction: column;
+          gap: 0;
+          position: relative;
+        }
+
+        .trade-item.is-expanded.trade-item-alert::before {
+          content: '';
+          position: absolute;
+          inset: 0;
+          border-radius: var(--radius-xl);
+          border: 1px solid color-mix(in srgb, var(--warning) 60%, transparent);
+          pointer-events: none;
+          z-index: 3;
+        }
+
+        .trade-item-card {
+          z-index: 2;
+        }
+
+        .trade-detail-wrap {
+          margin-top: -1px;
+        }
+
+        .trade-detail-wrap.is-expanded .trade-detail {
+          border-color: var(--border-light);
+        }
+
+        .trade-item.is-expanded .trade-detail {
+          border-top-left-radius: 0;
+          border-top-right-radius: 0;
+          border-top: none;
+          margin-top: -1px;
+        }
+
         .trade-list-error {
           display: flex;
           justify-content: space-between;
           align-items: center;
           padding: 0.75rem 1rem;
-          background: var(--danger-light);
+          background: var(--surface-2);
           color: var(--danger);
-          border-radius: var(--radius-md);
+          border-radius: var(--radius-lg);
+          border: 1px solid color-mix(in srgb, var(--danger) 35%, transparent);
           margin-bottom: 1rem;
           font-size: var(--font-size-sm);
         }
