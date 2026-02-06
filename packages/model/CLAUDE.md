@@ -51,8 +51,8 @@ cp -r docs/archived-training/packages/model/cloud packages/model/cloud
 PostgreSQL database with OSRS market data:
 
 - **Connection**: `postgresql://osrs_user:$DB_PASS@localhost:5432/osrs_data`
-- **SSH Tunnel**: `ssh -i .secrets/oracle_key.pem -L 5432:localhost:5432 $AMPERE_HOST`
-  - `AMPERE_HOST` default: `ubuntu@150.136.170.128`
+- **SSH Tunnel**: `ssh -i <ssh_key_path> -L 5432:localhost:5432 $AMPERE_HOST`
+  - `AMPERE_HOST` default: `<ssh_user>@<host>`
 
 ### Key Tables
 - `price_data_5min` - 426M rows of 5-min prices (2021-2026)
@@ -61,8 +61,8 @@ PostgreSQL database with OSRS market data:
 
 ## Deployment
 
-- **Host**: `ubuntu@150.136.170.128`
-- **SSH Key**: `.secrets/oracle_key.pem`
+- **Host**: `<ssh_user>@<host>`
+- **SSH Key**: `<ssh_key_path>`
 - **Deploy inference**: `./deploy_ampere.sh` (from repo root)
 - **Deploy collectors**: `./deploy_collectors.sh`
 
@@ -114,8 +114,8 @@ finally:
 ## Sensitive Files
 
 All sensitive files are in `.secrets/` (git-ignored):
-- `oracle_key.pem` - Ampere server SSH key
-- `vast_key.pem` - Vast.ai SSH key
+- `<ampere_key>.pem` - Ampere server SSH key
+- `<vast_key>.pem` - Vast.ai SSH key
 
 ## Git Workflow
 

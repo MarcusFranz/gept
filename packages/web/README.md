@@ -1,52 +1,51 @@
-# Astro Starter Kit: Minimal
+# GePT Web App
 
-```sh
-npm create astro@latest -- --template minimal
+Astro + SolidJS frontend for OSRS Grand Exchange flipping recommendations.
+
+## Quick Start
+
+```bash
+# From repo root
+npm install
+npm run dev:web
 ```
 
-> 🧑‍🚀 **Seasoned astronaut?** Delete this file. Have fun!
+The dev server runs at `http://localhost:4321`.
 
-## 🚀 Project Structure
+## Requirements
 
-Inside of your Astro project, you'll see the following folders and files:
+- Node.js 20+
+- Environment variables in `packages/web/.env.local`
 
-```text
-/
-├── public/
-├── src/
-│   └── pages/
-│       └── index.astro
-└── package.json
+Create your local env file:
+
+```bash
+cp packages/web/.env.example packages/web/.env.local
 ```
 
-Astro looks for `.astro` or `.md` files in the `src/pages/` directory. Each page is exposed as a route based on its file name.
+## Environment Variables
 
-There's nothing special about `src/components/`, but that's where we like to put any Astro/React/Vue/Svelte/Preact components.
+Required:
+- `DATABASE_URL` - Neon/Postgres connection string
+- `BETTER_AUTH_SECRET` - auth signing secret (min 32 chars)
+- `BETTER_AUTH_URL` - callback base URL (local: `http://localhost:3000`)
+- `PUBLIC_APP_URL` - public app base URL
+- `SITE` - canonical site URL for SEO
 
-Any static assets, like images, can be placed in the `public/` directory.
+Optional:
+- `RESEND_API_KEY` and `EMAIL_FROM` for transactional emails
+- `PREDICTION_API` and `PREDICTION_API_KEY` for live recommendations
+- `ENGINE_WEBHOOK_URL` and `WEBHOOK_SECRET` for active-trade alerts
 
-## Environment
+## Scripts
 
-Active-trade price alerts require webhook configuration:
+```bash
+npm run dev:web      # local dev server
+npm run build:web    # production build
+npm run preview --workspace=@gept/web
+```
 
-- `ENGINE_WEBHOOK_URL` (engine endpoint that receives trade lifecycle events)
-- `WEBHOOK_SECRET` (shared HMAC secret used by both web and engine)
+## Production Notes
 
-Copy `.env.example` to `.env.local` and set the required variables for your environment.
-
-## 🧞 Commands
-
-All commands are run from the root of the project, from a terminal:
-
-| Command                   | Action                                           |
-| :------------------------ | :----------------------------------------------- |
-| `npm install`             | Installs dependencies                            |
-| `npm run dev`             | Starts local dev server at `localhost:4321`      |
-| `npm run build`           | Build your production site to `./dist/`          |
-| `npm run preview`         | Preview your build locally, before deploying     |
-| `npm run astro ...`       | Run CLI commands like `astro add`, `astro check` |
-| `npm run astro -- --help` | Get help using the Astro CLI                     |
-
-## 👀 Want to learn more?
-
-Feel free to check [our documentation](https://docs.astro.build) or jump into our [Discord server](https://astro.build/chat).
+- Uses server-side rendering via `@astrojs/node` and `@astrojs/vercel`.
+- If `PREDICTION_API` is not set, the UI falls back to mock data.

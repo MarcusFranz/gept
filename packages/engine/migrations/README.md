@@ -16,6 +16,12 @@ psql postgresql://[USER]:[PASS]@[HOST]:5432/gept
 \i migrations/001_create_trade_outcomes_table.sql
 ```
 
+You can also use the engine's `DB_CONNECTION_STRING` environment variable:
+
+```bash
+psql "$DB_CONNECTION_STRING" -f migrations/001_create_trade_outcomes_table.sql
+```
+
 ### Using psql from command line
 
 ```bash

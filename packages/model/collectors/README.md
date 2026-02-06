@@ -34,8 +34,14 @@ OSRS Wiki API → Docker Collectors → PostgreSQL/TimescaleDB → ML Pipeline
 
 1. **Configure Environment**:
    ```bash
-   cp .env.example .env
-   # Edit .env with your database credentials
+   # Create .env with database credentials
+   cat <<'EOF' > .env
+   DB_HOST=localhost
+   DB_PORT=5432
+   DB_NAME=osrs_data
+   DB_USER=osrs_user
+   DB_PASS=replace-with-secure-password
+   EOF
    ```
 
 2. **Deploy with Docker Compose**:
@@ -49,6 +55,8 @@ OSRS Wiki API → Docker Collectors → PostgreSQL/TimescaleDB → ML Pipeline
    curl http://localhost:8080  # Dashboard
    curl http://localhost:9100/metrics  # Prometheus metrics
    ```
+
+**Note:** `docker-compose.yml` uses `network_mode: host`, so the ports above are exposed directly on the host.
 
 ### Monitoring
 

@@ -19,7 +19,7 @@ POST /api/v1/recommendations/{recId}/outcome
 
 ## Authentication
 
-Currently no authentication required. The endpoint validates that user IDs are properly hashed for privacy.
+All requests require the `X-API-Key` header. The endpoint validates that user IDs are properly hashed for privacy.
 
 ## Request Format
 
@@ -27,6 +27,7 @@ Currently no authentication required. The endpoint validates that user IDs are p
 
 ```
 Content-Type: application/json
+X-API-Key: <token>
 ```
 
 ### URL Parameters
@@ -162,7 +163,8 @@ hashed_id = hash_user_id('123456789012345678')
 ### cURL
 
 ```bash
-curl -X POST "https://api.example.com/api/v1/recommendations/rec_5295_2026010923/outcome" \
+curl -X POST "http://localhost:8000/api/v1/recommendations/rec_5295_2026010923/outcome" \
+  -H "X-API-Key: $INTERNAL_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "userId": "a1b2c3d4e5f6...",
@@ -182,10 +184,11 @@ curl -X POST "https://api.example.com/api/v1/recommendations/rec_5295_2026010923
 ```javascript
 async function reportTradeOutcome(outcome) {
   const response = await fetch(
-    `https://api.example.com/api/v1/recommendations/${outcome.recId}/outcome`,
+    `http://localhost:8000/api/v1/recommendations/${outcome.recId}/outcome`,
     {
       method: 'POST',
       headers: {
+        'X-API-Key': process.env.INTERNAL_API_KEY,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
