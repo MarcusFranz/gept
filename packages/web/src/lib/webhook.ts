@@ -1,8 +1,24 @@
 import { createHmac, timingSafeEqual } from 'crypto';
 import type { WebhookEvent, WebhookEventType, TradeEventPayload } from './types';
 
-const ENGINE_WEBHOOK_URL = import.meta.env.ENGINE_WEBHOOK_URL || 'http://localhost:8000/webhooks/trades';
-const WEBHOOK_SECRET = import.meta.env.WEBHOOK_SECRET || '';
+function getEnv(name: string): string {
+  // Prefer runtime env for serverless (Vercel injects at runtime).
+  // Fall back to Vite/Astro build-time env for local dev/build usage.
+  const fromProcess =
+    typeof process !== 'undefined' && process?.env ? process.env[name] : undefined;
+  const fromVite = (import.meta as unknown as { env?: Record<string, string | undefined> })
+    ?.env?.[name];
+  return String(fromProcess ?? fromVite ?? '').trim();
+}
+
+export function getWebhookSecret(): string {
+  return getEnv('WEBHOOK_SECRET');
+}
+
+export function getEngineWebhookUrl(): string {
+  return getEnv('ENGINE_WEBHOOK_URL') || 'http://localhost:8000/webhooks/trades';
+}
+
 const TIMESTAMP_TOLERANCE_MS = 5 * 60 * 1000; // 5 minutes
 
 /**
@@ -14,8 +30,15 @@ export async function dispatchWebhook(
   tradeId: string,
   payload: TradeEventPayload
 ): Promise<void> {
-  if (!ENGINE_WEBHOOK_URL) {
+  const engineWebhookUrl = getEngineWebhookUrl();
+  if (!engineWebhookUrl) {
     console.warn('ENGINE_WEBHOOK_URL not configured, skipping webhook dispatch');
+    return;
+  }
+
+  const secret = getWebhookSecret();
+  if (!secret) {
+    console.error('WEBHOOK_SECRET not configured — cannot dispatch webhooks to engine');
     return;
   }
 
@@ -29,10 +52,10 @@ export async function dispatchWebhook(
 
   const body = JSON.stringify(event);
   const timestamp = Date.now().toString();
-  const signature = generateSignature(body, timestamp);
+  const signature = generateSignature(body, timestamp, secret);
 
   // Fire-and-forget: don't await, catch errors silently
-  fetch(ENGINE_WEBHOOK_URL, {
+  fetch(engineWebhookUrl, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -49,13 +72,14 @@ export async function dispatchWebhook(
 /**
  * Generate HMAC-SHA256 signature for webhook payload
  */
-export function generateSignature(body: string, timestamp: string): string {
-  if (!WEBHOOK_SECRET) {
+export function generateSignature(body: string, timestamp: string, secret?: string): string {
+  const webhookSecret = (secret ?? getWebhookSecret()).trim();
+  if (!webhookSecret) {
     console.error('WEBHOOK_SECRET not configured — cannot sign outbound webhooks');
     return '';
   }
   const payload = `${timestamp}.${body}`;
-  return createHmac('sha256', WEBHOOK_SECRET).update(payload).digest('hex');
+  return createHmac('sha256', webhookSecret).update(payload).digest('hex');
 }
 
 /**
@@ -67,7 +91,8 @@ export function verifyWebhookSignature(
   timestamp: string,
   signature: string
 ): boolean {
-  if (!WEBHOOK_SECRET) {
+  const webhookSecret = getWebhookSecret();
+  if (!webhookSecret) {
     console.error('WEBHOOK_SECRET not configured — rejecting webhook (fail closed)');
     return false;
   }
@@ -85,7 +110,7 @@ export function verifyWebhookSignature(
   }
 
   // Verify signature
-  const expectedSignature = generateSignature(body, timestamp);
+  const expectedSignature = generateSignature(body, timestamp, webhookSecret);
   if (!expectedSignature) {
     return false;
   }

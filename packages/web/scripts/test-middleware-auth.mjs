@@ -1,5 +1,6 @@
 import { spawn } from 'node:child_process';
 import path from 'node:path';
+import { createHmac } from 'node:crypto';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 function run(cmd, args, opts = {}) {
@@ -34,6 +35,10 @@ function assert(cond, msg) {
 }
 
 async function main() {
+  // Ensure webhook verification uses a runtime env var (server-side best practice).
+  // This is a test-only value (not a secret).
+  process.env.WEBHOOK_SECRET = 'test-webhook-secret-min-32-chars-xxxxxxxx';
+
   // Build first to ensure we're exercising production-mode output.
   const build = run('npm', ['run', 'build'], {
     env: { ...process.env, NODE_ENV: 'production' },
@@ -104,6 +109,68 @@ async function main() {
     assert(res.status >= 300 && res.status < 400, `expected redirect from protected page, got ${res.status}`);
     const loc = res.headers.get('location') ?? '';
     assert(loc === '/welcome', `expected Location: /welcome, got ${loc || '(missing)'}`);
+  }
+
+  // 3) Alerts webhook: should accept a correctly-signed payload when WEBHOOK_SECRET
+  // is provided via process.env at runtime (not just import.meta.env).
+  {
+    const builtAlertsPath = path.resolve(
+      here,
+      '..',
+      '.vercel',
+      'output',
+      'functions',
+      '_render.func',
+      'packages',
+      'web',
+      'dist',
+      'server',
+      'pages',
+      'api',
+      'webhooks',
+      'alerts.astro.mjs'
+    );
+
+    const mod = await import(pathToFileURL(builtAlertsPath).href);
+    assert(typeof mod.page === 'function', 'expected built alerts route to export page()');
+    const route = mod.page();
+    const POST = route.POST;
+    assert(typeof POST === 'function', 'expected built alerts route to expose POST');
+
+    const payload = {
+      userId: 'user_test_1',
+      alert: {
+        id: 'alert_test_1',
+        tradeId: 'trade_test_1',
+        type: 'ADJUST_PRICE',
+        reason: 'test',
+        confidence: 0.5,
+        urgency: 'low',
+        timestamp: new Date().toISOString(),
+      },
+    };
+
+    const body = JSON.stringify(payload);
+    const timestamp = Date.now().toString();
+    const signedPayload = `${timestamp}.${body}`;
+    const signature = createHmac('sha256', process.env.WEBHOOK_SECRET)
+      .update(signedPayload)
+      .digest('hex');
+
+    const req = new Request('http://example.test/api/webhooks/alerts', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Webhook-Timestamp': timestamp,
+        'X-Webhook-Signature': signature,
+      },
+      body,
+    });
+
+    const res = await POST({ request: req });
+    assert(res.status === 200, `expected 200 from alerts webhook, got ${res.status}`);
+    const json = await res.json().catch(() => null);
+    assert(json && json.success === true, 'expected {success:true} from alerts webhook');
   }
 }
 

@@ -1,6 +1,6 @@
 import type { APIRoute } from 'astro';
 import { sql, type ActiveTrade } from '../../../lib/db';
-import { dispatchWebhook } from '../../../lib/webhook';
+import { dispatchWebhook, getWebhookSecret } from '../../../lib/webhook';
 
 /**
  * POST /api/trades/resync
@@ -12,7 +12,7 @@ import { dispatchWebhook } from '../../../lib/webhook';
  */
 export const POST: APIRoute = async ({ request }) => {
   try {
-    const secret = import.meta.env.WEBHOOK_SECRET || '';
+    const secret = getWebhookSecret();
     const authHeader = request.headers.get('Authorization') || '';
 
     if (!secret || authHeader !== `Bearer ${secret}`) {
