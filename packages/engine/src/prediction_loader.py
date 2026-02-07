@@ -664,7 +664,8 @@ class PredictionLoader:
 
         The engine schema does not maintain an authoritative item-name mapping
         table today; the best available source is the predictions table's
-        denormalized `item_name` column.
+        denormalized `item_name` column. If the item has no predictions (for
+        example, newly added items), fall back to the OSRS Wiki mapping API.
 
         Returns:
             Item name if found, otherwise None.
@@ -680,11 +681,11 @@ class PredictionLoader:
 
             if result and result[0]:
                 return str(result[0])
-            return None
+            return self._get_wiki_item_name(item_id)
 
         except Exception as e:
             logger.debug(f"Could not fetch item name for item {item_id}: {e}")
-            return None
+            return self._get_wiki_item_name(item_id)
 
     def get_item_buy_limit(self, item_id: int) -> Optional[int]:
         """Get GE buy limit for an item.
@@ -743,6 +744,27 @@ class PredictionLoader:
             Buy limit from Wiki API or None if not available
         """
         if not self.config.wiki_api_enabled:
+            return None
+
+    def _get_wiki_item_name(self, item_id: int) -> Optional[str]:
+        """Get item name from OSRS Wiki API mapping.
+
+        Args:
+            item_id: OSRS item ID
+
+        Returns:
+            Item name from Wiki mapping, or None if not available.
+        """
+        if not self.config.wiki_api_enabled:
+            return None
+
+        try:
+            wiki_client = get_wiki_api_client()
+            return wiki_client.get_item_name(item_id)
+        except Exception as e:
+            logger.debug(
+                f"Could not fetch item name from Wiki API for item {item_id}: {e}"
+            )
             return None
 
         try:

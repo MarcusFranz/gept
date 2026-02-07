@@ -8,6 +8,7 @@ Provides recommendations for users with unfilled buy or sell orders:
 """
 
 import logging
+import math
 from typing import TYPE_CHECKING, Literal, Optional
 
 import numpy as np
@@ -28,6 +29,10 @@ class OrderAdvisor:
     UNFAVORABLE_MOVE_THRESHOLD = 0.02
     TARGET_FILL_PROB = 0.6
     DEFAULT_HOUR_WINDOW = 4
+    # Fallback heuristic when predictions are missing:
+    # fill_prob ~= base * exp(-k * offset_from_market)
+    _HEURISTIC_BASE_FILL_PROB = 0.95
+    _HEURISTIC_OFFSET_DECAY = 40.0
 
     def __init__(
         self,
@@ -75,11 +80,19 @@ class OrderAdvisor:
 
         # Get predictions for this item
         predictions_df = self.loader.get_predictions_for_item(item_id)
-        if predictions_df.empty:
-            return self._error_response("No prediction data available for this item")
+        has_predictions = not predictions_df.empty
 
-        # Get item name from predictions
-        item_name = predictions_df.iloc[0]["item_name"]
+        # Get item name from predictions if present; fall back to Wiki mapping.
+        item_name: Optional[str] = None
+        if has_predictions and "item_name" in predictions_df.columns and len(predictions_df) > 0:
+            try:
+                raw_name = predictions_df.iloc[0].get("item_name")
+                if raw_name:
+                    item_name = str(raw_name)
+            except Exception:
+                item_name = None
+        if not item_name:
+            item_name = self.loader.get_item_name(item_id) or f"Item {item_id}"
 
         # Calculate fill probability at user's price
         fill_prob = self._calculate_fill_probability_at_price(
@@ -116,8 +129,11 @@ class OrderAdvisor:
             recommendations.get("abort_retry") is not None
             and len(recommendations["abort_retry"]["alternative_items"]) > 0
         )
+        has_adjust = recommendations.get("adjust_price") is not None
 
         action = self._determine_action(
+            order_type=order_type,
+            has_adjust=has_adjust,
             fill_prob=fill_prob,
             price_move_pct=price_move_pct,
             price_moved_favorably=moved_favorably,
@@ -134,7 +150,16 @@ class OrderAdvisor:
             predicted_window_hours=predicted_window_hours,
         )
 
-        # Generate reasoning
+        # If we chose an action that requires a recommendation payload but couldn't
+        # generate one, fall back to "wait" to avoid surprising clients.
+        if action == "adjust_price" and not recommendations.get("adjust_price"):
+            action = "wait"
+        if action == "abort_retry" and not recommendations.get("abort_retry"):
+            action = "wait"
+        if action == "liquidate" and not recommendations.get("liquidate"):
+            action = "wait"
+
+        # Generate reasoning (after action normalization).
         reasoning = self._generate_reasoning(
             action=action,
             fill_prob=fill_prob,
@@ -144,6 +169,11 @@ class OrderAdvisor:
             order_type=order_type,
             time_elapsed_minutes=time_elapsed_minutes,
         )
+        if not has_predictions:
+            reasoning = (
+                "No prediction model is available for this item yet; using live price ticks only. "
+                + reasoning
+            )
 
         return {
             "action": action,
@@ -167,8 +197,8 @@ class OrderAdvisor:
             predictions_df: DataFrame with predictions for the item
             user_price: User's order price
             order_type: 'buy' or 'sell'
-            current_high: Current high (sell) price
-            current_low: Current low (buy) price
+            current_high: Current instant-buy price ("high" tick)
+            current_low: Current instant-sell price ("low" tick)
 
         Returns:
             Estimated fill probability (0-1)
@@ -176,18 +206,27 @@ class OrderAdvisor:
         # Calculate user's effective offset from market
         if order_type == "buy":
             # For buy orders: offset = how much below current instant-buy price
-            if current_low <= 0:
-                return 0.0
-            user_offset = (current_low - user_price) / current_low
-        else:
-            # For sell orders: offset = how much above current instant-sell price
             if current_high <= 0:
                 return 0.0
-            user_offset = (user_price - current_high) / current_high
+            user_offset = (current_high - user_price) / current_high
+        else:
+            # For sell orders: offset = how much above current instant-sell price
+            if current_low <= 0:
+                return 0.0
+            user_offset = (user_price - current_low) / current_low
 
         # If user is at or better than market, very high fill prob
         if user_offset <= 0:
             return 0.95
+
+        # If predictions are missing, fall back to a simple heuristic based only
+        # on the user's distance from the current instant price.
+        try:
+            is_empty = predictions_df is None or bool(getattr(predictions_df, "empty"))
+        except Exception:
+            is_empty = True
+        if is_empty:
+            return self._heuristic_fill_probability(user_offset)
 
         # Use default hour window for interpolation
         window_preds = predictions_df[
@@ -217,6 +256,17 @@ class OrderAdvisor:
         # Linear interpolation
         return float(np.interp(user_offset, offsets, probs))
 
+    def _heuristic_fill_probability(self, user_offset: float) -> float:
+        """Heuristic fill probability when we don't have model predictions."""
+        try:
+            offset = max(0.0, float(user_offset))
+            prob = self._HEURISTIC_BASE_FILL_PROB * math.exp(
+                -self._HEURISTIC_OFFSET_DECAY * offset
+            )
+            return max(0.01, min(self._HEURISTIC_BASE_FILL_PROB, float(prob)))
+        except Exception:
+            return 0.5
+
     def _analyze_price_movement(
         self,
         user_price: int,
@@ -230,22 +280,22 @@ class OrderAdvisor:
             Tuple of (move percentage, whether move is favorable)
         """
         if order_type == "buy":
-            # For buy: favorable if market price (low) went up (closer to user's bid)
-            # unfavorable if market price dropped further from user's bid
+            # For buy: favorable if the market instant-buy price has moved down
+            # (closer to the user's bid); unfavorable if it is still above the bid.
+            reference = current_high
+            if reference <= 0:
+                return 0.0, True
+            move_pct = (reference - user_price) / reference
+            # Positive = user bid is below market (unfavorable for buy)
+            favorable = move_pct <= 0
+        else:
+            # For sell: favorable if the market instant-sell price has moved up
+            # (closer to the user's ask); unfavorable if the ask is still above it.
             reference = current_low
             if reference <= 0:
                 return 0.0, True
             move_pct = (user_price - reference) / reference
-            # Positive = user bid is above market (good for buy)
-            favorable = move_pct >= 0
-        else:
-            # For sell: favorable if market price (high) went down (closer to user's ask)
-            # unfavorable if market price went up further from user's ask
-            reference = current_high
-            if reference <= 0:
-                return 0.0, True
-            move_pct = (reference - user_price) / user_price
-            # Positive = market is above user's ask (bad for sell)
+            # Positive = user ask is above market (unfavorable for sell)
             favorable = move_pct <= 0
 
         return abs(move_pct), favorable
@@ -336,8 +386,51 @@ class OrderAdvisor:
         current_low: int,
     ) -> Optional[dict]:
         """Calculate suggested price adjustment to achieve target fill probability."""
-        if predictions_df.empty:
-            return None
+        # Compute user's current offset from the market reference price
+        if order_type == "buy":
+            if current_high <= 0:
+                return None
+            user_offset = max(0.0, (current_high - user_price) / current_high)
+        else:
+            if current_low <= 0:
+                return None
+            user_offset = max(0.0, (user_price - current_low) / current_low)
+
+        # If predictions are missing, use a heuristic offset that corresponds to
+        # the TARGET_FILL_PROB under the exponential decay model.
+        try:
+            is_empty = predictions_df is None or bool(getattr(predictions_df, "empty"))
+        except Exception:
+            is_empty = True
+        if is_empty:
+            target_prob = float(self.TARGET_FILL_PROB)
+            try:
+                target_offset = -math.log(
+                    target_prob / self._HEURISTIC_BASE_FILL_PROB
+                ) / self._HEURISTIC_OFFSET_DECAY
+            except Exception:
+                target_offset = 0.0
+
+            # If the user's price is already close enough to market to hit the
+            # target fill probability, don't recommend a change.
+            if user_offset <= target_offset:
+                return None
+
+            if order_type == "buy":
+                suggested = int(current_high * (1 - target_offset))
+                if suggested <= user_price:
+                    return None
+            else:
+                suggested = int(current_low * (1 + target_offset))
+                if suggested >= user_price:
+                    return None
+
+            cost_diff = abs(suggested - user_price) * quantity
+            return {
+                "suggested_price": suggested,
+                "new_fill_probability": round(target_prob, 2),
+                "cost_difference": cost_diff,
+            }
 
         # Find offset that achieves target fill prob (vectorized)
         # Filter to rows meeting target fill probability
@@ -354,11 +447,25 @@ class OrderAdvisor:
             target_offset = predictions_df.loc[best_idx, "offset_pct"]
             target_prob = predictions_df.loc[best_idx, "fill_probability"]
 
+        try:
+            target_offset_f = float(target_offset)
+        except Exception:
+            target_offset_f = 0.0
+
+        # If the user's price is already at least as close to market as the
+        # target offset, don't recommend a change (avoid suggesting worse prices).
+        if user_offset <= target_offset_f:
+            return None
+
         # Calculate new price based on offset
         if order_type == "buy":
-            suggested = int(current_low * (1 - target_offset))
+            suggested = int(current_high * (1 - target_offset_f))
+            if suggested <= user_price:
+                return None
         else:
-            suggested = int(current_high * (1 + target_offset))
+            suggested = int(current_low * (1 + target_offset_f))
+            if suggested >= user_price:
+                return None
 
         # Calculate cost difference
         cost_diff = abs(suggested - user_price) * quantity
@@ -453,9 +560,9 @@ class OrderAdvisor:
     ) -> Optional[dict]:
         """Calculate instant liquidation details."""
         if order_type == "buy":
-            # For buy order: liquidate means cancel and don't buy
-            # No actual loss, just opportunity cost
-            instant_price = current_low
+            # For buy order: liquidate means cancel and don't buy.
+            # Show the current instant-buy price for context.
+            instant_price = current_high
             # If they've placed a buy but haven't filled, no loss yet
             loss_amount = 0
         else:
@@ -470,6 +577,8 @@ class OrderAdvisor:
 
     def _determine_action(
         self,
+        order_type: str,
+        has_adjust: bool,
         fill_prob: float,
         price_move_pct: float,
         price_moved_favorably: bool,
@@ -487,6 +596,11 @@ class OrderAdvisor:
 
         # Case 2: Very low probability after significant time
         if fill_prob < self.LOW_FILL_PROB_THRESHOLD and time_ratio > 0.5:
+            # For sells, aborting doesn't help much (you still need to exit).
+            # Prefer a relist when we can propose a better price. For buys, still
+            # prefer switching items when viable.
+            if has_adjust and (order_type == "sell" or not has_alternatives):
+                return "adjust_price"
             return "abort_retry" if has_alternatives else "liquidate"
 
         # Case 3: Price moved unfavorably, consider adjusting
@@ -496,8 +610,9 @@ class OrderAdvisor:
         ):
             return "adjust_price"
 
-        # Case 4: Moderate probability, wait
-        if fill_prob > 0.4:
+        # Case 4: Moderate probability within the expected window, wait.
+        # If we're past the predicted window, bias toward adjusting.
+        if fill_prob > 0.4 and time_ratio < 1.0:
             return "wait"
 
         # Case 5: Low-moderate probability, adjust to improve

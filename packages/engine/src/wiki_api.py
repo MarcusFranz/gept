@@ -49,6 +49,7 @@ class WikiApiClient:
         self._cache_ttl = timedelta(seconds=cache_ttl)
         self._user_agent = user_agent
         self._buy_limits: dict[int, int] = {}
+        self._item_names: dict[int, str] = {}
         self._cache_timestamp: Optional[datetime] = None
         self._cache_lock = threading.RLock()
 
@@ -63,6 +64,18 @@ class WikiApiClient:
         """
         self._ensure_cache_loaded()
         return self._buy_limits.get(item_id)
+
+    def get_item_name(self, item_id: int) -> Optional[str]:
+        """Get an item's name from the Wiki mapping.
+
+        Args:
+            item_id: OSRS item ID
+
+        Returns:
+            Item name, or None if not found.
+        """
+        self._ensure_cache_loaded()
+        return self._item_names.get(item_id)
 
     def _ensure_cache_loaded(self) -> None:
         """Ensure the cache is loaded and not expired."""
@@ -82,7 +95,9 @@ class WikiApiClient:
     def _load_all_limits(self) -> None:
         """Fetch all item buy limits from the Wiki API.
 
-        Populates the internal cache with item_id -> buy_limit mappings.
+        Populates internal caches:
+        - item_id -> buy_limit mappings
+        - item_id -> item_name mappings
         """
         try:
             logger.info("Fetching buy limits from OSRS Wiki API...")
@@ -98,24 +113,37 @@ class WikiApiClient:
 
             # Parse response and build buy limits dict
             new_limits: dict[int, int] = {}
+            new_names: dict[int, str] = {}
             for item in items:
                 item_id = item.get("id")
+                name = item.get("name")
                 limit = item.get("limit")
 
-                if item_id is not None and limit is not None:
-                    new_limits[int(item_id)] = int(limit)
+                if item_id is None:
+                    continue
+
+                item_id_int = int(item_id)
+                if name:
+                    new_names[item_id_int] = str(name)
+
+                if limit is not None:
+                    new_limits[item_id_int] = int(limit)
 
             # Update cache atomically
             self._buy_limits = new_limits
+            self._item_names = new_names
             self._cache_timestamp = datetime.now(timezone.utc)
 
-            logger.info(f"Loaded {len(new_limits)} buy limits from OSRS Wiki API")
+            logger.info(
+                f"Loaded {len(new_names)} item names and {len(new_limits)} buy limits "
+                "from OSRS Wiki API"
+            )
 
         except requests.exceptions.RequestException as e:
             logger.error(f"Failed to fetch buy limits from Wiki API: {e}")
             # Keep existing cache if available, don't clear on error
-            if not self._buy_limits:
-                logger.warning("No cached buy limits available after API failure")
+            if not self._buy_limits and not self._item_names:
+                logger.warning("No cached Wiki mapping available after API failure")
         except (ValueError, KeyError, TypeError) as e:
             logger.error(f"Failed to parse Wiki API response: {e}")
 

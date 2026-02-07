@@ -1739,8 +1739,8 @@ async def refresh_item_prices(
     current market prices before placing an order. Does not consume rate limit.
 
     Returns current market prices (not model offset prices):
-    - buyPrice: Current instant-buy price (low tick)
-    - sellPrice: Current instant-sell price (high tick)
+    - buyPrice: Current instant-buy price (high tick)
+    - sellPrice: Current instant-sell price (low tick)
     """
     if engine is None:
         raise HTTPException(status_code=503, detail="Engine not initialized")
@@ -1768,8 +1768,8 @@ async def refresh_item_prices(
         return ItemPriceRefreshResponse(
             itemId=item_id,
             itemName=item_name,
-            buyPrice=int(price_data["low"]),
-            sellPrice=int(price_data["high"]),
+            buyPrice=int(price_data["high"]),
+            sellPrice=int(price_data["low"]),
             updatedAt=updated_at,
         )
 

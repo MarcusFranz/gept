@@ -923,8 +923,8 @@ class TestAPI:
         data = response.json()
         assert data["itemId"] == 536
         assert data["itemName"] == "Dragon bones"
-        assert data["buyPrice"] == 2015
-        assert data["sellPrice"] == 2089
+        assert data["buyPrice"] == 2089
+        assert data["sellPrice"] == 2015
         assert "updatedAt" in data
         assert data["updatedAt"].endswith("Z")
 
