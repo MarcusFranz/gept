@@ -44,7 +44,7 @@ class TestAPI:
                 from src.api import app, limiter
                 import src.api as api_module
 
-                api_module.engine = mock_engine
+                api_module.app.state.runtime.engine = mock_engine
 
                 # Reset rate limiter storage to avoid rate limit issues across tests
                 limiter.reset()
@@ -923,8 +923,8 @@ class TestAPI:
         data = response.json()
         assert data["itemId"] == 536
         assert data["itemName"] == "Dragon bones"
-        assert data["buyPrice"] == 2015
-        assert data["sellPrice"] == 2089
+        assert data["buyPrice"] == 2089
+        assert data["sellPrice"] == 2015
         assert "updatedAt" in data
         assert data["updatedAt"].endswith("Z")
 
@@ -1140,7 +1140,7 @@ class TestAPI:
             return_value=mock_conn
         )
         mock_outcome_engine.connect.return_value.__exit__ = MagicMock(return_value=None)
-        api_module.outcome_db_engine = mock_outcome_engine
+        api_module.app.state.runtime.outcome_db_engine = mock_outcome_engine
 
         response = test_client.post(
             "/api/v1/recommendations/rec_123/outcome",
@@ -1169,7 +1169,7 @@ class TestAPI:
         # Ensure outcome database is not available
         import src.api as api_module
 
-        api_module.outcome_db_engine = None
+        api_module.app.state.runtime.outcome_db_engine = None
 
         response = test_client.post(
             "/api/v1/recommendations/rec_123/outcome",
@@ -1197,7 +1197,7 @@ class TestAPI:
         import src.api as api_module
 
         mock_outcome_engine = MagicMock()
-        api_module.outcome_db_engine = mock_outcome_engine
+        api_module.app.state.runtime.outcome_db_engine = mock_outcome_engine
 
         response = test_client.post(
             "/api/v1/recommendations/rec_123/outcome",
@@ -1225,7 +1225,7 @@ class TestAPI:
         import src.api as api_module
 
         mock_outcome_engine = MagicMock()
-        api_module.outcome_db_engine = mock_outcome_engine
+        api_module.app.state.runtime.outcome_db_engine = mock_outcome_engine
 
         response = test_client.post(
             "/api/v1/recommendations/rec_123/outcome",
@@ -1253,7 +1253,7 @@ class TestAPI:
         import src.api as api_module
 
         mock_outcome_engine = MagicMock()
-        api_module.outcome_db_engine = mock_outcome_engine
+        api_module.app.state.runtime.outcome_db_engine = mock_outcome_engine
 
         response = test_client.post(
             "/api/v1/recommendations/rec_123/outcome",
@@ -1506,7 +1506,7 @@ class TestAPI:
         mock_result.fetchone.return_value = (42,)
         mock_conn.execute.return_value = mock_result
 
-        api_module.outcome_db_engine = mock_outcome_engine
+        api_module.app.state.runtime.outcome_db_engine = mock_outcome_engine
 
         response = test_client.post(
             "/api/v1/feedback",
@@ -1542,7 +1542,7 @@ class TestAPI:
         mock_result.fetchone.return_value = (43,)
         mock_conn.execute.return_value = mock_result
 
-        api_module.outcome_db_engine = mock_outcome_engine
+        api_module.app.state.runtime.outcome_db_engine = mock_outcome_engine
 
         response = test_client.post(
             "/api/v1/feedback",
@@ -1569,7 +1569,7 @@ class TestAPI:
         import src.api as api_module
 
         mock_outcome_engine = MagicMock()
-        api_module.outcome_db_engine = mock_outcome_engine
+        api_module.app.state.runtime.outcome_db_engine = mock_outcome_engine
 
         response = test_client.post(
             "/api/v1/feedback",
@@ -1610,7 +1610,7 @@ class TestAPI:
         import src.api as api_module
 
         mock_outcome_engine = MagicMock()
-        api_module.outcome_db_engine = mock_outcome_engine
+        api_module.app.state.runtime.outcome_db_engine = mock_outcome_engine
 
         response = test_client.post(
             "/api/v1/feedback",
@@ -1633,7 +1633,7 @@ class TestAPI:
 
         import src.api as api_module
 
-        api_module.outcome_db_engine = None
+        api_module.app.state.runtime.outcome_db_engine = None
 
         response = test_client.post(
             "/api/v1/feedback",
@@ -1677,7 +1677,7 @@ class TestAPI:
         import src.api as api_module
 
         mock_outcome_engine = MagicMock()
-        api_module.outcome_db_engine = mock_outcome_engine
+        api_module.app.state.runtime.outcome_db_engine = mock_outcome_engine
 
         response = test_client.post(
             "/api/v1/feedback",
@@ -1726,7 +1726,7 @@ class TestAPI:
 
         mock_conn.execute = mock_execute
 
-        api_module.outcome_db_engine = mock_outcome_engine
+        api_module.app.state.runtime.outcome_db_engine = mock_outcome_engine
 
         response = test_client.get("/api/v1/feedback/analytics?period=week")
 
@@ -1764,7 +1764,7 @@ class TestAPI:
 
         mock_conn.execute = mock_execute
 
-        api_module.outcome_db_engine = mock_outcome_engine
+        api_module.app.state.runtime.outcome_db_engine = mock_outcome_engine
 
         response = test_client.get("/api/v1/feedback/analytics?item_id=536")
 
@@ -1776,7 +1776,7 @@ class TestAPI:
 
         import src.api as api_module
 
-        api_module.outcome_db_engine = None
+        api_module.app.state.runtime.outcome_db_engine = None
 
         response = test_client.get("/api/v1/feedback/analytics")
 
@@ -2071,7 +2071,7 @@ class TestItemPriceLookup:
                 from src.api import app, limiter
                 import src.api as api_module
 
-                api_module.engine = mock_engine
+                api_module.app.state.runtime.engine = mock_engine
                 limiter.reset()
 
                 yield TestClient(app), mock_engine
@@ -2440,7 +2440,7 @@ class TestWebFrontendEndpoints:
                 from src.api import app, limiter
                 import src.api as api_module
 
-                api_module.engine = mock_engine
+                api_module.app.state.runtime.engine = mock_engine
                 limiter.reset()
 
                 yield TestClient(app), mock_engine
@@ -2632,7 +2632,7 @@ class TestWebFrontendEndpoints:
 
             import src.api as api_module
 
-            api_module.outcome_db_engine = mock_outcome_db
+            api_module.app.state.runtime.outcome_db_engine = mock_outcome_db
 
             response = test_client.post(
                 "/trade-outcome",
@@ -2662,7 +2662,7 @@ class TestWebFrontendEndpoints:
 
             import src.api as api_module
 
-            api_module.outcome_db_engine = mock_outcome_db
+            api_module.app.state.runtime.outcome_db_engine = mock_outcome_db
 
             response = test_client.post(
                 "/trade-outcome",
@@ -2734,7 +2734,7 @@ class TestTradeUpdatesEndpoint:
                 from src.api import app, limiter
                 import src.api as api_module
 
-                api_module.engine = mock_engine
+                api_module.app.state.runtime.engine = mock_engine
                 limiter.reset()
 
                 yield TestClient(app), mock_engine
@@ -3033,7 +3033,7 @@ class TestPriceHistoryEndpoint:
                 from src.api import app, limiter
                 import src.api as api_module
 
-                api_module.engine = mock_engine
+                api_module.app.state.runtime.engine = mock_engine
                 limiter.reset()
 
                 yield TestClient(app), mock_engine
@@ -3305,7 +3305,7 @@ class TestAPIAuthentication:
                 import src.api as api_module
 
                 importlib.reload(api_module)
-                api_module.engine = mock_engine
+                api_module.app.state.runtime.engine = mock_engine
 
                 # Reset rate limiter storage
                 api_module.limiter.reset()
@@ -3768,9 +3768,9 @@ class TestEnhancedHealthChecks:
                 import src.api as api_module
 
                 importlib.reload(api_module)
-                api_module.engine = mock_engine
-                api_module._is_ready = True
-                api_module._startup_time = time.time() - 3600  # 1 hour ago
+                api_module.app.state.runtime.engine = mock_engine
+                api_module.app.state.runtime.is_ready = True
+                api_module.app.state.runtime.startup_time = time.time() - 3600  # 1 hour ago
 
                 # Reset rate limiter storage
                 api_module.limiter.reset()
@@ -3803,7 +3803,7 @@ class TestEnhancedHealthChecks:
 
             importlib.reload(config_module)
             importlib.reload(api_module)
-            api_module.engine = None  # Simulate engine not initialized
+            api_module.app.state.runtime.engine = None  # Simulate engine not initialized
             api_module.limiter.reset()
 
             client = TestClient(api_module.app)
@@ -3865,9 +3865,9 @@ class TestEnhancedHealthChecks:
                 import src.api as api_module
 
                 importlib.reload(api_module)
-                api_module.engine = mock_engine
-                api_module._is_ready = True
-                api_module._startup_time = time.time()
+                api_module.app.state.runtime.engine = mock_engine
+                api_module.app.state.runtime.is_ready = True
+                api_module.app.state.runtime.startup_time = time.time()
                 api_module.limiter.reset()
 
                 client = TestClient(api_module.app)
@@ -3905,7 +3905,7 @@ class TestEnhancedHealthChecks:
 
             importlib.reload(config_module)
             importlib.reload(api_module)
-            api_module._is_ready = False  # Simulate still starting
+            api_module.app.state.runtime.is_ready = False  # Simulate still starting
             api_module.limiter.reset()
 
             client = TestClient(api_module.app)
@@ -3976,7 +3976,7 @@ class TestReturnAllRecommendations:
                 from src.api import app, limiter
                 import src.api as api_module
 
-                api_module.engine = mock_engine
+                api_module.app.state.runtime.engine = mock_engine
                 limiter.reset()
 
                 yield TestClient(app), mock_engine
