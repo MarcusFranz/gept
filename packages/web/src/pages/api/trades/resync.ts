@@ -4,13 +4,14 @@ import { dispatchWebhook, getWebhookSecret } from '../../../lib/webhook';
 
 /**
  * POST /api/trades/resync
+ * GET  /api/trades/resync
  *
  * Re-dispatches TRADE_CREATED webhooks for all active trades to the engine.
  * Use after engine restart or when ENGINE_WEBHOOK_URL is first configured.
  *
  * Auth: WEBHOOK_SECRET in Authorization header (internal use only).
  */
-export const POST: APIRoute = async ({ request }) => {
+async function handleResync(request: Request): Promise<Response> {
   try {
     const secret = getWebhookSecret();
     const authHeader = request.headers.get('Authorization') || '';
@@ -63,4 +64,12 @@ export const POST: APIRoute = async ({ request }) => {
       headers: { 'Content-Type': 'application/json' }
     });
   }
+}
+
+export const POST: APIRoute = async ({ request }) => {
+  return handleResync(request);
+};
+
+export const GET: APIRoute = async ({ request }) => {
+  return handleResync(request);
 };

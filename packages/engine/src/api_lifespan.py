@@ -58,7 +58,9 @@ async def _resync_active_trades() -> None:
 
     try:
         async with httpx.AsyncClient(timeout=5.0) as client:
-            response = await client.post(config.web_app_resync_url, headers=headers)
+            # Cloudflare/WAF can block POSTs to internal endpoints; GET is sufficient here
+            # because the endpoint is still authenticated via Authorization header.
+            response = await client.get(config.web_app_resync_url, headers=headers)
 
         if 200 <= response.status_code < 300:
             dispatched = None

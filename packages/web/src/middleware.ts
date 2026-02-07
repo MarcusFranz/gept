@@ -54,7 +54,13 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
   // Check if route requires authentication
   const isProtectedPage = protectedPages.includes(pathname);
-  const isProtectedApi = protectedApiRoutes.some(route => pathname.startsWith(route));
+  // Internal endpoints may implement their own auth (e.g. HMAC/secret headers).
+  // Keep them out of session-based middleware enforcement.
+  const isInternalUnauthedApi =
+    pathname === '/api/trades/resync';
+  const isProtectedApi =
+    !isInternalUnauthedApi &&
+    protectedApiRoutes.some(route => pathname.startsWith(route));
 
   // Check if unauthenticated
   const isUnauthenticated = !session || !session.user;
