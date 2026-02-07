@@ -9,6 +9,7 @@ venv/
 dist/
 build/
 *.egg-info/
+output/
 
 # IDE
 .idea/
@@ -34,6 +35,7 @@ logs/
 .pytest_cache/
 .coverage
 htmlcov/
+.playwright-mcp/
 
 # OS
 .DS_Store
