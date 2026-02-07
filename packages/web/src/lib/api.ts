@@ -1,5 +1,6 @@
 import type { Recommendation, UserSettings, ItemSearchResult } from './types';
 import { cache, cacheKey, TTL, KEY } from './cache';
+import { createHash } from 'node:crypto';
 
 function getApiBase(): string {
   // Server-side: use process.env directly (Vercel injects at runtime)
@@ -165,6 +166,10 @@ function hashUserId(userId: string): string {
   return Math.abs(hash).toString(36);
 }
 
+function sha256Hex(input: string): string {
+  return createHash('sha256').update(input).digest('hex');
+}
+
 // Get margin offset based on preference
 function getMarginParams(margin: 'conservative' | 'moderate' | 'aggressive'): Record<string, number> {
   switch (margin) {
@@ -285,15 +290,15 @@ export async function reportTradeOutcome(data: {
     await fetchWithRetry(url, {
       method: 'POST',
       body: JSON.stringify({
-        user_id: hashUserId(data.userId),
-        item_id: data.itemId,
-        item_name: data.itemName,
-        buy_price: data.buyPrice,
-        sell_price: data.sellPrice,
+        userId: sha256Hex(data.userId),
+        itemId: data.itemId,
+        itemName: data.itemName,
+        recId: data.recId,
+        buyPrice: data.buyPrice,
+        sellPrice: data.sellPrice,
         quantity: data.quantity,
-        actual_profit: data.actualProfit,
-        model_id: data.modelId ? parseInt(data.modelId) : undefined,
-        reported_at: new Date().toISOString()
+        actualProfit: data.actualProfit,
+        reportedAt: new Date().toISOString()
       })
     });
     return true;
