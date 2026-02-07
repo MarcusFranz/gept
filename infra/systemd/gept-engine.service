@@ -10,7 +10,9 @@ WorkingDirectory=/home/ubuntu/gept/current/packages/engine
 Environment="PATH=/home/ubuntu/gept/venv/bin:/usr/bin"
 Environment="PYTHONUNBUFFERED=1"
 EnvironmentFile=/home/ubuntu/gept/.env
-ExecStart=/home/ubuntu/gept/venv/bin/uvicorn src.api:app --host 0.0.0.0 --port 8000 --workers 2
+# Single worker: the app starts background loops in FastAPI lifespan; multiple
+# workers would duplicate that work per process unless/until we split workers.
+ExecStart=/home/ubuntu/gept/venv/bin/uvicorn src.api:app --host 0.0.0.0 --port 8000 --workers 1
 Restart=always
 RestartSec=10
 
