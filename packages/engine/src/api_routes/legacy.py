@@ -23,7 +23,7 @@ from ..api_models import (
 from ..api_security import limiter, verify_api_key
 from ..config import config
 from ..recommendation_engine import RecommendationEngine
-from .health import health_check
+from .health import health_liveness
 from .items import search_items
 from .outcomes import report_trade_outcome
 from .recommendations import get_recommendation_by_item_id, get_recommendations_get
@@ -34,8 +34,22 @@ router = APIRouter()
 @router.get("/health", response_model=HealthResponse)
 @limiter.limit(config.rate_limit_health)
 async def health_check_alias(request: Request):
-    """Health check endpoint alias for web frontend."""
-    return await health_check(request)
+    """Health check endpoint alias for web frontend.
+
+    This endpoint is intentionally lightweight and public; use /api/v1/health
+    (API-key protected) for detailed health status.
+    """
+    # Preserve legacy shape by returning a minimal "ok" with empty checks.
+    liveness = await health_liveness()
+    return HealthResponse(
+        status=liveness.status,
+        checks=[],
+        timestamp="",
+        recommendation_store_size=0,
+        crowding_stats={},
+        cache_stats={"available": False},
+        uptime_seconds=0,
+    )
 
 
 @router.get(

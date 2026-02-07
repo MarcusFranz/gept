@@ -1,7 +1,7 @@
 """Root endpoint with API info."""
 
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 
 from ..app_metadata import APP_VERSION
 
@@ -9,12 +9,13 @@ router = APIRouter()
 
 
 @router.get("/")
-async def root():
+async def root(request: Request):
+    docs_url = request.app.docs_url
     return {
         "name": "GePT Recommendation Engine",
         "version": APP_VERSION,
         "description": "Transforms raw predictions into trade recommendations",
-        "docs": "/docs",
+        "docs": docs_url,
         "health": "/api/v1/health",
         "endpoints": {
             "recommendations": "POST/GET /api/v1/recommendations",

@@ -5,6 +5,8 @@ lifespan startup/shutdown, and the route modules.
 """
 
 
+from os import environ
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import _rate_limit_exceeded_handler
@@ -34,6 +36,11 @@ app = FastAPI(
     description="OSRS Grand Exchange flipping recommendation API",
     version=APP_VERSION,
     lifespan=lifespan,
+    # Default to secure-by-default: do not expose docs/OpenAPI unless explicitly enabled.
+    # Enable temporarily (e.g. in local dev) with ENGINE_DOCS_ENABLED=true.
+    docs_url="/docs" if environ.get("ENGINE_DOCS_ENABLED", "").lower() == "true" else None,
+    redoc_url="/redoc" if environ.get("ENGINE_DOCS_ENABLED", "").lower() == "true" else None,
+    openapi_url="/openapi.json" if environ.get("ENGINE_DOCS_ENABLED", "").lower() == "true" else None,
 )
 
 # Ensure runtime exists even when TestClient doesn't run the lifespan context.
