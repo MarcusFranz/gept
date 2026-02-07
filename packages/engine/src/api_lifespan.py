@@ -222,4 +222,3 @@ async def lifespan(app: FastAPI):
         state.engine.close()
 
     logger.info("Recommendation engine shut down")
-

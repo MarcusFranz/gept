@@ -72,4 +72,3 @@ async def report_trade_outcome(
     except Exception as e:
         logger.error("Error recording trade outcome", error=str(e))
         raise HTTPException(status_code=500, detail=f"Failed to record trade outcome: {str(e)}")
-

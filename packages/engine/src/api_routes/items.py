@@ -198,4 +198,3 @@ async def get_item_price_history(
     except Exception as e:
         logger.error("Error getting price history for item", item_id=item_id, error=str(e))
         raise HTTPException(status_code=500, detail=str(e))
-

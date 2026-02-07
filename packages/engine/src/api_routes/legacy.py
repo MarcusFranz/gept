@@ -162,4 +162,3 @@ async def report_trade_outcome_web(
         _api_key=_api_key,
         outcome_db_engine=outcome_db_engine,
     )
-

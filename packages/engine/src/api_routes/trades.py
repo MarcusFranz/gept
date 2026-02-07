@@ -141,4 +141,3 @@ async def get_trade_updates(
     )
 
     return TradeUpdatesResponse(updates=updates, nextCheckIn=next_check_in)
-

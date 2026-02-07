@@ -80,4 +80,3 @@ async def receive_trade_webhook(
 
     logger.info("Trade webhook processed", event_type=body.eventType, trade_id=body.tradeId)
     return TradeWebhookResponse(success=True)
-

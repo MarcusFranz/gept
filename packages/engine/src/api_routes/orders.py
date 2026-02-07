@@ -89,4 +89,3 @@ async def evaluate_active_order(
     except Exception as e:
         logger.error("Error evaluating order", error=str(e))
         raise HTTPException(status_code=500, detail=f"Failed to evaluate order: {str(e)}")
-

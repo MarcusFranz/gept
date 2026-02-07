@@ -298,4 +298,3 @@ def expand_acronym(query: str) -> str:
         Expanded item name if acronym recognized, otherwise original query
     """
     return OSRS_ACRONYMS.get(query.lower().strip(), query)
-

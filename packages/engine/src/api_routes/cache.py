@@ -36,4 +36,3 @@ async def clear_cache(
             message=f"Failed to clear cache: {str(e)}",
             keys_cleared=0,
         )
-

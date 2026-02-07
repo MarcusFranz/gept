@@ -77,4 +77,3 @@ async def get_guidance(
     except Exception as e:
         logger.error("Error getting guidance", error=str(e))
         raise HTTPException(status_code=500, detail=f"Failed to get guidance: {str(e)}")
-

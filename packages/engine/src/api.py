@@ -58,20 +58,20 @@ app.add_middleware(
 app.add_middleware(RequestIDMiddleware)
 
 # Routers
-from .api_routes.cache import router as cache_router
-from .api_routes.feedback import router as feedback_router
-from .api_routes.guidance import router as guidance_router
-from .api_routes.health import router as health_router
-from .api_routes.items import router as items_router
-from .api_routes.legacy import router as legacy_router
-from .api_routes.orders import router as orders_router
-from .api_routes.outcomes import router as outcomes_router
-from .api_routes.predictions import router as predictions_router
-from .api_routes.recommendations import router as recommendations_router
-from .api_routes.root import router as root_router
-from .api_routes.trades import router as trades_router
-from .api_routes.users import router as users_router
-from .api_routes.webhooks import router as webhooks_router
+from .api_routes.cache import router as cache_router  # noqa: E402
+from .api_routes.feedback import router as feedback_router  # noqa: E402
+from .api_routes.guidance import router as guidance_router  # noqa: E402
+from .api_routes.health import router as health_router  # noqa: E402
+from .api_routes.items import router as items_router  # noqa: E402
+from .api_routes.legacy import router as legacy_router  # noqa: E402
+from .api_routes.orders import router as orders_router  # noqa: E402
+from .api_routes.outcomes import router as outcomes_router  # noqa: E402
+from .api_routes.predictions import router as predictions_router  # noqa: E402
+from .api_routes.recommendations import router as recommendations_router  # noqa: E402
+from .api_routes.root import router as root_router  # noqa: E402
+from .api_routes.trades import router as trades_router  # noqa: E402
+from .api_routes.users import router as users_router  # noqa: E402
+from .api_routes.webhooks import router as webhooks_router  # noqa: E402
 
 app.include_router(health_router)
 app.include_router(cache_router)

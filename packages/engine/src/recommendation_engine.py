@@ -75,15 +75,6 @@ class RecommendationEngine:
         "high": 0.08,  # 8% weight (accept more fill risk)
     }
 
-    # Bag-holding penalty: if the flip doesn't complete, users can get stuck holding
-    # inventory and may need to unwind (often at/near breakeven gross), which still
-    # incurs GE tax. We model this downside as proportional to GE tax at the buy price.
-    BAG_HOLDING_TAX_PENALTY_WEIGHTS = {
-        "low": 1.00,
-        "medium": 0.75,
-        "high": 0.50,
-    }
-
     def __init__(
         self,
         db_connection_string: str,
@@ -123,43 +114,6 @@ class RecommendationEngine:
             redis_url=self.config.redis_url or None,
             fallback_to_memory=self.config.redis_fallback_to_memory,
         )
-
-    def _calculate_profit_if_filled(self, profit_per_unit: int, quantity: int) -> int:
-        """Profit if the flip fully completes at the recommended prices (after tax)."""
-        if quantity <= 0:
-            return 0
-        return int(profit_per_unit * quantity)
-
-    def _calculate_expected_profit_ev(
-        self,
-        *,
-        profit_if_filled: int,
-        buy_price: int,
-        quantity: int,
-        fill_probability: float,
-        risk: RiskLevel = "medium",
-    ) -> int:
-        """Conservative expected profit (EV) with a bag-holding downside.
-
-        Non-completion can mean the user is forced to unwind at/near the buy price,
-        paying GE tax to exit. We penalize that downside proportionally.
-        """
-        if quantity <= 0:
-            return 0
-
-        try:
-            fp = float(fill_probability)
-        except Exception:
-            fp = 0.0
-        fp = max(0.0, min(1.0, fp))
-
-        weight = self.BAG_HOLDING_TAX_PENALTY_WEIGHTS.get(risk, 0.75)
-        exit_tax_per_unit = calculate_tax(int(buy_price), 1)
-
-        ev_profit = (profit_if_filled * fp) - (
-            exit_tax_per_unit * quantity * (1.0 - fp) * weight
-        )
-        return int(ev_profit)
 
     def _get_loader(self, use_beta: bool = False) -> PredictionLoader:
         """Get the appropriate prediction loader based on user preference."""
@@ -613,17 +567,7 @@ class RecommendationEngine:
                 continue
 
             capital_used = buy_price * max_quantity
-            profit_if_filled = self._calculate_profit_if_filled(profit_per_unit, max_quantity)
-            expected_profit_ev = self._calculate_expected_profit_ev(
-                profit_if_filled=profit_if_filled,
-                buy_price=buy_price,
-                quantity=max_quantity,
-                fill_probability=fill_prob,
-                risk=risk,
-            )
-            # Avoid "bag-hold" trades where the downside of not completing outweighs the upside.
-            if expected_profit_ev <= 0:
-                continue
+            expected_profit = int(profit_per_unit * max_quantity * fill_prob)
 
             # Calculate margin percentage for scoring
             margin_pct = profit_per_unit / buy_price if buy_price > 0 else 0
@@ -640,10 +584,7 @@ class RecommendationEngine:
                 "sellPrice": cand["sell_price"],
                 "quantity": max_quantity,
                 "capitalRequired": capital_used,
-                # Display: profit if filled.
-                "expectedProfit": profit_if_filled,
-                # Decision/scoring: conservative EV with bag-hold downside.
-                "expectedProfitEV": expected_profit_ev,
+                "expectedProfit": expected_profit,
                 "confidence": cand["confidence"],
                 "trend": cand["trend"],
                 "expectedHours": cand["hour_offset"],
@@ -1358,14 +1299,7 @@ class RecommendationEngine:
             if max_qty < 1:
                 continue
 
-            profit_if_filled = self._calculate_profit_if_filled(profit_per_unit, max_qty)
-            expected_profit = self._calculate_expected_profit_ev(
-                profit_if_filled=profit_if_filled,
-                buy_price=buy_price,
-                quantity=max_qty,
-                fill_probability=fill_prob,
-                risk="medium",
-            )
+            expected_profit = profit_per_unit * max_qty * fill_prob
             profit_per_slot_hour = expected_profit / max(1, hour_offset)
 
             if profit_per_slot_hour > 0:
@@ -1557,20 +1491,11 @@ class RecommendationEngine:
                     continue
 
                 capital_used = buy_price * quantity
-                profit_if_filled = self._calculate_profit_if_filled(profit_per_unit, quantity)
-                expected_profit_ev = self._calculate_expected_profit_ev(
-                    profit_if_filled=profit_if_filled,
-                    buy_price=buy_price,
-                    quantity=quantity,
-                    fill_probability=fill_prob,
-                    risk=risk,
-                )
-                if expected_profit_ev <= 0:
-                    continue
+                expected_profit = int(profit_per_unit * quantity * fill_prob)
 
                 # Apply risk-adjusted scoring (exit risk + fill risk penalties)
                 risk_adjusted_profit = self._calculate_risk_adjusted_score(
-                    cand, expected_profit_ev, risk
+                    cand, expected_profit, risk
                 )
 
                 # Calculate profit per slot-hour for opportunity cost assessment
@@ -1610,8 +1535,7 @@ class RecommendationEngine:
                         "candidate": cand,
                         "quantity": quantity,
                         "capital_used": capital_used,
-                        "expected_profit": profit_if_filled,
-                        "expected_profit_ev": expected_profit_ev,
+                        "expected_profit": expected_profit,
                         "adjusted_profit": adjusted_profit,
                         "profit_per_capital": (
                             adjusted_profit / capital_used if capital_used > 0 else 0
@@ -1654,7 +1578,6 @@ class RecommendationEngine:
                 "quantity": opt["quantity"],
                 "capitalRequired": opt["capital_used"],
                 "expectedProfit": opt["expected_profit"],
-                "expectedProfitEV": opt.get("expected_profit_ev"),
                 "confidence": cand["confidence"],
                 "trend": cand["trend"],
                 "expectedHours": cand["hour_offset"],
@@ -1690,15 +1613,8 @@ class RecommendationEngine:
 
             recommendations.append(rec)
 
-        # Sort by EV (bag-hold adjusted) descending; fall back to filled-profit.
-        recommendations.sort(
-            key=lambda x: (
-                x.get("expectedProfitEV")
-                if x.get("expectedProfitEV") is not None
-                else x["expectedProfit"]
-            ),
-            reverse=True,
-        )
+        # Sort by expected profit descending
+        recommendations.sort(key=lambda x: x["expectedProfit"], reverse=True)
 
         return recommendations
 
@@ -1969,13 +1885,8 @@ class RecommendationEngine:
             new_qty = max_capital_per_trade // cand["buy_price"]
             capital_used = cand["buy_price"] * new_qty
 
-        expected_profit = self._calculate_profit_if_filled(cand["profit_per_unit"], new_qty)
-        expected_profit_ev = self._calculate_expected_profit_ev(
-            profit_if_filled=expected_profit,
-            buy_price=cand["buy_price"],
-            quantity=new_qty,
-            fill_probability=cand["fill_probability"],
-            risk="medium",
+        expected_profit = int(
+            cand["profit_per_unit"] * new_qty * cand["fill_probability"]
         )
 
         concentration_ratio = capital_used / total_capital
@@ -1983,16 +1894,15 @@ class RecommendationEngine:
             penalty = (concentration_ratio - params["target_pct"]) * params[
                 "concentration_penalty"
             ]
-            adjusted_profit = expected_profit_ev * (1 - penalty)
+            adjusted_profit = expected_profit * (1 - penalty)
         else:
-            adjusted_profit = expected_profit_ev
+            adjusted_profit = expected_profit
 
         return {
             "candidate": cand,
             "quantity": new_qty,
             "capital_used": capital_used,
             "expected_profit": expected_profit,
-            "expected_profit_ev": expected_profit_ev,
             "adjusted_profit": adjusted_profit,
             "profit_per_capital": (
                 adjusted_profit / capital_used if capital_used > 0 else 0
@@ -2403,25 +2313,10 @@ class RecommendationEngine:
 
         # Expected profit and capital (vectorized)
         df['capital_required'] = df['buy_price'] * df['max_quantity']
-
-        # Display: profit if filled (after tax).
-        df['expected_profit'] = (df['profit_per_unit'] * df['max_quantity']).astype(int)
-
-        # Decision/scoring: conservative EV with bag-holding downside (medium default).
-        bag_weight = self.BAG_HOLDING_TAX_PENALTY_WEIGHTS.get("medium", 0.75)
-        df['exit_tax_per_unit'] = (df['buy_price'] * 0.02).astype(int)
-        df['exit_tax_per_unit'] = np.minimum(df['exit_tax_per_unit'], 5_000_000)
-        df.loc[df['buy_price'] < 50, 'exit_tax_per_unit'] = 0
-
-        exp_profit_ev = (df['expected_profit'] * df['fill_probability']) - (
-            df['exit_tax_per_unit'] * df['max_quantity'] * (1 - df['fill_probability']) * bag_weight
-        )
-        exp_profit_ev = exp_profit_ev.fillna(0)
-        exp_profit_ev[~np.isfinite(exp_profit_ev)] = 0
-        df['expected_profit_ev'] = exp_profit_ev.astype(int)
-
-        # Filter out negative EV (bag-hold trades)
-        df = df[df['expected_profit_ev'] > 0]
+        exp_profit = df['profit_per_unit'] * df['max_quantity'] * df['fill_probability']
+        exp_profit = exp_profit.fillna(0)
+        exp_profit[~np.isfinite(exp_profit)] = 0
+        df['expected_profit'] = exp_profit.astype(int)
 
         # Icon URLs (vectorized)
         df['icon_url'] = df['item_id'].apply(
@@ -2439,7 +2334,7 @@ class RecommendationEngine:
         df['category'] = None  # Not currently in items table
         opportunities = df[[
             'item_id', 'item_name', 'icon_url', 'buy_price', 'sell_price',
-            'max_quantity', 'capital_required', 'expected_profit', 'expected_profit_ev', 'hour_offset',
+            'max_quantity', 'capital_required', 'expected_profit', 'hour_offset',
             'confidence', 'fill_probability_rounded', 'expected_value_rounded',
             'volume_24h', 'trend', 'category', '_spread_pct'
         ]].rename(columns={
@@ -2452,8 +2347,8 @@ class RecommendationEngine:
         # Add hour_offset back for generate_why_chips
         opportunities['hour_offset'] = df['hour_offset'].values
 
-        # Sort by EV descending (bag-hold adjusted).
-        opportunities = opportunities.sort_values('expected_profit_ev', ascending=False)
+        # Sort by expected profit descending (vectorized)
+        opportunities = opportunities.sort_values('expected_profit', ascending=False)
 
         # Convert to list of dicts
         opportunities = opportunities.to_dict('records')
@@ -2682,23 +2577,7 @@ class RecommendationEngine:
 
         capital_used = buy_price * max_quantity
         fill_prob = candidate["fill_probability"]
-        profit_if_filled = self._calculate_profit_if_filled(candidate["profit_per_unit"], max_quantity)
-        expected_profit_ev = self._calculate_expected_profit_ev(
-            profit_if_filled=profit_if_filled,
-            buy_price=buy_price,
-            quantity=max_quantity,
-            fill_probability=fill_prob,
-            risk=risk,
-        )
-        if expected_profit_ev <= 0:
-            return {
-                "itemId": item_id,
-                "item": item_name,
-                "isRecommended": False,
-                "reason": "Too likely to bag-hold: risk-adjusted expected profit <= 0",
-                "currentBuyPrice": buy_price,
-                "currentSellPrice": candidate["sell_price"],
-            }
+        expected_profit = int(candidate["profit_per_unit"] * max_quantity * fill_prob)
 
         # Build reason text
         reason = self._build_reason(candidate)
@@ -2711,8 +2590,7 @@ class RecommendationEngine:
             "sellPrice": candidate["sell_price"],
             "quantity": max_quantity,
             "capitalRequired": capital_used,
-            "expectedProfit": profit_if_filled,
-            "expectedProfitEV": expected_profit_ev,
+            "expectedProfit": expected_profit,
             "confidence": candidate["confidence"],
             "trend": candidate["trend"],
             "expectedHours": candidate["hour_offset"],

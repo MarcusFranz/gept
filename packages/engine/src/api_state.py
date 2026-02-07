@@ -28,4 +28,3 @@ class RuntimeState:
     startup_time: Optional[float] = None
     is_ready: bool = False
     trade_event_handler: Optional[TradeEventHandler] = None
-

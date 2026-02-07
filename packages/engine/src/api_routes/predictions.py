@@ -27,4 +27,3 @@ async def get_item_predictions(
     if prediction is None:
         raise HTTPException(status_code=404, detail="No predictions found for this item")
     return prediction
-

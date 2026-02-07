@@ -40,4 +40,3 @@ def normalize_user_id(user_id: Optional[str]) -> Optional[str]:
         user_id_length=len(user_id),
     )
     return hashlib.sha256(user_id.encode()).hexdigest()
-
