@@ -14,7 +14,15 @@ mkdir -p ~/.ssh
 if [ -n "$SSH_DEPLOY_KEY" ]; then
     echo "$SSH_DEPLOY_KEY" > ~/.ssh/ampere_key
     chmod 600 ~/.ssh/ampere_key
-    ssh-keyscan -H 150.136.170.128 >> ~/.ssh/known_hosts 2>/dev/null
+    # Pin host keys to prevent MITM (do not use StrictHostKeyChecking=no).
+    if [ -f /workspaces/gept/infra/ssh/known_hosts ]; then
+        cp /workspaces/gept/infra/ssh/known_hosts ~/.ssh/known_hosts
+        chmod 600 ~/.ssh/known_hosts
+    else
+        echo "  ✗ Pinned known_hosts missing at /workspaces/gept/infra/ssh/known_hosts"
+        echo "    Refusing to create a host key entry dynamically."
+        exit 1
+    fi
     echo "  ✓ SSH key configured"
 else
     echo "  ✗ SSH_DEPLOY_KEY secret not set — tunnel will not work"
@@ -29,7 +37,9 @@ if [ -f ~/.ssh/ampere_key ]; then
         -L 5432:localhost:5432 \
         -o ServerAliveInterval=60 \
         -o ServerAliveCountMax=3 \
-        -o StrictHostKeyChecking=no \
+        -o BatchMode=yes \
+        -o StrictHostKeyChecking=yes \
+        -o UserKnownHostsFile=~/.ssh/known_hosts \
         -N -f ubuntu@150.136.170.128
 
     sleep 2
