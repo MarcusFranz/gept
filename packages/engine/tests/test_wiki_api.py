@@ -27,6 +27,7 @@ class TestWikiApiClient:
         assert client._cache_ttl == timedelta(seconds=3600)
         assert "GePT" in client._user_agent
         assert client._buy_limits == {}
+        assert client._item_names == {}
         assert client._cache_timestamp is None
 
     def test_init_custom_values(self):
@@ -62,6 +63,28 @@ class TestWikiApiClient:
         assert mock_get.call_count == 1
 
     @patch("src.wiki_api.requests.get")
+    def test_get_item_name_successful(self, mock_get):
+        """Test successful item name retrieval."""
+        mock_response = MagicMock()
+        mock_response.json.return_value = [
+            {"id": 554, "name": "Fire rune", "limit": 25000},
+            {"id": 565, "name": "Blood rune", "limit": 10000},
+            {"id": 13652, "name": "Dragon claws", "limit": 8},
+        ]
+        mock_response.raise_for_status = MagicMock()
+        mock_get.return_value = mock_response
+
+        client = WikiApiClient()
+
+        assert client.get_item_name(554) == "Fire rune"
+        assert client.get_item_name(565) == "Blood rune"
+        assert client.get_item_name(13652) == "Dragon claws"
+        assert client.get_item_name(99999) is None
+
+        # Should only make one API call (cached)
+        assert mock_get.call_count == 1
+
+    @patch("src.wiki_api.requests.get")
     def test_get_buy_limit_missing_limit(self, mock_get):
         """Test handling items without buy limit in response."""
         mock_response = MagicMock()
@@ -76,6 +99,8 @@ class TestWikiApiClient:
 
         assert client.get_buy_limit(554) == 25000
         assert client.get_buy_limit(555) is None
+        # Name should still be cached even if buy limit is missing
+        assert client.get_item_name(555) == "Water rune"
 
     @patch("src.wiki_api.requests.get")
     def test_cache_expiry(self, mock_get):

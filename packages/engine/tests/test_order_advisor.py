@@ -17,8 +17,8 @@ class TestOrderAdvisor:
         # Default price data
         loader.get_latest_price.return_value = {
             "timestamp": "2024-01-01T00:00:00Z",
-            "high": 1_000_000,  # Instant sell price
-            "low": 980_000,  # Instant buy price
+            "high": 1_000_000,  # Instant-buy price
+            "low": 980_000,  # Instant-sell price
             "high_time": "2024-01-01T00:00:00Z",
             "low_time": "2024-01-01T00:00:00Z",
         }
@@ -37,7 +37,7 @@ class TestOrderAdvisor:
                 "fill_probability": [0.65, 0.45, 0.75, 0.55],
                 "expected_value": [0.008, 0.006, 0.010, 0.007],
                 "buy_price": [985_000, 980_000, 985_000, 980_000],
-                "sell_price": [1_015_000, 1_020_000, 1_015_000, 1_020_000],
+                "sell_price": [994_700, 999_600, 994_700, 999_600],
                 "current_high": [1_000_000, 1_000_000, 1_000_000, 1_000_000],
                 "current_low": [980_000, 980_000, 980_000, 980_000],
                 "confidence": ["high", "medium", "high", "medium"],
@@ -73,7 +73,7 @@ class TestOrderAdvisor:
         mock_loader.get_latest_price.return_value = {
             "timestamp": "2024-01-01T00:00:00Z",
             "high": 1_000_000,
-            "low": 985_000,  # User's price is close to market
+            "low": 985_000,
             "high_time": "2024-01-01T00:00:00Z",
             "low_time": "2024-01-01T00:00:00Z",
         }
@@ -97,7 +97,7 @@ class TestOrderAdvisor:
         mock_loader.get_latest_price.return_value = {
             "timestamp": "2024-01-01T00:00:00Z",
             "high": 1_000_000,
-            "low": 950_000,  # Market dropped, user's buy is too high
+            "low": 950_000,
             "high_time": "2024-01-01T00:00:00Z",
             "low_time": "2024-01-01T00:00:00Z",
         }
@@ -121,7 +121,7 @@ class TestOrderAdvisor:
         mock_loader.get_latest_price.return_value = {
             "timestamp": "2024-01-01T00:00:00Z",
             "high": 1_000_000,
-            "low": 900_000,  # User's buy is way below market
+            "low": 900_000,
             "high_time": "2024-01-01T00:00:00Z",
             "low_time": "2024-01-01T00:00:00Z",
         }
@@ -135,7 +135,7 @@ class TestOrderAdvisor:
                 "fill_probability": [0.05],  # Very low
                 "expected_value": [0.002],
                 "buy_price": [975_000],
-                "sell_price": [1_025_000],
+                "sell_price": [922_500],
                 "current_high": [1_000_000],
                 "current_low": [900_000],
                 "confidence": ["low"],
@@ -169,7 +169,7 @@ class TestOrderAdvisor:
                 "fill_probability": [0.05],  # Very low
                 "expected_value": [0.002],
                 "buy_price": [980_000],
-                "sell_price": [1_020_000],
+                "sell_price": [999_600],
                 "current_high": [1_000_000],
                 "current_low": [980_000],
                 "confidence": ["low"],
@@ -208,7 +208,7 @@ class TestOrderAdvisor:
         assert "Unable to fetch" in result["reasoning"]
 
     def test_evaluate_order_no_predictions(self, mock_loader):
-        """Missing predictions should return error response."""
+        """Missing predictions should fall back to heuristic evaluation."""
         mock_loader.get_latest_price.return_value = {
             "timestamp": "2024-01-01T00:00:00Z",
             "high": 1_000_000,
@@ -227,16 +227,17 @@ class TestOrderAdvisor:
             time_elapsed_minutes=30,
         )
 
-        assert result["action"] == "wait"  # Default fallback
-        assert "No prediction data" in result["reasoning"]
+        assert result["action"] in ["wait", "adjust_price", "liquidate", "abort_retry"]
+        assert "No prediction model is available" in result["reasoning"]
+        # Heuristic path should still provide actionable recommendations when possible
+        assert "recommendations" in result
 
     def test_fill_probability_interpolation_at_market(self, advisor, mock_loader):
         """User at or better than market should get very high fill probability."""
-        # User bidding above market
         result = advisor.evaluate_order(
             item_id=4151,
             order_type="buy",
-            user_price=990_000,  # Above current low of 980_000
+            user_price=1_000_000,  # At current instant-buy price
             quantity=1,
             time_elapsed_minutes=10,
         )
@@ -389,7 +390,7 @@ class TestOrderAdvisorDecisionLogic:
                 "fill_probability": [0.80],  # High
                 "expected_value": [0.010],
                 "buy_price": [985_000],
-                "sell_price": [1_015_000],
+                "sell_price": [994_700],
                 "current_high": [1_000_000],
                 "current_low": [980_000],
                 "confidence": ["high"],
@@ -426,7 +427,7 @@ class TestOrderAdvisorDecisionLogic:
                 "fill_probability": [0.05],  # Very low
                 "expected_value": [0.001],
                 "buy_price": [955_000],
-                "sell_price": [1_005_000],
+                "sell_price": [1_004_500],
                 "current_high": [1_000_000],
                 "current_low": [980_000],
                 "confidence": ["low"],
