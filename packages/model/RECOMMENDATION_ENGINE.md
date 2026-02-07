@@ -1,6 +1,6 @@
 # GePT Prediction Engine - Recommendation Engine Integration Guide
 
-This document describes how to interact with the GePT prediction system deployed on the Ampere server.
+This document describes how to interact with the GePT prediction system deployed on the internal production server.
 
 ## Overview
 
@@ -10,7 +10,7 @@ The prediction engine runs every 5 minutes, generating fill probability predicti
 
 ## Server Access
 
-### Ampere Server Details
+### Production Server Details
 
 Server configuration is centralized in `config/servers.env` (values redacted). Override via environment variables.
 
@@ -31,7 +31,7 @@ ssh -i $AMPERE_SSH_KEY $AMPERE_HOST
 ssh -i <ssh_key_path> <ssh_user>@<host>
 ```
 
-### Database Connection (from Ampere server)
+### Database Connection (from production server)
 
 ```bash
 psql -h localhost -U osrs_user -d osrs_data
@@ -227,7 +227,7 @@ while True:
 Set up a trigger on the predictions table:
 
 ```sql
--- On Ampere server, run once:
+-- On production server, run once:
 CREATE OR REPLACE FUNCTION notify_new_predictions()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -529,14 +529,14 @@ SELECT * FROM calibration_summary;
 
 ## Cron Schedule Details
 
-The inference engine runs via cron on the Ampere server:
+The inference engine runs via cron on the production server. Deployment paths are redacted here; use your server's configured deploy root.
 
 ```bash
 # View current cron jobs
 crontab -l
 
 # Expected entry:
-*/5 * * * * /home/ubuntu/gept/scripts/run_inference_cron.sh >> /home/ubuntu/gept/logs/inference.log 2>&1
+*/5 * * * * <deploy_root>/scripts/run_inference_cron.sh >> <deploy_root>/logs/inference.log 2>&1
 ```
 
 ### Inference Cycle Performance
@@ -558,16 +558,16 @@ Since the cycle completes well under 5 minutes, there's no overlap between runs.
 ssh -i $AMPERE_SSH_KEY $AMPERE_HOST
 
 # Watch live logs
-tail -f /home/ubuntu/gept/logs/inference.log
+tail -f <deploy_root>/logs/inference.log
 
 # Check last run
-tail -100 /home/ubuntu/gept/logs/inference.log
+tail -100 <deploy_root>/logs/inference.log
 ```
 
 ### Manual Inference Run
 
 ```bash
-cd /home/ubuntu/gept
+cd <deploy_root>
 source venv/bin/activate
 python run_inference.py --dry-run  # Test without DB writes
 python run_inference.py            # Full run with DB writes
@@ -586,7 +586,7 @@ SELECT MAX(time) as last_update,
 FROM predictions;
 ```
 
-If older than 10 minutes, check the cron job and logs on the Ampere server.
+If older than 10 minutes, check the cron job and logs on the production server.
 
 ### Database Connection Issues
 
@@ -596,9 +596,9 @@ If older than 10 minutes, check the cron job and logs on the Ampere server.
 
 ### Inference Errors
 
-Check logs on Ampere server:
+Check logs on production server:
 ```bash
-tail -200 /home/ubuntu/gept/logs/inference.log | grep -i error
+tail -200 <deploy_root>/logs/inference.log | grep -i error
 ```
 
 Common issues:
@@ -612,8 +612,8 @@ Common issues:
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                        Ampere Server                            │
-│                       ($AMPERE_IP)                              │
+│                  Production Server (internal)                   │
+│                       (<host>)                                  │
 │                                                                 │
 │  ┌──────────────┐     ┌──────────────┐     ┌──────────────┐   │
 │  │   Cron Job   │────▶│  Inference   │────▶│  PostgreSQL  │   │
@@ -652,5 +652,5 @@ Common issues:
 | Latest predictions | `SELECT * FROM latest_predictions;` |
 | Top opportunities | `SELECT * FROM top_opportunities;` |
 | Check last update | `SELECT MAX(time) FROM predictions;` |
-| View cron logs | `tail -f /home/ubuntu/gept/logs/inference.log` |
-| Manual inference | `cd /home/ubuntu/gept && source venv/bin/activate && python run_inference.py` |
+| View cron logs | `tail -f <deploy_root>/logs/inference.log` |
+| Manual inference | `cd <deploy_root> && source venv/bin/activate && python run_inference.py` |

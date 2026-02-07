@@ -53,6 +53,26 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
+### Environment Setup
+
+Create a local `.env` in `packages/engine` (loaded by `src/main.py`) with the minimum required values:
+
+```bash
+# Database (via SSH tunnel)
+DB_CONNECTION_STRING=postgresql://user:password@localhost:5432/osrs_data
+
+# API auth (required)
+INTERNAL_API_KEY=replace-with-random-token
+```
+
+If you run `uvicorn` directly (instead of `python -m src.main`), make sure your shell loads the env file:
+
+```bash
+set -a
+source .env
+set +a
+```
+
 ### Database Connection
 
 Create an SSH tunnel to the prediction database host:
@@ -108,6 +128,7 @@ curl http://localhost:8000/api/v1/health
 ```bash
 # Via POST (preferred)
 curl -X POST "http://localhost:8000/api/v1/recommendations" \
+  -H "X-API-Key: $INTERNAL_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "style": "active",
@@ -117,7 +138,8 @@ curl -X POST "http://localhost:8000/api/v1/recommendations" \
   }'
 
 # Via GET
-curl "http://localhost:8000/api/v1/recommendations?style=active&capital=10000000&risk=medium&slots=4"
+curl -H "X-API-Key: $INTERNAL_API_KEY" \
+  "http://localhost:8000/api/v1/recommendations?style=active&capital=10000000&risk=medium&slots=4"
 ```
 
 ### Parameters
