@@ -6,11 +6,13 @@ This directory contains SQL migration scripts for the GePT prediction engine dat
 
 Migrations should be applied manually using `psql` or your preferred PostgreSQL client.
 
+Run commands from the `packages/engine` directory so relative paths resolve correctly.
+
 ### Using psql
 
 ```bash
 # Connect to the database
-psql postgresql://[USER]:[PASS]@[HOST]:5432/gept
+psql -v ON_ERROR_STOP=1 postgresql://[USER]:[PASS]@[HOST]:5432/gept
 
 # Apply a migration
 \i migrations/001_create_trade_outcomes_table.sql
@@ -19,13 +21,21 @@ psql postgresql://[USER]:[PASS]@[HOST]:5432/gept
 You can also use the engine's `DB_CONNECTION_STRING` environment variable:
 
 ```bash
-psql "$DB_CONNECTION_STRING" -f migrations/001_create_trade_outcomes_table.sql
+psql -v ON_ERROR_STOP=1 "$DB_CONNECTION_STRING" -f migrations/001_create_trade_outcomes_table.sql
 ```
 
 ### Using psql from command line
 
 ```bash
-psql postgresql://[USER]:[PASS]@[HOST]:5432/gept -f migrations/001_create_trade_outcomes_table.sql
+psql -v ON_ERROR_STOP=1 postgresql://[USER]:[PASS]@[HOST]:5432/gept -f migrations/001_create_trade_outcomes_table.sql
+```
+
+### Apply in Order
+
+Apply migrations in numeric order:
+
+```bash
+ls -1 migrations/*.sql | sort
 ```
 
 ## Migration Files
