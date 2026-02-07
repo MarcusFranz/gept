@@ -22,7 +22,7 @@
   },
 
   "postCreateCommand": "bash .devcontainer/setup.sh",
-  "postAttachCommand": "pgrep -f 'ssh.*5432:localhost:5432.*150.136.170.128' > /dev/null 2>&1 || ssh -i ~/.ssh/ampere_key -L 5432:localhost:5432 -o ServerAliveInterval=60 -o ServerAliveCountMax=3 -o StrictHostKeyChecking=no -N -f ubuntu@150.136.170.128",
+  "postAttachCommand": "pgrep -f 'ssh.*5432:localhost:5432.*150.136.170.128' > /dev/null 2>&1 || ssh -i ~/.ssh/ampere_key -L 5432:localhost:5432 -o ServerAliveInterval=60 -o ServerAliveCountMax=3 -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=/workspaces/gept/infra/ssh/known_hosts -N -f ubuntu@150.136.170.128",
 
   "customizations": {
     "vscode": {

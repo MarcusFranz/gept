@@ -19,6 +19,7 @@ set -euo pipefail
 
 # Determine script directory
 LOCAL_DIR="$(cd "$(dirname "$0")" && pwd)"
+REPO_ROOT="$(cd "$LOCAL_DIR/../.." && pwd)"
 
 # Source central server configuration
 if [ -f "$LOCAL_DIR/config/servers.env" ]; then
@@ -30,6 +31,7 @@ AMPERE_KEY="${AMPERE_SSH_KEY:-$LOCAL_DIR/.secrets/oracle_key.pem}"
 if [[ ! "$AMPERE_KEY" = /* ]]; then
     AMPERE_KEY="$LOCAL_DIR/$AMPERE_KEY"
 fi
+KNOWN_HOSTS_FILE="${AMPERE_KNOWN_HOSTS_FILE:-$REPO_ROOT/infra/ssh/known_hosts}"
 REMOTE_DIR="${AMPERE_GEPT_DIR:-/home/ubuntu/gept}"
 API_PORT="${API_PORT:-8000}"
 
@@ -45,12 +47,30 @@ log_success() { echo -e "${GREEN}[SUCCESS]${NC} $1"; }
 log_warning() { echo -e "${YELLOW}[WARNING]${NC} $1"; }
 log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 
+if [ ! -f "$KNOWN_HOSTS_FILE" ]; then
+    log_error "Pinned known_hosts file not found: $KNOWN_HOSTS_FILE"
+    log_error "Refusing to run with StrictHostKeyChecking disabled."
+    exit 1
+fi
+
 ssh_cmd() {
-    ssh -i "$AMPERE_KEY" -o StrictHostKeyChecking=no "$AMPERE_HOST" "$@"
+    ssh \
+        -i "$AMPERE_KEY" \
+        -o BatchMode=yes \
+        -o IdentitiesOnly=yes \
+        -o StrictHostKeyChecking=yes \
+        -o "UserKnownHostsFile=$KNOWN_HOSTS_FILE" \
+        "$AMPERE_HOST" "$@"
 }
 
 scp_cmd() {
-    scp -i "$AMPERE_KEY" -o StrictHostKeyChecking=no "$@"
+    scp \
+        -i "$AMPERE_KEY" \
+        -o BatchMode=yes \
+        -o IdentitiesOnly=yes \
+        -o StrictHostKeyChecking=yes \
+        -o "UserKnownHostsFile=$KNOWN_HOSTS_FILE" \
+        "$@"
 }
 
 show_help() {
