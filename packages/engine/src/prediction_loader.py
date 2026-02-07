@@ -746,6 +746,15 @@ class PredictionLoader:
         if not self.config.wiki_api_enabled:
             return None
 
+        try:
+            wiki_client = get_wiki_api_client()
+            return wiki_client.get_buy_limit(item_id)
+        except Exception as e:
+            logger.debug(
+                f"Could not fetch buy limit from Wiki API for item {item_id}: {e}"
+            )
+            return None
+
     def _get_wiki_item_name(self, item_id: int) -> Optional[str]:
         """Get item name from OSRS Wiki API mapping.
 
@@ -764,15 +773,6 @@ class PredictionLoader:
         except Exception as e:
             logger.debug(
                 f"Could not fetch item name from Wiki API for item {item_id}: {e}"
-            )
-            return None
-
-        try:
-            wiki_client = get_wiki_api_client()
-            return wiki_client.get_buy_limit(item_id)
-        except Exception as e:
-            logger.debug(
-                f"Could not fetch buy limit from Wiki API for item {item_id}: {e}"
             )
             return None
 

@@ -245,11 +245,11 @@ class OrderAdvisor:
         probs = sorted_preds["fill_probability"].values
 
         # Interpolate
-        if user_offset <= offsets[0]:
+        if user_offset < offsets[0]:
             # Closer to market than any trained offset - higher probability
             return min(0.95, float(probs[0]) * 1.2)
 
-        if user_offset >= offsets[-1]:
+        if user_offset > offsets[-1]:
             # Further from market than any trained offset - lower probability
             return max(0.01, float(probs[-1]) * 0.5)
 
