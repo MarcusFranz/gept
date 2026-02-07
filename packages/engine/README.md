@@ -76,6 +76,17 @@ uvicorn src.api:app --host 0.0.0.0 --port 8000 --reload
 python -m src.main
 ```
 
+### Running (Docker)
+
+```bash
+cd packages/engine
+cp .env.docker.example .env.docker
+
+docker compose -f docker-compose.local.yml --env-file .env.docker up --build
+```
+
+Then open `http://localhost:8000/docs` or hit `http://localhost:8000/healthz`.
+
 ### Verify Connection
 
 ```bash

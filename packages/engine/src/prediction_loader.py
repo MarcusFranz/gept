@@ -18,304 +18,10 @@ from .schema import (
     price_data_5min,
     prices_latest_1m,
 )
+from .osrs.acronyms import expand_acronym
 from .wiki_api import get_wiki_api_client
 
 logger = logging.getLogger(__name__)
-
-
-# OSRS item acronyms for search expansion
-# Source: https://oldschool.runescape.wiki/w/Acronyms
-OSRS_ACRONYMS = {
-    # === GODSWORDS ===
-    "ags": "armadyl godsword",
-    "bgs": "bandos godsword",
-    "sgs": "saradomin godsword",
-    "zgs": "zamorak godsword",
-    # === MELEE WEAPONS ===
-    "dhl": "dragon hunter lance",
-    "lance": "dragon hunter lance",
-    "rapier": "ghrazi rapier",
-    "rap": "ghrazi rapier",
-    "blade": "blade of saeldor",
-    "scythe": "scythe of vitur",
-    "scy": "scythe of vitur",
-    "dwh": "dragon warhammer",
-    "dwar": "dragon warhammer",
-    "dclaws": "dragon claws",
-    "gmaul": "granite maul",
-    "dds": "dragon dagger",
-    "ddp": "dragon dagger",
-    "dscim": "dragon scimitar",
-    "dscimmy": "dragon scimitar",
-    "d2h": "dragon 2h sword",
-    "hally": "crystal halberd",
-    "chally": "crystal halberd",
-    "vls": "vesta's longsword",
-    "vw": "voidwaker",
-    "sra": "soulreaper axe",
-    "abby whip": "abyssal whip",
-    "whip": "abyssal whip",
-    "tent": "abyssal tentacle",
-    "bludgeon": "abyssal bludgeon",
-    "saeldor": "blade of saeldor",
-    "inq mace": "inquisitor's mace",
-    # === RANGED WEAPONS ===
-    "tbow": "twisted bow",
-    "bp": "toxic blowpipe",
-    "bpipe": "toxic blowpipe",
-    "blowpipe": "toxic blowpipe",
-    "acb": "armadyl crossbow",
-    "dcb": "dragon crossbow",
-    "zcb": "zaryte crossbow",
-    "zbow": "zaryte crossbow",
-    "dhcb": "dragon hunter crossbow",
-    "dhc": "dragon hunter crossbow",
-    "bowfa": "bow of faerdhinen",
-    "bofa": "bow of faerdhinen",
-    "fbow": "bow of faerdhinen",
-    "cbow": "crystal bow",
-    "dbow": "dark bow",
-    "msb": "magic shortbow",
-    "msbi": "magic shortbow (i)",
-    "kcb": "karil's crossbow",
-    "kbow": "karil's crossbow",
-    "bally": "heavy ballista",
-    "ballista": "heavy ballista",
-    "vbow": "venator bow",
-    "rcb": "rune crossbow",
-    # === MAGIC WEAPONS ===
-    "sang": "sanguinesti staff",
-    "kodai": "kodai wand",
-    "sotd": "staff of the dead",
-    "tsotd": "toxic staff of the dead",
-    "swamp": "trident of the swamp",
-    "trident": "trident of the seas",
-    "sol": "staff of light",
-    "harm": "harmonised nightmare staff",
-    "harmo": "harmonised nightmare staff",
-    "eldritch": "eldritch nightmare staff",
-    "eld": "eldritch nightmare staff",
-    "voli": "volatile nightmare staff",
-    "volly": "volatile nightmare staff",
-    "volatile": "volatile nightmare staff",
-    "nightmare staff": "nightmare staff",
-    "shadow": "tumeken's shadow",
-    "tumeken": "tumeken's shadow",
-    # === SHIELDS & DEFENDERS ===
-    "dfs": "dragonfire shield",
-    "dfw": "dragonfire ward",
-    "dfward": "dragonfire ward",
-    "aws": "ancient wyvern shield",
-    "ely": "elysian spirit shield",
-    "arcane": "arcane spirit shield",
-    "spec": "spectral spirit shield",
-    "spectral": "spectral spirit shield",
-    "bss": "blessed spirit shield",
-    "bulwark": "dinh's bulwark",
-    "dinhs": "dinh's bulwark",
-    "tbuck": "twisted buckler",
-    "buckler": "twisted buckler",
-    "avernic": "avernic defender",
-    "ddef": "dragon defender",
-    "antid": "anti-dragon shield",
-    "malediction": "malediction ward",
-    "odium": "odium ward",
-    # === HELMETS ===
-    "serp": "serpentine helm",
-    "serpentine": "serpentine helm",
-    "nezzy": "helm of neitiznot",
-    "nez": "helm of neitiznot",
-    "faceguard": "neitiznot faceguard",
-    "fg": "neitiznot faceguard",
-    "dfh": "dragon full helm",
-    "dmed": "dragon med helm",
-    "rmed": "rune med helm",
-    "rmh": "rune med helm",
-    "rfh": "rune full helm",
-    "slayer helm": "slayer helmet",
-    "slay helm": "slayer helmet",
-    # === BODY ARMOR ===
-    "bcp": "bandos chestplate",
-    "acp": "armadyl chestplate",
-    "acs": "armadyl chainskirt",
-    "dplate": "dragon platebody",
-    "rpb": "rune platebody",
-    "ft": "fighter torso",
-    "torso": "fighter torso",
-    "brassy": "verac's brassard",
-    "karils top": "karil's leathertop",
-    "ahrims top": "ahrim's robetop",
-    # === LEG ARMOR ===
-    "tassets": "bandos tassets",
-    "tassys": "bandos tassets",
-    "dlegs": "dragon platelegs",
-    "dskirt": "dragon plateskirt",
-    "vskirt": "verac's plateskirt",
-    "karils skirt": "karil's leatherskirt",
-    "ahrims skirt": "ahrim's robeskirt",
-    # === BOOTS ===
-    "prims": "primordial boots",
-    "primordials": "primordial boots",
-    "pegs": "pegasian boots",
-    "peggies": "pegasian boots",
-    "pegasians": "pegasian boots",
-    "eternals": "eternal boots",
-    "dboots": "dragon boots",
-    "guardian boots": "guardian boots",
-    # === GLOVES ===
-    "bgloves": "barrows gloves",
-    "b gloves": "barrows gloves",
-    "barrows gloves": "barrows gloves",
-    "ferocious": "ferocious gloves",
-    "torm": "tormented bracelet",
-    "tormented": "tormented bracelet",
-    "vambs": "vambraces",
-    "vams": "vambraces",
-    "zvambs": "zaryte vambraces",
-    "zvams": "zaryte vambraces",
-    # === CAPES ===
-    "fcape": "fire cape",
-    "fc": "fire cape",
-    "inf": "infernal cape",
-    "infernal": "infernal cape",
-    "ava": "ava's assembler",
-    "avas": "ava's assembler",
-    "assembler": "ava's assembler",
-    "accumulator": "ava's accumulator",
-    "ma2 cape": "imbued god cape",
-    "god cape": "imbued god cape",
-    "ardy cloak": "ardougne cloak",
-    # === AMULETS & NECKLACES ===
-    "fury": "amulet of fury",
-    "torture": "amulet of torture",
-    "tort": "amulet of torture",
-    "anguish": "necklace of anguish",
-    "ang": "necklace of anguish",
-    "occult": "occult necklace",
-    "occ": "occult necklace",
-    "glory": "amulet of glory",
-    "salve": "salve amulet",
-    "salve e": "salve amulet (e)",
-    "salve ei": "salve amulet (ei)",
-    "pneck": "phoenix necklace",
-    "blood fury": "amulet of blood fury",
-    "bf": "amulet of blood fury",
-    "aotd": "amulet of the damned",
-    "torture orn": "amulet of torture (or)",
-    "anguish orn": "necklace of anguish (or)",
-    # === RINGS ===
-    "suffering": "ring of suffering",
-    "ros": "ring of suffering",
-    "suff": "ring of suffering",
-    "b ring": "berserker ring",
-    "bring": "berserker ring",
-    "bringi": "berserker ring (i)",
-    "row": "ring of wealth",
-    "rol": "ring of life",
-    "rotg": "ring of the gods",
-    "tyrannical": "tyrannical ring",
-    "treasonous": "treasonous ring",
-    "seers ring": "seers ring",
-    "archers ring": "archers ring",
-    "ultor": "ultor ring",
-    "bellator": "bellator ring",
-    "magus": "magus ring",
-    "venator ring": "venator ring",
-    # === ARMOR SETS (prefixes) ===
-    "arma": "armadyl",
-    "bandos": "bandos",
-    "torva": "torva",
-    "ancestral": "ancestral",
-    "inq": "inquisitor",
-    "inquis": "inquisitor",
-    "justi": "justiciar",
-    "justiciar": "justiciar",
-    "dh": "dharok",
-    "dharok": "dharok",
-    "karils": "karil",
-    "ahrims": "ahrim",
-    "guthans": "guthan",
-    "veracs": "verac",
-    "torags": "torag",
-    "void": "void knight",
-    "evoid": "elite void",
-    "prossy": "proselyte",
-    "dhide": "dragonhide",
-    "d hide": "dragonhide",
-    "black dhide": "black dragonhide",
-    "crystal armour": "crystal armour",
-    "masori": "masori",
-    # === PRAYER SCROLLS ===
-    "dex": "dexterous prayer scroll",
-    "dexterous": "dexterous prayer scroll",
-    "augury": "arcane prayer scroll",
-    "rigour": "dexterous prayer scroll",
-    # === POTIONS ===
-    "ppot": "prayer potion",
-    "pray pot": "prayer potion",
-    "super restore": "super restore",
-    "restore": "super restore",
-    "scb": "super combat potion",
-    "super combat": "super combat potion",
-    "ranging pot": "ranging potion",
-    "range pot": "ranging potion",
-    "divine scb": "divine super combat potion",
-    "divine ranging": "divine ranging potion",
-    "sara brew": "saradomin brew",
-    "brew": "saradomin brew",
-    "sanfew": "sanfew serum",
-    "stam": "stamina potion",
-    "stamina": "stamina potion",
-    "antivenom": "anti-venom",
-    "antifire": "antifire potion",
-    "super antifire": "super antifire potion",
-    "extended antifire": "extended antifire",
-    "extended super antifire": "extended super antifire",
-    # === OTHER VALUABLE ITEMS ===
-    "zenny": "zenyte",
-    "zenyte": "zenyte",
-    "dpick": "dragon pickaxe",
-    "d pick": "dragon pickaxe",
-    "daxe": "dragon axe",
-    "d axe": "dragon axe",
-    "dharp": "dragon harpoon",
-    "d harp": "dragon harpoon",
-    "tome": "tome of fire",
-    "tof": "tome of fire",
-    "tome of water": "tome of water",
-    "lightbearer": "lightbearer",
-    "pegcrystal": "pegasian crystal",
-    "primcrystal": "primordial crystal",
-    "eterncrystal": "eternal crystal",
-    "smouldering": "smouldering stone",
-    # === RAIDS ITEMS ===
-    "tob": "theatre of blood",
-    "cox": "chambers of xeric",
-    "toa": "tombs of amascut",
-    "dex scroll": "dexterous prayer scroll",
-    "arcane scroll": "arcane prayer scroll",
-    "ancestral hat": "ancestral hat",
-    "ancestral top": "ancestral robe top",
-    "ancestral bottom": "ancestral robe bottom",
-    "masori mask": "masori mask",
-    "masori body": "masori body",
-    "masori chaps": "masori chaps",
-    "torva helm": "torva full helm",
-    "torva body": "torva platebody",
-    "torva legs": "torva platelegs",
-}
-
-
-def expand_acronym(query: str) -> str:
-    """Expand OSRS acronym to full item name if recognized.
-
-    Args:
-        query: Search query (may be an acronym)
-
-    Returns:
-        Expanded item name if acronym recognized, otherwise original query
-    """
-    return OSRS_ACRONYMS.get(query.lower().strip(), query)
 
 
 # Shorthand aliases for table references used in query building
@@ -664,7 +370,8 @@ class PredictionLoader:
 
         The engine schema does not maintain an authoritative item-name mapping
         table today; the best available source is the predictions table's
-        denormalized `item_name` column.
+        denormalized `item_name` column. If the item has no predictions (for
+        example, newly added items), fall back to the OSRS Wiki mapping API.
 
         Returns:
             Item name if found, otherwise None.
@@ -680,11 +387,11 @@ class PredictionLoader:
 
             if result and result[0]:
                 return str(result[0])
-            return None
+            return self._get_wiki_item_name(item_id)
 
         except Exception as e:
             logger.debug(f"Could not fetch item name for item {item_id}: {e}")
-            return None
+            return self._get_wiki_item_name(item_id)
 
     def get_item_buy_limit(self, item_id: int) -> Optional[int]:
         """Get GE buy limit for an item.
@@ -751,6 +458,27 @@ class PredictionLoader:
         except Exception as e:
             logger.debug(
                 f"Could not fetch buy limit from Wiki API for item {item_id}: {e}"
+            )
+            return None
+
+    def _get_wiki_item_name(self, item_id: int) -> Optional[str]:
+        """Get item name from OSRS Wiki API mapping.
+
+        Args:
+            item_id: OSRS item ID
+
+        Returns:
+            Item name from Wiki mapping, or None if not available.
+        """
+        if not self.config.wiki_api_enabled:
+            return None
+
+        try:
+            wiki_client = get_wiki_api_client()
+            return wiki_client.get_item_name(item_id)
+        except Exception as e:
+            logger.debug(
+                f"Could not fetch item name from Wiki API for item {item_id}: {e}"
             )
             return None
 

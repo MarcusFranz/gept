@@ -1,0 +1,41 @@
+services:
+  engine:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: gept-engine:local
+    container_name: gept-engine-local
+    ports:
+      - "8000:8000"
+    # Uses the same env vars as local dev; see .env.docker.example.
+    environment:
+      DB_CONNECTION_STRING: ${DB_CONNECTION_STRING}
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY}
+
+      # Optional knobs (safe defaults for local runs)
+      TRADE_WEBHOOKS_ENABLED: ${TRADE_WEBHOOKS_ENABLED:-false}
+      PRICE_DROP_MONITOR_ENABLED: ${PRICE_DROP_MONITOR_ENABLED:-false}
+
+      # Required only if TRADE_WEBHOOKS_ENABLED=true or PRICE_DROP_MONITOR_ENABLED=true
+      WEBHOOK_SECRET: ${WEBHOOK_SECRET:-}
+      WEB_APP_WEBHOOK_URL: ${WEB_APP_WEBHOOK_URL:-}
+      WEB_APP_RESYNC_URL: ${WEB_APP_RESYNC_URL:-}
+
+      # Optional caching (set REDIS_URL=redis://redis:6379/0 to enable)
+      REDIS_URL: ${REDIS_URL:-}
+      CACHE_ENABLED: ${CACHE_ENABLED:-true}
+
+      LOG_FORMAT: ${LOG_FORMAT:-text}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    # For Linux hosts, this enables the same host alias that exists by default on Docker Desktop.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: gept-engine-redis
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+
