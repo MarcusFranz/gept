@@ -2150,7 +2150,12 @@ class RecommendationEngine:
 
         return chips[:4]  # Max 4 chips
 
-    def get_all_opportunities(self, use_beta_model: bool = False) -> list[dict]:
+    def get_all_opportunities(
+        self,
+        use_beta_model: bool = False,
+        min_hour_offset: int = 1,
+        max_hour_offset: int = 48,
+    ) -> list[dict]:
         """Get all valid trading opportunities for browsing.
 
         Unlike get_recommendations(), this method:
@@ -2160,6 +2165,8 @@ class RecommendationEngine:
 
         Args:
             use_beta_model: If True, use beta model predictions when available.
+            min_hour_offset: Minimum hour_offset (time horizon) to include.
+            max_hour_offset: Maximum hour_offset (time horizon) to include.
 
         Returns:
             List of opportunity dicts with item details, prices, profits, etc.
@@ -2167,18 +2174,38 @@ class RecommendationEngine:
         # Select loader based on beta model preference
         loader = self._get_loader(use_beta_model)
 
+        # Normalize hour bounds (defensive: callers may pass floats/invalid ints).
+        try:
+            min_hour_offset_int = int(min_hour_offset)
+        except Exception:
+            min_hour_offset_int = 1
+        try:
+            max_hour_offset_int = int(max_hour_offset)
+        except Exception:
+            max_hour_offset_int = 48
+
+        if min_hour_offset_int < 1:
+            min_hour_offset_int = 1
+        if max_hour_offset_int < 1:
+            max_hour_offset_int = 1
+        if max_hour_offset_int > 48:
+            max_hour_offset_int = 48
+        if min_hour_offset_int > 48:
+            min_hour_offset_int = 48
+        if min_hour_offset_int > max_hour_offset_int:
+            return []
+
         # Use generous default thresholds for browsing
         min_fill_prob = 0.1  # Lower threshold since model outputs range 0-0.5
         min_ev = 0.003  # Low EV threshold for broad results
-        max_hour = 48  # Include all time horizons
         candidate_limit = 500  # Get a large pool of candidates
 
         # Fetch predictions from database
         predictions_df = loader.get_best_prediction_per_item(
             min_fill_prob=min_fill_prob,
             min_ev=min_ev,
-            min_hour_offset=1,
-            max_hour_offset=max_hour,
+            min_hour_offset=min_hour_offset_int,
+            max_hour_offset=max_hour_offset_int,
             min_offset_pct=0.0125,
             max_offset_pct=0.0250,
             limit=candidate_limit,

@@ -27,7 +27,7 @@ class TestItemRecommendations:
             import src.api as api_module
 
             # Set the engine before creating client
-            api_module.engine = mock_engine
+            api_module.app.state.runtime.engine = mock_engine
 
             yield TestClient(app), mock_engine
 

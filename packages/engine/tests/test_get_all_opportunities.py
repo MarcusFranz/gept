@@ -78,6 +78,37 @@ class TestGetAllOpportunities:
         assert opportunities == []
         assert isinstance(opportunities, list)
 
+    def test_passes_hour_bounds_to_loader(self):
+        """Verify hour bounds are applied before selecting the best config per item.
+
+        This prevents the API time filter (e.g. <= 24h) from looking empty when
+        the globally "best" config per item is at a longer horizon.
+        """
+        mock_loader = MagicMock()
+        mock_loader.get_best_prediction_per_item.return_value = pd.DataFrame()
+
+        mock_db_connection = "postgresql://test:test@localhost/test"
+        engine = RecommendationEngine(db_connection_string=mock_db_connection)
+        engine.loader = mock_loader
+
+        engine.get_all_opportunities(min_hour_offset=4, max_hour_offset=12)
+
+        _args, kwargs = mock_loader.get_best_prediction_per_item.call_args
+        assert kwargs["min_hour_offset"] == 4
+        assert kwargs["max_hour_offset"] == 12
+
+    def test_invalid_hour_bounds_short_circuit(self):
+        """Verify invalid hour bounds return empty without querying the loader."""
+        mock_loader = MagicMock()
+
+        mock_db_connection = "postgresql://test:test@localhost/test"
+        engine = RecommendationEngine(db_connection_string=mock_db_connection)
+        engine.loader = mock_loader
+
+        opportunities = engine.get_all_opportunities(min_hour_offset=12, max_hour_offset=4)
+        assert opportunities == []
+        mock_loader.get_best_prediction_per_item.assert_not_called()
+
     def test_returns_valid_opportunity_structure(self):
         """Verify opportunity dicts have required fields with correct types."""
         mock_loader = MagicMock()
