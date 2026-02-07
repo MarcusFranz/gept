@@ -11,28 +11,6 @@ const securityHeaders: Record<string, string> = {
 
 const isDev = (import.meta as { env?: { DEV?: boolean } }).env?.DEV ?? process.env.NODE_ENV === 'development';
 
-const createDevSession = () => ({
-  user: {
-    id: 'dev-user',
-    email: 'dev@gept.local',
-    name: 'Dev User',
-    emailVerified: false,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-    image: null,
-  },
-  session: {
-    id: 'dev-session',
-    userId: 'dev-user',
-    expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-    createdAt: new Date(),
-    updatedAt: new Date(),
-    token: 'dev-token',
-    ipAddress: null,
-    userAgent: null,
-  },
-});
-
 const getAuth = async () => {
   try {
     const mod = await import('./lib/auth');
@@ -55,10 +33,8 @@ export const onRequest = defineMiddleware(async (context, next) => {
   } catch {
     session = null;
   }
-
-  if (!session && isDev) {
-    session = createDevSession();
-  }
+  // IMPORTANT: Never create a "dev session" implicitly. If session lookup fails or
+  // auth is misconfigured, we must fail closed (unauthenticated), even in dev.
 
   if (session?.user) {
     context.locals.user = session.user;
