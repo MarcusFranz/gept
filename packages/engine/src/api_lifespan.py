@@ -54,7 +54,12 @@ async def _resync_active_trades() -> None:
         logger.warning("Active trade resync skipped", reason="WEBHOOK_SECRET not configured")
         return
 
-    headers = {"Authorization": f"Bearer {config.webhook_secret}"}
+    headers = {
+        "Authorization": f"Bearer {config.webhook_secret}",
+        # Some WAF/CDN setups strip Authorization headers. Include a fallback header
+        # that the web app can verify.
+        "X-Gept-Webhook-Secret": config.webhook_secret,
+    }
 
     try:
         async with httpx.AsyncClient(timeout=5.0) as client:

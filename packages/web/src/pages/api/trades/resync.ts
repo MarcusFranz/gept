@@ -10,13 +10,19 @@ import { dispatchWebhook, getWebhookSecret } from '../../../lib/webhook';
  * Use after engine restart or when ENGINE_WEBHOOK_URL is first configured.
  *
  * Auth: WEBHOOK_SECRET in Authorization header (internal use only).
+ * Note: Some WAF/CDN setups strip Authorization headers. As a fallback, this
+ * endpoint also accepts `X-Gept-Webhook-Secret: <WEBHOOK_SECRET>`.
  */
 async function handleResync(request: Request): Promise<Response> {
   try {
     const secret = getWebhookSecret();
     const authHeader = request.headers.get('Authorization') || '';
+    const altSecret = request.headers.get('X-Gept-Webhook-Secret') || '';
 
-    if (!secret || authHeader !== `Bearer ${secret}`) {
+    const bearerOk = authHeader === `Bearer ${secret}`;
+    const headerOk = altSecret === secret;
+
+    if (!secret || (!bearerOk && !headerOk)) {
       return new Response(JSON.stringify({
         success: false,
         error: 'Unauthorized'
