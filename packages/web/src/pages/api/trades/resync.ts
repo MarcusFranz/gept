@@ -25,7 +25,14 @@ async function handleResync(request: Request): Promise<Response> {
     if (!secret || (!bearerOk && !headerOk)) {
       return new Response(JSON.stringify({
         success: false,
-        error: 'Unauthorized'
+        error: 'Unauthorized',
+        // Debug-only signals (no secret values) to help diagnose CDN/WAF header stripping
+        // in production. If this endpoint is stable, we can remove later.
+        debug: {
+          secretConfigured: Boolean(secret),
+          authorizationPresent: Boolean(authHeader),
+          xGeptWebhookSecretPresent: Boolean(altSecret),
+        }
       }), {
         status: 401,
         headers: { 'Content-Type': 'application/json' }
