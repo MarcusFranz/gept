@@ -4,6 +4,7 @@
 import asyncio
 import time
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 
 import httpx
 from fastapi import FastAPI
@@ -15,7 +16,7 @@ from .cache import close_cache, init_cache
 from .config import config
 from .logging_config import get_logger
 from .recommendation_engine import RecommendationEngine
-from .trade_events import TradeEventHandler
+from .trade_events import TradeEvent, TradeEventHandler, TradeEventType, TradePayload
 from .trade_price_monitor import TradePriceMonitor
 
 logger = get_logger(__name__)
@@ -40,12 +41,85 @@ async def _crowding_cleanup_loop(app: FastAPI) -> None:
             logger.error("Error in crowding cleanup task", error=str(e))
 
 
-async def _resync_active_trades() -> None:
-    """Trigger a resync of active trades from the web app."""
-    if not config.trade_webhooks_enabled:
-        logger.info("Active trade resync skipped", reason="TRADE_WEBHOOKS_ENABLED=false")
-        return
+def _fetch_active_trades_from_db(db_connection_string: str) -> list[dict]:
+    """Fetch active trades from the web app database.
 
+    This runs in a thread via asyncio.to_thread to avoid blocking the event loop.
+    """
+    engine = create_engine(db_connection_string, pool_pre_ping=True)
+    try:
+        with engine.connect() as conn:
+            rows = (
+                conn.execute(
+                    text(
+                        """
+                        SELECT
+                          id,
+                          user_id,
+                          item_id,
+                          item_name,
+                          buy_price,
+                          sell_price,
+                          quantity,
+                          rec_id,
+                          model_id,
+                          expected_hours,
+                          created_at
+                        FROM active_trades
+                        ORDER BY created_at ASC
+                        """
+                    )
+                )
+                .mappings()
+                .all()
+            )
+            return [dict(r) for r in rows]
+    finally:
+        engine.dispose()
+
+
+async def _resync_active_trades_from_db(trade_event_handler: TradeEventHandler) -> tuple[bool, int]:
+    """Seed active trades by reading directly from the web app database.
+
+    Returns (ok, count). If ok is False, the caller may fall back to web resync.
+    """
+    if not config.active_trades_db_connection_string:
+        return (True, 0)  # Not configured, but not an error
+
+    try:
+        rows = await asyncio.to_thread(
+            _fetch_active_trades_from_db, config.active_trades_db_connection_string
+        )
+    except Exception as e:
+        logger.warning("Active trade resync (db) error", error=str(e))
+        return (False, 0)
+
+    for row in rows:
+        event = TradeEvent(
+            event_type=TradeEventType.TRADE_CREATED,
+            timestamp=datetime.now(timezone.utc),
+            user_id=str(row["user_id"]),
+            trade_id=str(row["id"]),
+            payload=TradePayload(
+                item_id=int(row["item_id"]),
+                item_name=str(row["item_name"]),
+                buy_price=int(row["buy_price"]),
+                sell_price=int(row["sell_price"]),
+                quantity=int(row["quantity"]),
+                rec_id=row.get("rec_id"),
+                model_id=row.get("model_id"),
+                expected_hours=row.get("expected_hours"),
+                created_at=row.get("created_at"),
+            ),
+        )
+        await trade_event_handler.handle_event(event)
+
+    logger.info("Active trade resync (db) completed", seeded=len(rows))
+    return (True, len(rows))
+
+
+async def _resync_active_trades_from_web_app() -> None:
+    """Trigger a resync of active trades from the web app."""
     if not config.web_app_resync_url:
         logger.info("Active trade resync skipped", reason="WEB_APP_RESYNC_URL not configured")
         return
@@ -84,6 +158,32 @@ async def _resync_active_trades() -> None:
         logger.warning("Active trade resync failed", status_code=response.status_code)
     except Exception as e:
         logger.warning("Active trade resync error", error=str(e))
+
+
+async def _resync_active_trades(trade_event_handler: TradeEventHandler) -> None:
+    """Resync active trades after engine restart.
+
+    Prefers direct DB access (when configured) and falls back to web app resync.
+    """
+    if not (config.trade_webhooks_enabled or config.price_drop_monitor_enabled):
+        logger.info(
+            "Active trade resync skipped",
+            reason="TRADE_WEBHOOKS_ENABLED=false and PRICE_DROP_MONITOR_ENABLED=false",
+        )
+        return
+
+    ok, seeded = await _resync_active_trades_from_db(trade_event_handler)
+    if ok:
+        # If DB resync is configured and succeeds (even with zero rows), it is the
+        # source of truth and avoids WAF/CDN issues with the web endpoint.
+        if config.active_trades_db_connection_string:
+            return
+
+        # Not configured; fall through to web resync
+        return await _resync_active_trades_from_web_app()
+
+    # DB failed; try web resync as a fallback
+    await _resync_active_trades_from_web_app()
 
 
 @asynccontextmanager
@@ -125,11 +225,8 @@ async def lifespan(app: FastAPI):
     )
     logger.info("Trade event handler initialized")
 
-    if config.trade_webhooks_enabled:
-        # Resync active trades after engine restart
-        await _resync_active_trades()
-    else:
-        logger.warning("Trade webhooks disabled", reason="TRADE_WEBHOOKS_ENABLED=false")
+    # Resync active trades after engine restart (needed for price monitoring after deploy/restart)
+    await _resync_active_trades(state.trade_event_handler)
 
     if config.price_drop_monitor_enabled:
         # Initialize alert dispatcher for price monitoring

@@ -27,6 +27,13 @@ class Config:
         default_factory=lambda: int(environ.get("OUTCOME_DB_POOL_SIZE", "5"))
     )
 
+    # Active Trades Database (optional) - connects to the web app database (Neon/Postgres)
+    # If set, the engine will load active trades directly on startup to seed the in-memory
+    # trade monitor, avoiding dependency on web resync endpoints (which may be blocked by WAF/CDN).
+    active_trades_db_connection_string: str = field(
+        default_factory=lambda: environ.get("ACTIVE_TRADES_DB_CONNECTION_STRING", "")
+    )
+
     # Thresholds
     min_ev_threshold: float = field(
         default_factory=lambda: float(environ.get("MIN_EV_THRESHOLD", "0.005"))
