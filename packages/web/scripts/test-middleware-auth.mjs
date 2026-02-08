@@ -172,6 +172,51 @@ async function main() {
     const json = await res.json().catch(() => null);
     assert(json && json.success === true, 'expected {success:true} from alerts webhook');
   }
+
+  // 4) Trades resync endpoint: should not be blocked by middleware, and should
+  // accept auth via the fallback header even if Authorization is stripped.
+  {
+    const builtResyncPath = path.resolve(
+      here,
+      '..',
+      '.vercel',
+      'output',
+      'functions',
+      '_render.func',
+      'packages',
+      'web',
+      'dist',
+      'server',
+      'pages',
+      'api',
+      'trades',
+      'resync.astro.mjs'
+    );
+
+    const mod = await import(pathToFileURL(builtResyncPath).href);
+    assert(typeof mod.page === 'function', 'expected built resync route to export page()');
+    const route = mod.page();
+    const GET = route.GET;
+    assert(typeof GET === 'function', 'expected built resync route to expose GET');
+
+    // No auth should fail closed.
+    {
+      const req = new Request('http://example.test/api/trades/resync', { method: 'GET' });
+      const res = await GET({ request: req });
+      assert(res.status === 401, `expected 401 from resync without auth, got ${res.status}`);
+    }
+
+    // Fallback header should pass auth. The handler will likely 500 in this test
+    // environment because DATABASE_URL isn't set; we only assert it's not 401.
+    {
+      const req = new Request('http://example.test/api/trades/resync', {
+        method: 'GET',
+        headers: { 'X-Gept-Webhook-Secret': process.env.WEBHOOK_SECRET },
+      });
+      const res = await GET({ request: req });
+      assert(res.status !== 401, `expected resync auth to pass via X-Gept-Webhook-Secret, got ${res.status}`);
+    }
+  }
 }
 
 main().catch((e) => {
