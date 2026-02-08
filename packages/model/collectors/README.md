@@ -34,7 +34,7 @@ OSRS Wiki API → Docker Collectors → PostgreSQL/TimescaleDB → ML Pipeline
 
 1. **Configure Environment**:
    ```bash
-   # Create .env with database credentials
+   # Create .env with database credentials (do not commit this file)
    cat <<'EOF' > .env
    DB_HOST=localhost
    DB_PORT=5432
@@ -63,6 +63,9 @@ OSRS Wiki API → Docker Collectors → PostgreSQL/TimescaleDB → ML Pipeline
 - **Dashboard**: http://localhost:8080
 - **Prometheus Metrics**: Ports 9100-9103
 - **Logs**: `docker-compose logs -f [service-name]`
+
+Tip: use `docker compose` (v2) if `docker-compose` isn't available on your
+system.
 
 ## Service Details
 
@@ -394,6 +397,7 @@ SELECT * FROM timescaledb_information.compressed_chunk_stats;
 - Verify PostgreSQL is running: `systemctl status postgresql`
 - Check connection: `psql -h localhost -U osrs_user osrs_data`
 - Docker networking: Use `host.docker.internal` for localhost from containers
+  (or set `DB_HOST=host.docker.internal` in `.env` on macOS/Windows)
 
 **Problem**: Disk full
 
@@ -568,7 +572,11 @@ Before deploying to production:
 
 **Logs Location**: `docker-compose logs`
 
-**Monitoring**: `http://$AMPERE_IP:8080` (dashboard, see `config/servers.env` for IP)
+**Monitoring**: Dashboard URL is intentionally redacted. Request it via a
+secure channel if you need access.
+
+Note: `config/servers.env` contains sensitive host details. Keep it out of
+commits and share via a secure channel.
 
 ## License
 

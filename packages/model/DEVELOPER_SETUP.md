@@ -13,7 +13,8 @@ cd gept-foundations
 cp .env.example .env
 ```
 
-Edit `.env` with the actual credentials (request via a secure channel):
+Edit `.env` with the actual credentials (request via a secure channel). Avoid
+committing any secrets or personal data.
 ```bash
 DB_HOST=localhost
 DB_PORT=5432
@@ -108,6 +109,9 @@ source .env
 export $(cat .env | xargs)
 ```
 
+Note: if your `.env` has values with spaces, prefer `set -a; source .env; set +a`
+to avoid truncation.
+
 ### Run Inference
 ```bash
 source .env
@@ -142,7 +146,7 @@ source .env
 ### "Connection refused on port 5432"
 SSH tunnel not running:
 ```bash
-ssh -i .secrets/oracle_key.pem -L 5432:localhost:5432 ubuntu@<server_ip> -N &
+ssh -i <ssh_key_path> -L 5432:localhost:5432 <ssh_user>@<host> -N &
 ```
 
 ### Missing SSH key

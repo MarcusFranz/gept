@@ -43,7 +43,7 @@ The engine reads pre-computed fill probability predictions from the `predictions
 ### Installation
 
 ```bash
-cd gept-engine
+cd packages/engine
 
 # Create virtual environment
 python -m venv venv
@@ -51,6 +51,15 @@ source venv/bin/activate
 
 # Install dependencies
 pip install -r requirements.txt
+```
+
+### Environment
+
+Create a local env file and set your API key and DB connection string:
+
+```bash
+cp .env.example .env
+# Then edit .env to set INTERNAL_API_KEY and DB_CONNECTION_STRING
 ```
 
 ### Database Connection
@@ -62,6 +71,12 @@ ssh -i <ssh_key>.pem -L 5432:localhost:5432 <user>@<host>
 ```
 
 Keep this running in a separate terminal.
+
+Point the app at the tunneled database (from `packages/engine`):
+
+```bash
+export DB_CONNECTION_STRING="postgresql://user:password@localhost:5432/osrs_data"
+```
 
 ### Running
 
@@ -90,7 +105,8 @@ Then open `http://localhost:8000/docs` or hit `http://localhost:8000/healthz`.
 ### Verify Connection
 
 ```bash
-curl http://localhost:8000/api/v1/health
+export INTERNAL_API_KEY=replace-with-random-token
+curl -H "X-API-Key: $INTERNAL_API_KEY" http://localhost:8000/api/v1/health
 ```
 
 ## API Endpoints
@@ -164,7 +180,10 @@ curl "http://localhost:8000/api/v1/recommendations?style=active&capital=10000000
 
 ## Authentication
 
-All API endpoints require the `X-API-Key` header. Example:
+All API endpoints require the `X-API-Key` header. For local dev, set
+`INTERNAL_API_KEY` in `.env` and load it before running requests.
+
+Example:
 
 ```bash
 curl -H "X-API-Key: $INTERNAL_API_KEY" http://localhost:8000/api/v1/health

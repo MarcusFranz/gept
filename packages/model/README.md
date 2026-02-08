@@ -11,6 +11,7 @@ Inference engine and data collectors for the GePT Grand Exchange prediction syst
 ## Running Inference
 
 ```bash
+# From packages/model
 # Dry run (no database writes)
 python run_inference.py --dry-run
 
@@ -29,13 +30,14 @@ For full environment setup (database tunnel, env vars, dependencies), see `DEVEL
 See `collectors/` for Docker-based collection services. Deploy with:
 
 ```bash
+# From packages/model
 ./deploy_collectors.sh
 ```
 
 ## Deployment
 
 ```bash
-# From repo root
+# From packages/model
 ./deploy-ampere.sh           # Full deploy
 ./deploy-ampere.sh --quick   # Skip dependency install
 ./deploy-ampere.sh --status  # Check current state

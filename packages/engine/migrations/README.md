@@ -10,6 +10,7 @@ Migrations should be applied manually using `psql` or your preferred PostgreSQL 
 
 ```bash
 # Connect to the database
+# (if you're using a tunnel, HOST is usually localhost)
 psql postgresql://[USER]:[PASS]@[HOST]:5432/gept
 
 # Apply a migration
@@ -19,6 +20,7 @@ psql postgresql://[USER]:[PASS]@[HOST]:5432/gept
 You can also use the engine's `DB_CONNECTION_STRING` environment variable:
 
 ```bash
+export DB_CONNECTION_STRING="postgresql://user:password@localhost:5432/gept"
 psql "$DB_CONNECTION_STRING" -f migrations/001_create_trade_outcomes_table.sql
 ```
 
