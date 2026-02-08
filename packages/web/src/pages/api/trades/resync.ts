@@ -30,8 +30,13 @@ async function handleResync(request: Request): Promise<Response> {
         // in production. If this endpoint is stable, we can remove later.
         debug: {
           secretConfigured: Boolean(secret),
+          secretLen: secret.length,
           authorizationPresent: Boolean(authHeader),
+          authorizationLen: authHeader.length,
           xGeptWebhookSecretPresent: Boolean(altSecret),
+          xGeptWebhookSecretLen: altSecret.length,
+          bearerOk,
+          headerOk,
         }
       }), {
         status: 401,
