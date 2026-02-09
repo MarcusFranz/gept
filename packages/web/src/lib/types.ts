@@ -146,6 +146,11 @@ export interface UpdateCheckResponse {
 // Toast notification types
 export interface Toast {
   id: string;
+  /**
+   * Optional dedupe key. If provided, adding a new toast with the same key
+   * should replace/update the existing toast instead of stacking duplicates.
+   */
+  key?: string;
   type: 'info' | 'success' | 'warning' | 'error';
   title: string;
   message: string;

@@ -64,10 +64,23 @@ export function HomePage(props: HomePageProps) {
       if (!res.ok) throw new Error('Failed to update sell price');
       dismissAlert(tradeId);
       await handleTradeAdded();
-      addToast({ type: 'success', title: 'Sell price updated', message: `Revised to ${newSellPrice.toLocaleString()} gp` });
+      // Don't stack toasts if the user is iterating on price quickly.
+      addToast({
+        key: `trade:${tradeId}:sell-price-updated`,
+        type: 'success',
+        title: 'Sell price updated',
+        message: `Revised to ${newSellPrice.toLocaleString()} gp`,
+        duration: 3200,
+      });
     } catch (err) {
       console.error('Failed to accept alert:', err);
-      addToast({ type: 'error', title: 'Update failed', message: 'Could not update sell price' });
+      addToast({
+        key: `trade:${tradeId}:sell-price-update-failed`,
+        type: 'error',
+        title: 'Update failed',
+        message: 'Could not update sell price',
+        duration: 6500,
+      });
     }
   };
 

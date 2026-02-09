@@ -5,36 +5,103 @@ import './ToastContainer.css';
 
 // Module-level signals for toast state (shared across components)
 const [toasts, setToasts] = createSignal<Toast[]>([]);
+const toastTimeouts = new Map<string, ReturnType<typeof setTimeout>>();
+
+const DEFAULT_DURATION_MS: Record<Toast['type'], number | undefined> = {
+  success: 3200,
+  info: 4200,
+  warning: 6500,
+  error: undefined, // keep errors sticky unless caller opts in
+};
+
+const MAX_TOASTS = 4;
 
 // Export functions for adding/removing toasts
 export function addToast(toast: Omit<Toast, 'id' | 'createdAt'>): string {
-  const id = generateId();
-  const newToast: Toast = {
-    ...toast,
-    id,
-    createdAt: Date.now()
-  };
+  const duration = toast.duration ?? DEFAULT_DURATION_MS[toast.type];
 
-  setToasts(prev => [...prev, newToast]);
+  let id = generateId();
 
-  // Auto-dismiss if duration is set
-  if (toast.duration) {
-    setTimeout(() => removeToast(id), toast.duration);
+  setToasts(prev => {
+    // Replace existing toast with same key rather than stacking.
+    if (toast.key) {
+      const existingIdx = prev.findIndex(t => t.key === toast.key);
+      if (existingIdx !== -1) {
+        const existing = prev[existingIdx];
+        id = existing.id;
+        const next = [...prev];
+        next[existingIdx] = {
+          ...existing,
+          ...toast,
+          id: existing.id,
+          createdAt: Date.now(),
+        };
+        return next;
+      }
+    }
+
+    const nextToast: Toast = {
+      ...toast,
+      id,
+      createdAt: Date.now(),
+    };
+
+    const next = [...prev, nextToast];
+
+    // Cap stack size to avoid "toast tower" during rapid actions.
+    if (next.length > MAX_TOASTS) {
+      const overflow = next.length - MAX_TOASTS;
+      const toDrop = next.slice(0, overflow);
+      // Clear any timers for dropped toasts.
+      for (const t of toDrop) {
+        const timer = toastTimeouts.get(t.id);
+        if (timer) clearTimeout(timer);
+        toastTimeouts.delete(t.id);
+      }
+      return next.slice(overflow);
+    }
+
+    return next;
+  });
+
+  // (Re)schedule auto-dismiss.
+  const existingTimer = toastTimeouts.get(id);
+  if (existingTimer) {
+    clearTimeout(existingTimer);
+    toastTimeouts.delete(id);
+  }
+
+  if (typeof duration === 'number' && duration > 0) {
+    toastTimeouts.set(
+      id,
+      setTimeout(() => removeToast(id), duration)
+    );
   }
 
   return id;
 }
 
 export function removeToast(id: string) {
+  const timer = toastTimeouts.get(id);
+  if (timer) clearTimeout(timer);
+  toastTimeouts.delete(id);
   setToasts(prev => prev.filter(t => t.id !== id));
 }
 
 export function clearAllToasts() {
+  for (const timer of toastTimeouts.values()) clearTimeout(timer);
+  toastTimeouts.clear();
   setToasts([]);
 }
 
 // Toast Container component
 export default function ToastContainer() {
+  onCleanup(() => {
+    // If this component ever unmounts, ensure we don't leak timers.
+    for (const timer of toastTimeouts.values()) clearTimeout(timer);
+    toastTimeouts.clear();
+  });
+
   return (
     <div class="toast-container">
       <For each={toasts()}>

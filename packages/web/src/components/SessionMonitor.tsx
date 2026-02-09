@@ -28,9 +28,12 @@ function handleSessionExpired() {
   }
 
   addToast({
+    key: 'session-expired',
     type: 'warning',
     title: 'Session Expired',
     message: 'Your session has expired. Please sign in again.',
+    // Match the auto-redirect window so this doesn't linger indefinitely.
+    duration: 5500,
     action: {
       label: 'Sign In',
       onClick: () => {
