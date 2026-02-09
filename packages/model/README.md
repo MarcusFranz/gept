@@ -47,6 +47,18 @@ See `collectors/` for Docker-based collection services. Deploy with:
 - PostgreSQL with TimescaleDB
 - PatchTST model checkpoint in `models/patchtst/` directory
 
+## Environment Variables
+
+`DB_PASS` is required for any database access; the rest have safe defaults.
+
+```bash
+export DB_PASS=replace-with-secure-password
+export DB_HOST=localhost
+export DB_PORT=5432
+export DB_NAME=osrs_data
+export DB_USER=osrs_user
+```
+
 ## License
 
 Private - All rights reserved

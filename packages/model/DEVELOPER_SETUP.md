@@ -23,6 +23,11 @@ DB_PASS=<secure_value>
 GRAFANA_PASSWORD=<secure_value>
 ```
 
+Keep `.env` local only (it is gitignored). If you share a machine, lock it down:
+```bash
+chmod 600 .env
+```
+
 ### 3. SSH Tunnel to Database
 The database runs on a remote server. To connect locally:
 ```bash
@@ -30,6 +35,10 @@ ssh -i <ssh_key_path> -L 5432:localhost:5432 <ssh_user>@<host> -N &
 ```
 
 You'll need the SSH key file from the repository maintainer.
+To stop the background tunnel later:
+```bash
+pkill -f "ssh -i .* -L 5432:localhost:5432"
+```
 
 ### 4. Install Python Dependencies
 ```bash
