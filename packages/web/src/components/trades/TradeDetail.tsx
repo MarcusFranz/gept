@@ -123,6 +123,10 @@ export function TradeDetail(props: TradeDetailProps) {
   // Use getter functions for reactive prop access
   const actualBuy = () => props.trade.actualBuyPrice || props.trade.buyPrice;
   const actualSell = () => props.trade.actualSellPrice || props.trade.sellPrice;
+  const hasPriceAlert = () =>
+    props.alert?.type === 'ADJUST_PRICE' ||
+    props.alert?.type === 'SELL_NOW' ||
+    props.alert?.type === 'HOLD';
   const suggestedDir = () => {
     const suggested = props.trade.suggestedSellPrice;
     if (suggested == null) return 'neutral' as const;
@@ -163,7 +167,10 @@ export function TradeDetail(props: TradeDetailProps) {
         <div class="price-box sell-price">
           <span class="price-label">Sell at</span>
           <Show
-            when={props.trade.suggestedSellPrice}
+            // Avoid rendering two separate "price alert" UIs at once:
+            // - When an active alert exists, the AlertBanner already shows the suggested price.
+            // - When the alert is dismissed, we still want the stored suggestion to be visible.
+            when={props.trade.suggestedSellPrice && !hasPriceAlert()}
             fallback={<span class="price-value">{formatExactGold(actualSell())}</span>}
           >
             <span class="price-value price-strikethrough">{formatExactGold(actualSell())}</span>

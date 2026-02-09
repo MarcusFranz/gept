@@ -95,6 +95,14 @@ export const GET: APIRoute = async ({ locals }) => {
     // producing updates.
     const evaluated = await Promise.all(sellTrades.map(async (trade) => {
       try {
+        // If the user just revised their sell price, don't immediately re-issue
+        // another "revise price" alert from this polling endpoint.
+        const ackKey = cacheKey(KEY.SSE, 'priceAlertAck', trade.id);
+        const ack = await cache.get<{ sellPrice?: number }>(ackKey);
+        if (ack && typeof ack.sellPrice === 'number' && ack.sellPrice === trade.sell_price) {
+          return null;
+        }
+
         const timeElapsedMinutes = getTimeElapsedMinutes(trade.created_at);
         const engineRes = await fetch(
           `${PREDICTION_API}/api/v1/recommendations/update`,

@@ -162,6 +162,8 @@ export const PATCH: APIRoute = async ({ params, request, locals }) => {
     const body = await request.json();
     const { quantity, sellPrice } = body;
 
+    const previousSellPrice = trade.sell_price;
+
     if (isDevUser) {
       if (quantity !== undefined) {
         updateMockTradeQuantity(tradeId, quantity);
@@ -185,6 +187,23 @@ export const PATCH: APIRoute = async ({ params, request, locals }) => {
     // Otherwise the UI can immediately re-show the same "Revise price" alert
     // for up to TTL.RECOMMENDATIONS even after the trade has been patched.
     cache.del(cacheKey(KEY.SSE, 'updates', userId)).catch(() => {});
+
+    // If the user just revised their sell price, suppress immediate re-alerts from
+    // the polling-based updates endpoint. (The engine monitor has its own cooldown,
+    // but the web polling path can otherwise fire again within ~15-30s.)
+    if (
+      sellPrice !== undefined
+      && typeof sellPrice === 'number'
+      && sellPrice > 0
+      && sellPrice !== previousSellPrice
+    ) {
+      const ackKey = cacheKey(KEY.SSE, 'priceAlertAck', tradeId);
+      cache.set(
+        ackKey,
+        { sellPrice, at: new Date().toISOString() },
+        10 * 60, // 10 minutes
+      ).catch(() => {});
+    }
 
     // Dispatch webhook to ML engine (fire-and-forget)
     if (updated && !isDevUser) {
