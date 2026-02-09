@@ -63,6 +63,13 @@ class Config:
         default_factory=lambda: int(environ.get("PREDICTION_STALE_SECONDS", "300"))
     )
 
+    # Maximum hour_offset horizon to consider across the engine.
+    # We intentionally cap this below 48h because long-horizon predictions have
+    # historically been less reliable and can lead to over-holding risk.
+    max_hour_offset: int = field(
+        default_factory=lambda: int(environ.get("MAX_HOUR_OFFSET", "24"))
+    )
+
     # Minimum 24-hour volume threshold for item recommendations
     # Volume = total quantity traded (not number of trades)
     # Items with volume below this are excluded (prevents illiquid item recommendations)

@@ -48,6 +48,8 @@ async def evaluate_active_order(
             user_id=body.user_id,
             use_beta_model=body.use_beta_model,
             model_id=body.model_id,
+            buy_price=body.buy_price,
+            expected_hours=body.expected_hours,
         )
 
         recommendations = OrderRecommendations(

@@ -17,6 +17,9 @@ if TYPE_CHECKING:
     from .prediction_loader import PredictionLoader
     from .recommendation_engine import RecommendationEngine
 
+from .config import Config
+from .tax_calculator import calculate_flip_profit
+
 logger = logging.getLogger(__name__)
 
 
@@ -56,6 +59,25 @@ class OrderAdvisor:
         self.engine = engine
         self.use_beta_model = use_beta_model
 
+    def _get_max_hour_offset(self) -> int:
+        """Read max_hour_offset from the loader's config, with safe defaults.
+
+        In production, PredictionLoader carries a real Config object. In tests, we
+        often pass a MagicMock loader; reading mock.config.max_hour_offset can
+        silently coerce to 1 via MagicMock.__int__, unintentionally clamping the
+        horizon and changing decision logic.
+        """
+        cfg = getattr(self.loader, "config", None)
+        if isinstance(cfg, Config):
+            raw = getattr(cfg, "max_hour_offset", 24)
+        else:
+            raw = 24
+        try:
+            val = int(raw)
+        except Exception:
+            val = 24
+        return max(1, min(val, 24))
+
     def evaluate_order(
         self,
         item_id: int,
@@ -64,6 +86,8 @@ class OrderAdvisor:
         quantity: int,
         time_elapsed_minutes: int,
         user_id: Optional[str] = None,
+        buy_price: Optional[int] = None,
+        expected_hours: Optional[int] = None,
     ) -> dict:
         """Evaluate an active order and recommend action.
 
@@ -88,7 +112,13 @@ class OrderAdvisor:
 
         # Get predictions for this item
         predictions_df = self.loader.get_predictions_for_item(item_id)
+        # Cap horizon to reduce long-horizon risk (and to match product expectations).
+        max_hour_offset = self._get_max_hour_offset()
+
         has_predictions = not predictions_df.empty
+        if has_predictions and "hour_offset" in predictions_df.columns:
+            predictions_df = predictions_df[predictions_df["hour_offset"] <= max_hour_offset]
+            has_predictions = not predictions_df.empty
 
         # Get item name from predictions if present; fall back to Wiki mapping.
         item_name: Optional[str] = None
@@ -113,8 +143,28 @@ class OrderAdvisor:
             user_price, order_type, current_high, current_low
         )
 
-        # Estimate predicted window from predictions
-        predicted_window_hours = self._get_typical_hour_window(predictions_df)
+        # Predicted window:
+        # - If the trade has an explicit expected duration, use that (clamped).
+        # - Otherwise infer a typical hour window from the model grid.
+        predicted_window_hours = None
+        if expected_hours is not None:
+            try:
+                predicted_window_hours = int(expected_hours)
+            except Exception:
+                predicted_window_hours = None
+        if predicted_window_hours is None:
+            predicted_window_hours = self._get_typical_hour_window(predictions_df)
+        predicted_window_hours = max(1, min(int(predicted_window_hours), max_hour_offset))
+
+        remaining_hours: Optional[int] = None
+        if expected_hours is not None:
+            try:
+                remaining = float(expected_hours) - (float(time_elapsed_minutes) / 60.0)
+                remaining_hours = max(1, int(math.ceil(remaining)))
+            except Exception:
+                remaining_hours = None
+        if remaining_hours is not None:
+            remaining_hours = max(1, min(int(remaining_hours), max_hour_offset))
 
         # Build all recommendation options
         recommendations = self._build_recommendations(
@@ -131,6 +181,8 @@ class OrderAdvisor:
             price_moved_favorably=moved_favorably,
             time_elapsed_minutes=time_elapsed_minutes,
             predicted_window_hours=predicted_window_hours,
+            buy_price=buy_price,
+            remaining_hours=remaining_hours,
         )
 
         # Determine recommended action
@@ -180,6 +232,21 @@ class OrderAdvisor:
             action = "wait"
         if action == "liquidate" and not recommendations.get("liquidate"):
             action = "wait"
+
+        # Never recommend a loss on sells: if liquidation would realize a loss
+        # relative to buy_price, prefer waiting.
+        if (
+            action == "liquidate"
+            and order_type == "sell"
+            and buy_price is not None
+            and recommendations.get("liquidate")
+        ):
+            try:
+                instant = int(recommendations["liquidate"]["instant_price"])
+                if calculate_flip_profit(int(buy_price), instant, int(quantity)) < 0:
+                    action = "wait"
+            except Exception:
+                action = "wait"
 
         return {
             "action": action,
@@ -317,8 +384,31 @@ class OrderAdvisor:
         if reasonable.empty:
             reasonable = predictions_df
 
-        # Return median hour offset
-        return int(reasonable["hour_offset"].median())
+        # Return median hour offset (clamped to our supported max).
+        try:
+            median = int(reasonable["hour_offset"].median())
+        except Exception:
+            median = self.DEFAULT_HOUR_WINDOW
+        max_hour_offset = self._get_max_hour_offset()
+        return max(1, min(median, max_hour_offset))
+
+    def _min_profitable_sell_price(self, buy_price: int, qty: int) -> int:
+        """Small helper to find the minimum sell price that is break-even after GE tax."""
+        buy_price_i = max(1, int(buy_price))
+        qty_i = max(1, int(qty))
+
+        low = buy_price_i
+        # Upper bound: tax is capped at 5,000,000 per item, so buy+5m is always enough.
+        high = buy_price_i + 5_000_000 + 10
+
+        # Binary search for smallest sell where profit >= 0.
+        while low < high:
+            mid = (low + high) // 2
+            if calculate_flip_profit(buy_price_i, mid, qty_i) >= 0:
+                high = mid
+            else:
+                low = mid + 1
+        return low
 
     def _build_recommendations(
         self,
@@ -335,6 +425,8 @@ class OrderAdvisor:
         price_moved_favorably: bool,
         time_elapsed_minutes: int,
         predicted_window_hours: int,
+        buy_price: Optional[int] = None,
+        remaining_hours: Optional[int] = None,
     ) -> dict:
         """Build all recommendation options."""
         recommendations = {}
@@ -352,6 +444,8 @@ class OrderAdvisor:
             price_moved_favorably=price_moved_favorably,
             time_elapsed_minutes=time_elapsed_minutes,
             predicted_window_hours=predicted_window_hours,
+            buy_price=buy_price,
+            remaining_hours=remaining_hours,
         )
         if adjust:
             recommendations["adjust_price"] = adjust
@@ -403,6 +497,8 @@ class OrderAdvisor:
         price_moved_favorably: bool,
         time_elapsed_minutes: int,
         predicted_window_hours: int,
+        buy_price: Optional[int] = None,
+        remaining_hours: Optional[int] = None,
     ) -> Optional[dict]:
         """Calculate suggested price adjustment to achieve target fill probability."""
         # Dynamic target fill probability: in a downturn (or when price moved
@@ -484,20 +580,50 @@ class OrderAdvisor:
                 "cost_difference": cost_diff,
             }
 
-        # Find offset that achieves target fill prob (vectorized)
-        # Filter to rows meeting target fill probability
-        viable = predictions_df[predictions_df["fill_probability"] >= target_fill_prob]
+        # Pick target offset from model grid, respecting the trade's remaining window.
+        # We prefer finishing within the remaining expected time, but if that would
+        # require selling at a loss, we allow extending up to max_hour_offset.
+        max_hour_offset = self._get_max_hour_offset()
 
-        if not viable.empty:
-            # Get row with minimum offset_pct among viable candidates
-            min_idx = viable["offset_pct"].idxmin()
-            target_offset = viable.loc[min_idx, "offset_pct"]
-            target_prob = viable.loc[min_idx, "fill_probability"]
-        else:
-            # Use best available (highest fill probability)
-            best_idx = predictions_df["fill_probability"].idxmax()
-            target_offset = predictions_df.loc[best_idx, "offset_pct"]
-            target_prob = predictions_df.loc[best_idx, "fill_probability"]
+        schedule_cap = remaining_hours if remaining_hours is not None else predicted_window_hours
+        schedule_cap = max(1, min(int(schedule_cap), max_hour_offset))
+
+        def _pick_offset(df):
+            if df is None or bool(getattr(df, "empty", True)):
+                return None
+            cand = df[df["fill_probability"] >= target_fill_prob]
+            if cand.empty:
+                # If nothing meets the target fill probability, fall back to the
+                # most fill-friendly config we have within the window.
+                #
+                # This matters most on sells during downturns: we still want to
+                # recommend a proactive adjustment (often at-market) even when
+                # the model doesn't offer an 80%+ fill option in the grid.
+                cand = df
+            if order_type == "sell" and buy_price is not None and "sell_price" in cand.columns:
+                # Filter out candidates that would realize a loss after tax.
+                try:
+                    min_profitable = self._min_profitable_sell_price(int(buy_price), int(quantity))
+                    cand = cand[cand["sell_price"] >= float(min_profitable)]
+                except Exception:
+                    pass
+                if cand.empty:
+                    return None
+            # Choose the most fillable config available within the window.
+            # - Prefer higher fill_probability first.
+            # - Then prefer longer horizon (still within cap).
+            # - Then prefer narrower margin (lower offset_pct) to avoid stuck exits.
+            row = cand.sort_values(
+                ["fill_probability", "hour_offset", "offset_pct"],
+                ascending=[False, False, True],
+            ).iloc[0]
+            return row.get("offset_pct")
+
+        target_offset = _pick_offset(predictions_df[predictions_df["hour_offset"] <= schedule_cap])
+        if target_offset is None:
+            target_offset = _pick_offset(predictions_df[predictions_df["hour_offset"] <= max_hour_offset])
+        if target_offset is None:
+            return None
 
         try:
             target_offset_f = float(target_offset)
@@ -521,6 +647,21 @@ class OrderAdvisor:
             suggested = max(suggested, int(current_low))
         if suggested <= 0 or suggested == user_price:
             return None
+
+        # Enforce no-loss rule for sell orders when buy_price is known.
+        if order_type == "sell" and buy_price is not None:
+            try:
+                min_profitable = self._min_profitable_sell_price(int(buy_price), int(quantity))
+                if suggested < min_profitable:
+                    suggested = min_profitable
+            except Exception:
+                return None
+            if suggested <= 0 or suggested == user_price:
+                return None
+            # If the minimum profitable price is above the user's current ask,
+            # we can't improve execution without increasing price.
+            if suggested > user_price:
+                return None
 
         # Calculate cost difference
         cost_diff = abs(suggested - user_price) * quantity

@@ -196,8 +196,8 @@ async def get_recommendations_get(
     max_hour_offset: Optional[int] = Query(
         default=None,
         ge=1,
-        le=48,
-        description="Maximum time horizon in hours (1-48, overrides style default)",
+        le=24,
+        description="Maximum time horizon in hours (1-24, overrides style default)",
     ),
     min_ev: Optional[float] = Query(
         default=None,
@@ -302,11 +302,11 @@ async def browse_opportunities(
     start_time = time.monotonic()
     try:
         min_hour_offset = 1
-        max_hour_offset = 48
+        max_hour_offset = 24
         if filters.min_hours is not None:
-            min_hour_offset = max(1, min(48, math.ceil(filters.min_hours)))
+            min_hour_offset = max(1, min(24, math.ceil(filters.min_hours)))
         if filters.max_hours is not None:
-            max_hour_offset = max(1, min(48, math.floor(filters.max_hours)))
+            max_hour_offset = max(1, min(24, math.floor(filters.max_hours)))
         if min_hour_offset > max_hour_offset:
             return OpportunitiesListResponse(items=[], total=0, has_more=False)
 

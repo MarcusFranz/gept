@@ -419,6 +419,16 @@ class OrderUpdateRequest(BaseModel):
     quantity: int = Field(ge=1, description="Order quantity")
     time_elapsed_minutes: int = Field(ge=0, description="Minutes since order placed")
     user_id: Optional[str] = Field(default=None, description="Hashed user ID (SHA256)")
+    buy_price: Optional[int] = Field(
+        default=None,
+        ge=1,
+        description="Per-item buy price for this trade (used to avoid recommending a loss on sells)",
+    )
+    expected_hours: Optional[int] = Field(
+        default=None,
+        ge=1,
+        description="Expected total trade duration in hours (used to keep the recommendation aligned with the original timeframe)",
+    )
     # Optional model selection
     use_beta_model: bool = Field(
         default=False,
