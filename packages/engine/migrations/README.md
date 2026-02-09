@@ -31,6 +31,10 @@ psql postgresql://[USER]:[PASS]@[HOST]:5432/gept -f migrations/001_create_trade_
 ## Migration Files
 
 - `001_create_trade_outcomes_table.sql` - Creates the `trade_outcomes` table for storing user-reported trade results
+- `002_create_model_registry_table.sql` - Creates the `model_registry` table for tracking model runs/status
+- `003_create_recommendation_feedback_table.sql` - Creates the `recommendation_feedback` table for structured feedback
+- `004_add_offset_pct_to_outcomes_and_feedback.sql` - Adds `offset_pct` attribution to outcomes and feedback
+- `005_add_model_id_to_trade_outcomes.sql` - Adds `model_id` attribution to trade outcomes for model comparisons
 
 ## Migration Naming Convention
 

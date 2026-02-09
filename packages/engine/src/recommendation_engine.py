@@ -219,6 +219,7 @@ class RecommendationEngine:
 
         # Select loader based on beta model preference
         loader = self._get_loader(use_beta_model)
+        active_model_id = loader.preferred_model_id or None
 
         # Calculate remaining capital and slots after active trades
         capital_in_use = sum(t["quantity"] * t["buyPrice"] for t in active_trades)
@@ -377,6 +378,9 @@ class RecommendationEngine:
         # Store and format final recommendations
         recommendations = []
         for rec in selected:
+            # Propagate model attribution so active trades, alerts, and outcomes
+            # can consistently use the correct prediction source.
+            rec["modelId"] = active_model_id
             self.store.store(rec)
             recommendations.append(rec)
 
@@ -438,6 +442,7 @@ class RecommendationEngine:
 
         # Select loader based on beta model preference
         loader = self._get_loader(use_beta_model)
+        active_model_id = loader.preferred_model_id or None
 
         # Calculate remaining capital after active trades
         capital_in_use = sum(t["quantity"] * t["buyPrice"] for t in active_trades)
@@ -601,6 +606,7 @@ class RecommendationEngine:
                 "fillConfidence": self._determine_fill_confidence(
                     fill_prob, all_fill_probs
                 ),
+                "modelId": active_model_id,
                 "_expectedValue": round(ev, 6),
                 "_score": round(composite_score, 6),
                 "reason": self._build_reason(cand),
@@ -2435,6 +2441,7 @@ class RecommendationEngine:
         style: Optional[TradingStyle] = None,
         slots: Optional[int] = None,
         include_price_history: bool = False,
+        use_beta_model: bool = False,
     ) -> Optional[dict]:
         """Get recommendation by item ID, with optional user context.
 
@@ -2455,7 +2462,7 @@ class RecommendationEngine:
         # If user context provided, generate fresh recommendation
         if capital is not None and risk is not None and style is not None:
             rec = self._generate_item_recommendation(
-                item_id, capital, risk, style, slots or 4
+                item_id, capital, risk, style, slots or 4, use_beta_model=use_beta_model
             )
         else:
             # Otherwise return from cache
@@ -2476,6 +2483,8 @@ class RecommendationEngine:
         risk: RiskLevel,
         style: TradingStyle,
         slots: int,
+        *,
+        use_beta_model: bool = False,
     ) -> Optional[dict]:
         """Generate a recommendation for a specific item with user context.
 
@@ -2489,13 +2498,16 @@ class RecommendationEngine:
         Returns:
             Recommendation dict with explanation, or dict with isRecommended=False
         """
+        loader = self._get_loader(use_beta_model)
+        active_model_id = loader.preferred_model_id or None
+
         # Get filtering parameters based on style/risk
         min_ev = self.EV_THRESHOLDS.get(risk, 0.005)
         min_hour, max_hour = self.HOUR_RANGES.get(style, (1, self.config.max_hour_offset))
         min_fill = self.FILL_PROB_MINIMUMS.get(risk, 0.05)
 
         # Fetch predictions for this specific item
-        predictions_df = self.loader.get_predictions_for_item(item_id)
+        predictions_df = loader.get_predictions_for_item(item_id)
 
         if predictions_df.empty:
             return {
@@ -2581,7 +2593,7 @@ class RecommendationEngine:
             filtered["fill_probability"].astype(float) ** alpha
         )
         best = filtered.loc[filtered["_rank_score"].idxmax()]
-        pred_age = self.loader.get_prediction_age_seconds()
+        pred_age = loader.get_prediction_age_seconds()
 
         # Build candidate
         candidate = self._build_candidate(best, capital, pred_age)
@@ -2634,6 +2646,7 @@ class RecommendationEngine:
             "reason": reason,
             "fillProbability": round(fill_prob, 4),
             "fillConfidence": self._determine_fill_confidence(fill_prob, None),
+            "modelId": active_model_id,
             "_expectedValue": round(candidate["expected_value"], 6),
             "whyChips": self.generate_why_chips(candidate),
         }
@@ -2984,22 +2997,35 @@ class RecommendationEngine:
         from .order_advisor import OrderAdvisor
 
         # Choose the prediction source:
-        # 1) If a specific model_id is supplied and matches our configured beta model,
-        #    use the beta loader (fixes active trades created under beta when preferred
-        #    model doesn't cover the item).
-        # 2) Else if the request opts into beta, use beta loader when available.
-        # 3) Otherwise use the preferred loader.
+        # 1) If the trade supplies an explicit model_id, honor it when possible so
+        #    active trades remain stable even if the user toggles beta later.
+        # 2) Otherwise, use the request's beta preference when available.
+        # 3) Fallback to the preferred loader.
         loader = self.loader
         selected_beta = False
-        if (
-            model_id
-            and self.config.beta_model_id
-            and model_id == self.config.beta_model_id
-            and self._beta_loader is not None
-        ):
-            loader = self._beta_loader
-            selected_beta = True
-        elif use_beta_model and self._beta_loader is not None:
+        model_id_norm = (model_id or "").strip()
+        if model_id_norm.lower() in ("unknown", "null"):
+            model_id_norm = ""
+
+        if model_id_norm:
+            if (
+                self.config.beta_model_id
+                and model_id_norm == self.config.beta_model_id
+                and self._beta_loader is not None
+            ):
+                loader = self._beta_loader
+                selected_beta = True
+            elif (
+                self.config.preferred_model_id
+                and model_id_norm == self.config.preferred_model_id
+            ):
+                loader = self.loader
+                selected_beta = False
+            else:
+                # Unknown model id — fall back to request preference.
+                model_id_norm = ""
+
+        if (not model_id_norm) and use_beta_model and self._beta_loader is not None:
             loader = self._beta_loader
             selected_beta = True
 

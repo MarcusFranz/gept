@@ -221,242 +221,257 @@ const user = Astro.locals.user;
 <script>
   import { signOut, authClient } from '../lib/auth-client';
 
-  // Save profile changes
-  const saveProfileBtn = document.getElementById('save-profile-btn');
-  const profileMessage = document.getElementById('profile-message');
+  let cleanup: AbortController | null = null;
 
-  saveProfileBtn?.addEventListener('click', async () => {
-    const displayName = (document.getElementById('display-name') as HTMLInputElement).value;
+  function initAccountPage() {
+    // Guard: if we're not on the account/settings page, don't bind anything.
+    const betaModelToggle = document.getElementById('beta-model-toggle') as HTMLInputElement | null;
+    if (!betaModelToggle) return;
 
-    if (!displayName.trim()) {
-      showMessage(profileMessage, 'Please enter a display name', 'error');
-      return;
+    // Ensure we don't stack multiple listeners across view transitions.
+    cleanup?.abort();
+    cleanup = new AbortController();
+    const { signal } = cleanup;
+
+    // Helper function to show messages
+    function showMessage(element: HTMLElement | null, message: string, type: 'success' | 'error') {
+      if (!element) return;
+      element.textContent = message;
+      element.className = `form-message ${type}`;
+
+      // Clear message after 5 seconds
+      setTimeout(() => {
+        element.textContent = '';
+        element.className = 'form-message';
+      }, 5000);
     }
 
-    saveProfileBtn.textContent = 'Saving...';
-    (saveProfileBtn as HTMLButtonElement).disabled = true;
+    // Save profile changes
+    const saveProfileBtn = document.getElementById('save-profile-btn') as HTMLButtonElement | null;
+    const profileMessage = document.getElementById('profile-message');
 
-    try {
-      const result = await authClient.updateUser({
-        name: displayName.trim()
-      });
+    saveProfileBtn?.addEventListener('click', async () => {
+      const displayName = (document.getElementById('display-name') as HTMLInputElement).value;
 
-      if (result.error) {
-        showMessage(profileMessage, result.error.message || 'Failed to save changes', 'error');
-      } else {
-        showMessage(profileMessage, 'Profile updated successfully', 'success');
+      if (!displayName.trim()) {
+        showMessage(profileMessage, 'Please enter a display name', 'error');
+        return;
       }
-    } catch (err) {
-      showMessage(profileMessage, 'Something went wrong. Please try again.', 'error');
-    } finally {
-      saveProfileBtn.textContent = 'Save Changes';
-      (saveProfileBtn as HTMLButtonElement).disabled = false;
-    }
-  });
 
-  // Update password
-  const updatePasswordBtn = document.getElementById('update-password-btn');
-  const passwordMessage = document.getElementById('password-message');
+      saveProfileBtn.textContent = 'Saving...';
+      saveProfileBtn.disabled = true;
 
-  updatePasswordBtn?.addEventListener('click', async () => {
-    const currentPassword = (document.getElementById('current-password') as HTMLInputElement).value;
-    const newPassword = (document.getElementById('new-password') as HTMLInputElement).value;
-    const confirmPassword = (document.getElementById('confirm-password') as HTMLInputElement).value;
-
-    if (!currentPassword || !newPassword || !confirmPassword) {
-      showMessage(passwordMessage, 'Please fill in all password fields', 'error');
-      return;
-    }
-
-    if (newPassword.length < 8) {
-      showMessage(passwordMessage, 'New password must be at least 8 characters', 'error');
-      return;
-    }
-
-    if (newPassword !== confirmPassword) {
-      showMessage(passwordMessage, 'New passwords do not match', 'error');
-      return;
-    }
-
-    updatePasswordBtn.textContent = 'Updating...';
-    (updatePasswordBtn as HTMLButtonElement).disabled = true;
-
-    try {
-      const result = await authClient.changePassword({
-        currentPassword,
-        newPassword
-      });
-
-      if (result.error) {
-        showMessage(passwordMessage, result.error.message || 'Failed to update password', 'error');
-      } else {
-        showMessage(passwordMessage, 'Password updated successfully', 'success');
-        // Clear password fields
-        (document.getElementById('current-password') as HTMLInputElement).value = '';
-        (document.getElementById('new-password') as HTMLInputElement).value = '';
-        (document.getElementById('confirm-password') as HTMLInputElement).value = '';
-      }
-    } catch (err) {
-      showMessage(passwordMessage, 'Something went wrong. Please try again.', 'error');
-    } finally {
-      updatePasswordBtn.textContent = 'Update Password';
-      (updatePasswordBtn as HTMLButtonElement).disabled = false;
-    }
-  });
-
-  // Sign out
-  const signOutBtn = document.getElementById('sign-out-btn');
-
-  signOutBtn?.addEventListener('click', async () => {
-    signOutBtn.textContent = 'Signing out...';
-    (signOutBtn as HTMLButtonElement).disabled = true;
-
-    try {
-      await signOut();
-      window.location.href = '/login';
-    } catch (err) {
-      signOutBtn.textContent = 'Sign Out';
-      (signOutBtn as HTMLButtonElement).disabled = false;
-    }
-  });
-
-  // Delete account
-  const deleteAccountBtn = document.getElementById('delete-account-btn');
-
-  deleteAccountBtn?.addEventListener('click', async () => {
-    const confirmed = confirm(
-      'Are you sure you want to delete your account? This action cannot be undone and all your data will be permanently deleted.'
-    );
-
-    if (!confirmed) return;
-
-    const doubleConfirm = confirm(
-      'This is your final warning. Your account and all associated data will be permanently deleted. Continue?'
-    );
-
-    if (!doubleConfirm) return;
-
-    deleteAccountBtn.textContent = 'Deleting...';
-    (deleteAccountBtn as HTMLButtonElement).disabled = true;
-
-    try {
-      const result = await authClient.deleteUser();
-
-      if (result.error) {
-        alert('Failed to delete account: ' + (result.error.message || 'Unknown error'));
-        deleteAccountBtn.textContent = 'Delete Account';
-        (deleteAccountBtn as HTMLButtonElement).disabled = false;
-      } else {
-        window.location.href = '/login';
-      }
-    } catch (err) {
-      alert('Something went wrong. Please try again.');
-      deleteAccountBtn.textContent = 'Delete Account';
-      (deleteAccountBtn as HTMLButtonElement).disabled = false;
-    }
-  });
-
-  // Beta model toggle
-  const betaModelToggle = document.getElementById('beta-model-toggle') as HTMLInputElement;
-
-  // Load current setting
-  fetch('/api/settings')
-    .then(res => res.json())
-    .then(data => {
-      if (data.success && betaModelToggle) {
-        betaModelToggle.checked = data.data.user.useBetaModel === true;
-        heroToggleSyncMap.get(betaModelToggle)?.();
-      }
-    })
-    .catch(() => {});
-
-  const heroToggleSyncMap = new Map<HTMLInputElement, () => void>();
-
-  const initHeroToggles = () => {
-    const groups = document.querySelectorAll<HTMLElement>('[data-hero-toggle]');
-    const updateToggle = (group: HTMLElement) => {
-      const input = group.querySelector<HTMLInputElement>('input[type=\"checkbox\"]');
-      if (!input) return;
-      const isOn = input.checked;
-      const label = group.querySelector<HTMLElement>('.toggle-label');
-      if (label) {
-        label.textContent = isOn ? 'ON' : 'OFF';
-      }
-    };
-
-    groups.forEach((group) => {
-      const input = group.querySelector<HTMLInputElement>('input[type=\"checkbox\"]');
-      const buttons = Array.from(group.querySelectorAll<HTMLButtonElement>('button'));
-      if (!input || buttons.length < 1) return;
-
-      const sync = () => {
-        const isOn = input.checked;
-        group.classList.toggle('is-on', isOn);
-        buttons.forEach((btn) => {
-          const onButton = btn.dataset.value === 'on';
-          const active = isOn ? onButton : !onButton;
-          btn.classList.toggle('active', active);
-          btn.setAttribute('aria-pressed', active ? 'true' : 'false');
+      try {
+        const result = await authClient.updateUser({
+          name: displayName.trim()
         });
-        updateToggle(group);
+
+        if (result.error) {
+          showMessage(profileMessage, result.error.message || 'Failed to save changes', 'error');
+        } else {
+          showMessage(profileMessage, 'Profile updated successfully', 'success');
+        }
+      } catch {
+        showMessage(profileMessage, 'Something went wrong. Please try again.', 'error');
+      } finally {
+        saveProfileBtn.textContent = 'Save Changes';
+        saveProfileBtn.disabled = false;
+      }
+    }, { signal });
+
+    // Update password
+    const updatePasswordBtn = document.getElementById('update-password-btn') as HTMLButtonElement | null;
+    const passwordMessage = document.getElementById('password-message');
+
+    updatePasswordBtn?.addEventListener('click', async () => {
+      const currentPassword = (document.getElementById('current-password') as HTMLInputElement).value;
+      const newPassword = (document.getElementById('new-password') as HTMLInputElement).value;
+      const confirmPassword = (document.getElementById('confirm-password') as HTMLInputElement).value;
+
+      if (!currentPassword || !newPassword || !confirmPassword) {
+        showMessage(passwordMessage, 'Please fill in all password fields', 'error');
+        return;
+      }
+
+      if (newPassword.length < 8) {
+        showMessage(passwordMessage, 'New password must be at least 8 characters', 'error');
+        return;
+      }
+
+      if (newPassword !== confirmPassword) {
+        showMessage(passwordMessage, 'New passwords do not match', 'error');
+        return;
+      }
+
+      updatePasswordBtn.textContent = 'Updating...';
+      updatePasswordBtn.disabled = true;
+
+      try {
+        const result = await authClient.changePassword({
+          currentPassword,
+          newPassword
+        });
+
+        if (result.error) {
+          showMessage(passwordMessage, result.error.message || 'Failed to update password', 'error');
+        } else {
+          showMessage(passwordMessage, 'Password updated successfully', 'success');
+          // Clear password fields
+          (document.getElementById('current-password') as HTMLInputElement).value = '';
+          (document.getElementById('new-password') as HTMLInputElement).value = '';
+          (document.getElementById('confirm-password') as HTMLInputElement).value = '';
+        }
+      } catch {
+        showMessage(passwordMessage, 'Something went wrong. Please try again.', 'error');
+      } finally {
+        updatePasswordBtn.textContent = 'Update Password';
+        updatePasswordBtn.disabled = false;
+      }
+    }, { signal });
+
+    // Sign out
+    const signOutBtn = document.getElementById('sign-out-btn') as HTMLButtonElement | null;
+
+    signOutBtn?.addEventListener('click', async () => {
+      signOutBtn.textContent = 'Signing out...';
+      signOutBtn.disabled = true;
+
+      try {
+        await signOut();
+        window.location.href = '/login';
+      } catch {
+        signOutBtn.textContent = 'Sign Out';
+        signOutBtn.disabled = false;
+      }
+    }, { signal });
+
+    // Delete account
+    const deleteAccountBtn = document.getElementById('delete-account-btn') as HTMLButtonElement | null;
+
+    deleteAccountBtn?.addEventListener('click', async () => {
+      const confirmed = confirm(
+        'Are you sure you want to delete your account? This action cannot be undone and all your data will be permanently deleted.'
+      );
+
+      if (!confirmed) return;
+
+      const doubleConfirm = confirm(
+        'This is your final warning. Your account and all associated data will be permanently deleted. Continue?'
+      );
+
+      if (!doubleConfirm) return;
+
+      deleteAccountBtn.textContent = 'Deleting...';
+      deleteAccountBtn.disabled = true;
+
+      try {
+        const result = await authClient.deleteUser();
+
+        if (result.error) {
+          alert('Failed to delete account: ' + (result.error.message || 'Unknown error'));
+          deleteAccountBtn.textContent = 'Delete Account';
+          deleteAccountBtn.disabled = false;
+        } else {
+          window.location.href = '/login';
+        }
+      } catch {
+        alert('Something went wrong. Please try again.');
+        deleteAccountBtn.textContent = 'Delete Account';
+        deleteAccountBtn.disabled = false;
+      }
+    }, { signal });
+
+    // Hero toggles
+    const heroToggleSyncMap = new Map<HTMLInputElement, () => void>();
+
+    const initHeroToggles = () => {
+      const groups = document.querySelectorAll<HTMLElement>('[data-hero-toggle]');
+      const updateToggle = (group: HTMLElement) => {
+        const input = group.querySelector<HTMLInputElement>('input[type=\"checkbox\"]');
+        if (!input) return;
+        const isOn = input.checked;
+        const label = group.querySelector<HTMLElement>('.toggle-label');
+        if (label) {
+          label.textContent = isOn ? 'ON' : 'OFF';
+        }
       };
 
-      heroToggleSyncMap.set(input, sync);
+      groups.forEach((group) => {
+        const input = group.querySelector<HTMLInputElement>('input[type=\"checkbox\"]');
+        const buttons = Array.from(group.querySelectorAll<HTMLButtonElement>('button'));
+        if (!input || buttons.length < 1) return;
 
-      buttons.forEach((btn) => {
-        btn.addEventListener('click', () => {
-          if (btn.dataset.value) {
-            const shouldOn = btn.dataset.value === 'on';
-            if (input.checked === shouldOn) return;
-            input.checked = shouldOn;
-          } else {
-            input.checked = !input.checked;
-          }
-          input.dispatchEvent(new Event('change', { bubbles: true }));
-          sync();
+        const sync = () => {
+          const isOn = input.checked;
+          group.classList.toggle('is-on', isOn);
+          buttons.forEach((btn) => {
+            const onButton = btn.dataset.value === 'on';
+            const active = isOn ? onButton : !onButton;
+            btn.classList.toggle('active', active);
+            btn.setAttribute('aria-pressed', active ? 'true' : 'false');
+          });
+          updateToggle(group);
+        };
+
+        heroToggleSyncMap.set(input, sync);
+
+        buttons.forEach((btn) => {
+          btn.addEventListener('click', () => {
+            if (btn.dataset.value) {
+              const shouldOn = btn.dataset.value === 'on';
+              if (input.checked === shouldOn) return;
+              input.checked = shouldOn;
+            } else {
+              input.checked = !input.checked;
+            }
+            input.dispatchEvent(new Event('change', { bubbles: true }));
+            sync();
+          }, { signal });
         });
+
+        input.addEventListener('change', sync, { signal });
+        sync();
       });
 
-      input.addEventListener('change', sync);
-      sync();
-    });
+      window.addEventListener('resize', () => {
+        groups.forEach((group) => updateToggle(group));
+      }, { signal });
+    };
 
-    window.addEventListener('resize', () => {
-      groups.forEach((group) => updateToggle(group));
-    });
-  };
+    initHeroToggles();
 
-  initHeroToggles();
+    // Load current setting
+    fetch('/api/settings')
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && betaModelToggle) {
+          betaModelToggle.checked = data.data.user.useBetaModel === true;
+          heroToggleSyncMap.get(betaModelToggle)?.();
+        }
+      })
+      .catch(() => {});
 
-  betaModelToggle?.addEventListener('change', async () => {
-    try {
-      const res = await fetch('/api/settings', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ useBetaModel: betaModelToggle.checked })
-      });
-      if (!res.ok) {
+    betaModelToggle.addEventListener('change', async () => {
+      try {
+        const res = await fetch('/api/settings', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ useBetaModel: betaModelToggle.checked })
+        });
+        if (!res.ok) {
+          betaModelToggle.checked = !betaModelToggle.checked;
+          heroToggleSyncMap.get(betaModelToggle)?.();
+        }
+      } catch {
+        // Revert on failure
         betaModelToggle.checked = !betaModelToggle.checked;
+        heroToggleSyncMap.get(betaModelToggle)?.();
       }
-    } catch {
-      // Revert on failure
-      betaModelToggle.checked = !betaModelToggle.checked;
-      heroToggleSyncMap.get(betaModelToggle)?.();
-    }
-  });
-
-  // Helper function to show messages
-  function showMessage(element: HTMLElement | null, message: string, type: 'success' | 'error') {
-    if (!element) return;
-    element.textContent = message;
-    element.className = `form-message ${type}`;
-
-    // Clear message after 5 seconds
-    setTimeout(() => {
-      element.textContent = '';
-      element.className = 'form-message';
-    }, 5000);
+    }, { signal });
   }
+
+  // Run on initial load and after each navigation (Astro View Transitions).
+  document.addEventListener('astro:page-load', initAccountPage);
 </script>
 
 <style>

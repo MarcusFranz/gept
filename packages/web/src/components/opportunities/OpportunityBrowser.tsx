@@ -378,6 +378,11 @@ export function OpportunityBrowser(props: OpportunityBrowserProps) {
         >
           <div class="opportunity-browser-count">
             Showing {visibleOpportunities().length} of {total()} opportunities
+            <Show when={opportunities().length > 0}>
+              <span class="opportunity-browser-model">
+                Model: {opportunities()[0]?.modelId ?? 'unknown'}
+              </span>
+            </Show>
           </div>
 
           <div class="opportunity-browser-list">
@@ -419,6 +424,15 @@ export function OpportunityBrowser(props: OpportunityBrowserProps) {
           font-size: var(--font-size-sm);
           color: var(--text-secondary);
           margin-bottom: 0.75rem;
+        }
+
+        .opportunity-browser-model {
+          margin-left: 0.5rem;
+          padding-left: 0.5rem;
+          border-left: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+          color: var(--text-muted);
+          letter-spacing: 0.01em;
+          white-space: nowrap;
         }
 
         .opportunity-browser-error {

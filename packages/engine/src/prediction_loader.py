@@ -92,6 +92,18 @@ class PredictionLoader:
             q = q.where(p.c.model_id == self.preferred_model_id)
         return q.scalar_subquery()
 
+    def _add_model_filter(self, conditions: list) -> None:
+        """Append a model_id filter to a WHERE-condition list when configured.
+
+        NOTE: Scoping MAX(time) via `_max_time_subquery()` is not sufficient when
+        multiple models write predictions for the same timestamp. In that case,
+        `p.time == max_time_for_model` would still match other model rows that
+        share the same timestamp. This helper enforces the model_id constraint
+        on the outer query as well.
+        """
+        if self.preferred_model_id:
+            conditions.append(p.c.model_id == self.preferred_model_id)
+
     def _matview_exists(self, view_name: str) -> bool:
         """Check if a materialized view exists (cached per instance)."""
         if not hasattr(self, "_matview_cache"):
@@ -134,6 +146,7 @@ class PredictionLoader:
             p.c.fill_probability >= min_fill_prob,
             p.c.expected_value >= min_ev,
         ]
+        self._add_model_filter(conditions)
 
         if max_hour_offset is not None:
             conditions.append(p.c.hour_offset <= max_hour_offset)
@@ -171,14 +184,15 @@ class PredictionLoader:
         Returns:
             DataFrame with all hour_offset/offset_pct combinations for the item
         """
+        conditions = [
+            p.c.time == self._max_time_subquery(),
+            p.c.item_id == item_id,
+        ]
+        self._add_model_filter(conditions)
+
         query = (
             select(*_prediction_columns())
-            .where(
-                and_(
-                    p.c.time == self._max_time_subquery(),
-                    p.c.item_id == item_id,
-                )
-            )
+            .where(and_(*conditions))
             .order_by(p.c.hour_offset, p.c.offset_pct)
         )
 
@@ -233,6 +247,7 @@ class PredictionLoader:
             p.c.fill_probability >= min_fill_prob,
             p.c.expected_value >= min_ev,
         ]
+        self._add_model_filter(conditions)
         if min_hour_offset is not None:
             conditions.append(p.c.hour_offset >= int(min_hour_offset))
         if max_hour_offset is not None:
@@ -1133,16 +1148,19 @@ class PredictionLoader:
         max_time = self._max_time_subquery()
 
         # Subquery: distinct items matching the search
+        conditions = [
+            p.c.time == max_time,
+            func.lower(p.c.item_name).like(
+                func.lower(f"%{safe_query}%"), escape="\\"
+            ),
+        ]
+        self._add_model_filter(conditions)
+
         items_sub = (
             select(p.c.item_id, p.c.item_name)
             .distinct()
             .where(
-                and_(
-                    p.c.time == max_time,
-                    func.lower(p.c.item_name).like(
-                        func.lower(f"%{safe_query}%"), escape="\\"
-                    ),
-                )
+                and_(*conditions)
             )
             .subquery("items")
         )
@@ -1365,14 +1383,15 @@ class PredictionLoader:
         if not item_ids:
             return pd.DataFrame()
 
+        conditions = [
+            p.c.time == self._max_time_subquery(),
+            p.c.item_id.in_(item_ids),
+        ]
+        self._add_model_filter(conditions)
+
         query = (
             select(*_prediction_columns())
-            .where(
-                and_(
-                    p.c.time == self._max_time_subquery(),
-                    p.c.item_id.in_(item_ids),
-                )
-            )
+            .where(and_(*conditions))
             .order_by(p.c.item_id, p.c.hour_offset, p.c.offset_pct)
         )
 

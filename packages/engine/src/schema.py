@@ -95,6 +95,8 @@ trade_outcomes = Table(
     Column("rec_id", Text),
     Column("item_id", Integer),
     Column("item_name", Text),
+    # Attribution: which prediction model produced the underlying recommendation.
+    Column("model_id", Text),
     Column("offset_pct", Numeric(5, 4)),
     Column("buy_price", Numeric(12, 2)),
     Column("sell_price", Numeric(12, 2)),

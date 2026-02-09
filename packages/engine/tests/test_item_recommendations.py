@@ -79,6 +79,7 @@ class TestItemRecommendations:
             style="active",
             slots=4,
             include_price_history=False,
+            use_beta_model=False,
         )
 
     def test_get_recommendation_by_item_id_without_context(self, client):
@@ -117,6 +118,7 @@ class TestItemRecommendations:
             style=None,
             slots=None,
             include_price_history=False,
+            use_beta_model=False,
         )
 
     def test_get_recommendation_item_not_recommended(self, client):

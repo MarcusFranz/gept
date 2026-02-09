@@ -63,6 +63,7 @@ async def recommendations_web(
         default=None, ge=0.0125, le=0.0250, description="Minimum margin percentage"
     ),
     include_metadata: bool = Query(default=False, description="Include freshness metadata"),
+    use_beta_model: bool = Query(default=False, description="Use beta model predictions if available"),
     engine: RecommendationEngine = Depends(get_engine),
 ):
     """Get recommendations for web frontend."""
@@ -84,7 +85,7 @@ async def recommendations_web(
         min_ev=None,
         include_metadata=include_metadata,
         return_all=False,
-        use_beta_model=False,
+        use_beta_model=use_beta_model,
         engine=engine,
     )
 
@@ -99,6 +100,7 @@ async def get_item_web(
     risk: Optional[Literal["low", "medium", "high"]] = Query(default=None, description="Risk tolerance"),
     style: Optional[Literal["passive", "hybrid", "active"]] = Query(default=None, description="Trading style"),
     include_price_history: bool = Query(default=False, description="Include price history for charts"),
+    use_beta_model: bool = Query(default=False, description="Use beta model predictions if available"),
     engine: RecommendationEngine = Depends(get_engine),
 ):
     """Web-friendly endpoint alias for item recommendations by ID."""
@@ -111,6 +113,7 @@ async def get_item_web(
         style=style,
         slots=None,
         include_price_history=include_price_history,
+        use_beta_model=use_beta_model,
         engine=engine,
     )
 
@@ -149,6 +152,8 @@ async def report_trade_outcome_web(
         itemId=body.itemId,
         itemName=body.itemName,
         recId=body.rec_id,
+        modelId=body.modelId,
+        offsetPct=body.offsetPct,
         buyPrice=body.buyPrice,
         sellPrice=body.sellPrice,
         quantity=body.quantity,

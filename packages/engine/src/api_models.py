@@ -80,7 +80,9 @@ class RecommendationResponse(BaseModel):
         None  # Optional: for expanded view
     )
     # Model attribution fields (for tracking which model generated the prediction)
-    modelId: Optional[int] = None  # ID of the model that generated this prediction
+    # Note: This is the `predictions.model_id` string (e.g. "patchtst_patchtst", "gept_v2"),
+    # not a numeric surrogate key.
+    modelId: Optional[str] = None
     modelStatus: Optional[str] = None  # Status of the model (ACTIVE, DEPRECATED, etc.)
     # Rationale fields (for "Why this item?" UX)
     reason: Optional[str] = None  # Human-readable explanation for the recommendation
@@ -274,6 +276,10 @@ class TradeOutcomeRequest(BaseModel):
     itemId: int = Field(description="OSRS item ID")
     itemName: str = Field(description="Item name")
     recId: str = Field(description="Recommendation ID that led to this trade")
+    modelId: Optional[str] = Field(
+        default=None,
+        description="Model identifier that generated the recommendation (e.g. 'patchtst_patchtst', 'gept_v2')",
+    )
     offsetPct: Optional[float] = Field(
         default=None,
         ge=0.0125,
@@ -672,6 +678,16 @@ class TradeOutcomeWebRequest(BaseModel):
     userId: str = Field(description="Hashed user ID (SHA256 of user identifier)")
     itemId: int = Field(description="OSRS item ID")
     itemName: str = Field(description="Item name")
+    modelId: Optional[str] = Field(
+        default=None,
+        description="Model identifier that generated the recommendation (e.g. 'patchtst_patchtst', 'gept_v2')",
+    )
+    offsetPct: Optional[float] = Field(
+        default=None,
+        ge=0.0125,
+        le=0.0250,
+        description="Offset percentage used for the underlying recommendation (optional)",
+    )
     buyPrice: int = Field(ge=1, description="Buy price in gp")
     sellPrice: int = Field(ge=1, description="Sell price in gp")
     quantity: int = Field(ge=1, description="Quantity traded")

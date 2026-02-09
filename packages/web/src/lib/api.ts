@@ -40,7 +40,7 @@ interface ApiRecommendation {
   reason: string;
   volume24h: number;
   priceHistory?: number[] | null;
-  modelId?: number | null;
+  modelId?: string | null;
   isMultiLimitStrategy?: boolean;
 }
 
@@ -262,6 +262,9 @@ export async function getRecommendationByItemId(
           style: settings.style,
           risk: settings.risk
         });
+        if (settings.useBetaModel) {
+          params.append('use_beta_model', 'true');
+        }
         const url = `${getApiBase()}/api/v1/recommendations/item/${itemId}?${params}`;
         const apiResponse = await fetchWithRetry<ApiRecommendation>(url);
         return transformRecommendation(apiResponse);
@@ -321,6 +324,7 @@ export async function reportTradeOutcome(data: {
       itemId: data.itemId,
       itemName: data.itemName,
       recId: data.recId,
+      modelId: data.modelId,
       offsetPct: data.offsetPct,
       buyPrice: data.buyPrice,
       sellPrice: data.sellPrice,

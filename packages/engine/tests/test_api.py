@@ -2583,6 +2583,7 @@ class TestWebFrontendEndpoints:
             style="passive",
             slots=None,
             include_price_history=True,
+            use_beta_model=False,
         )
 
     def test_item_web_not_found(self, client):

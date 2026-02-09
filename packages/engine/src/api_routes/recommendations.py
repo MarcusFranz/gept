@@ -426,6 +426,7 @@ async def get_recommendation_by_item_id(
     style: Optional[Literal["passive", "hybrid", "active"]] = Query(default=None, description="Trading style"),
     slots: Optional[int] = Query(default=None, ge=1, le=8, description="Available GE slots"),
     include_price_history: bool = Query(default=False, description="Include 24h price history for charts"),
+    use_beta_model: bool = Query(default=False, description="Use beta model predictions if available"),
     engine: RecommendationEngine = Depends(get_engine),
 ):
     """Get recommendation for a specific item by ID."""
@@ -437,6 +438,7 @@ async def get_recommendation_by_item_id(
             style=style,
             slots=slots,
             include_price_history=include_price_history,
+            use_beta_model=use_beta_model,
         )
 
         if rec is None:
