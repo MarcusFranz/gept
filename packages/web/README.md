@@ -37,6 +37,18 @@ Optional:
 - `PREDICTION_API` and `PREDICTION_API_KEY` for live recommendations
 - `ENGINE_WEBHOOK_URL` and `WEBHOOK_SECRET` for active-trade alerts
 
+### Local URLs
+
+If you run everything on the Astro dev server, align these values to the dev port:
+
+```bash
+PUBLIC_APP_URL=http://localhost:4321
+SITE=http://localhost:4321
+BETTER_AUTH_URL=http://localhost:4321
+```
+
+If auth runs on a separate local server, keep `BETTER_AUTH_URL` pointed at that server instead.
+
 ## Scripts
 
 ```bash
@@ -44,6 +56,8 @@ npm run dev:web      # local dev server
 npm run build:web    # production build
 npm run preview --workspace=@gept/web
 ```
+
+`npm run preview --workspace=@gept/web` requires a prior `npm run build:web`.
 
 ## Production Notes
 
