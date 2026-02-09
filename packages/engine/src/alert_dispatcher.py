@@ -411,3 +411,26 @@ def create_adjust_price_alert(
         originalSellPrice=original_sell_price,
         profitDelta=profit_delta,
     )
+
+
+def create_hold_alert(
+    alert_id: str,
+    trade_id: str,
+    reason: str,
+    confidence: float,
+    urgency: AlertUrgency,
+) -> Alert:
+    """Create a HOLD alert.
+
+    Used when the engine detects risk but cannot recommend an action without
+    violating constraints (e.g., "never sell at a loss").
+    """
+    return Alert(
+        id=alert_id,
+        tradeId=trade_id,
+        type=AlertType.HOLD,
+        reason=reason,
+        confidence=confidence,
+        urgency=urgency,
+        timestamp=datetime.now(timezone.utc).isoformat(),
+    )
