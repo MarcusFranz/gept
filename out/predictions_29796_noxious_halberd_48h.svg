@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="720" viewBox="0 0 1200 720">
+<style>
+  .bg{fill:#0b1220}
+  .grid{stroke:#22314f;stroke-width:1;opacity:0.55}
+  .axis{stroke:#5770a8;stroke-width:1.2;opacity:0.9}
+  .txt{fill:#d7e0ff;font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;}
+  .muted{fill:#97a6d7}
+  .buy{stroke:#3aa0ff;stroke-width:2.2;fill:none}
+  .sell{stroke:#25d3a5;stroke-width:2.2;fill:none}
+  .fp{stroke:#ff5c7a;stroke-width:2.0;fill:none}
+  .legend{font-size:14px}
+  .title{font-size:22px;font-weight:700}
+  .sub{font-size:14px}
+</style>
+<rect class="bg" x="0" y="0" width="1200" height="720"/>
+<text class="txt title" x="80" y="34">Noxious halberd (item_id=29796)</text>
+<text class="txt muted sub" x="80" y="56">prod-db model_id=gept_v2 time=2026-02-09 12:45:03.364715+00:00 | selected per-hour best by expected_value*fill_probability</text>
+<line class="axis" x1="80" y1="70" x2="80" y2="490"/>
+<line class="axis" x1="80" y1="490" x2="1160" y2="490"/>
+<line class="grid" x1="80" y1="487.56" x2="1160" y2="487.56"/>
+<text class="txt muted" x="70" y="491.56" text-anchor="end">51M</text>
+<line class="grid" x1="80" y1="363.39" x2="1160" y2="363.39"/>
+<text class="txt muted" x="70" y="367.39" text-anchor="end">52M</text>
+<line class="grid" x1="80" y1="239.21" x2="1160" y2="239.21"/>
+<text class="txt muted" x="70" y="243.21" text-anchor="end">53M</text>
+<line class="grid" x1="80" y1="115.04" x2="1160" y2="115.04"/>
+<text class="txt muted" x="70" y="119.04" text-anchor="end">54M</text>
+<line class="grid" x1="80.00" y1="70" x2="80.00" y2="490"/>
+<text class="txt muted" x="80.00" y="512" text-anchor="middle">1h</text>
+<line class="grid" x1="217.87" y1="70" x2="217.87" y2="490"/>
+<text class="txt muted" x="217.87" y="512" text-anchor="middle">7h</text>
+<line class="grid" x1="355.74" y1="70" x2="355.74" y2="490"/>
+<text class="txt muted" x="355.74" y="512" text-anchor="middle">13h</text>
+<line class="grid" x1="493.62" y1="70" x2="493.62" y2="490"/>
+<text class="txt muted" x="493.62" y="512" text-anchor="middle">19h</text>
+<line class="grid" x1="631.49" y1="70" x2="631.49" y2="490"/>
+<text class="txt muted" x="631.49" y="512" text-anchor="middle">25h</text>
+<line class="grid" x1="769.36" y1="70" x2="769.36" y2="490"/>
+<text class="txt muted" x="769.36" y="512" text-anchor="middle">31h</text>
+<line class="grid" x1="907.23" y1="70" x2="907.23" y2="490"/>
+<text class="txt muted" x="907.23" y="512" text-anchor="middle">37h</text>
+<line class="grid" x1="1045.11" y1="70" x2="1045.11" y2="490"/>
+<text class="txt muted" x="1045.11" y="512" text-anchor="middle">43h</text>
+<text class="txt muted" x="80" y="58">Price (gp)</text>
+<text class="txt muted" x="620.00" y="532" text-anchor="middle">Hour offset (target fill window)</text>
+<polyline class="buy" points="80.00,461.03 102.98,461.03 148.94,461.03 240.85,461.03 332.77,441.76 608.51,448.19 1160.00,428.92"/>
+<polyline class="sell" points="80.00,325.77 102.98,313.34 148.94,290.55 240.85,254.09 332.77,238.70 608.51,180.95 1160.00,98.97"/>
+<line class="axis" x1="80" y1="525" x2="80" y2="670"/>
+<line class="axis" x1="80" y1="670" x2="1160" y2="670"/>
+<line class="grid" x1="80" y1="670.00" x2="1160" y2="670.00"/>
+<text class="txt muted" x="70" y="674.00" text-anchor="end">0.0</text>
+<line class="grid" x1="80" y1="641.00" x2="1160" y2="641.00"/>
+<text class="txt muted" x="70" y="645.00" text-anchor="end">0.2</text>
+<line class="grid" x1="80" y1="612.00" x2="1160" y2="612.00"/>
+<text class="txt muted" x="70" y="616.00" text-anchor="end">0.4</text>
+<line class="grid" x1="80" y1="583.00" x2="1160" y2="583.00"/>
+<text class="txt muted" x="70" y="587.00" text-anchor="end">0.6</text>
+<line class="grid" x1="80" y1="554.00" x2="1160" y2="554.00"/>
+<text class="txt muted" x="70" y="558.00" text-anchor="end">0.8</text>
+<line class="grid" x1="80" y1="525.00" x2="1160" y2="525.00"/>
+<text class="txt muted" x="70" y="529.00" text-anchor="end">1.0</text>
+<line class="grid" x1="80.00" y1="525" x2="80.00" y2="670"/>
+<line class="grid" x1="217.87" y1="525" x2="217.87" y2="670"/>
+<line class="grid" x1="355.74" y1="525" x2="355.74" y2="670"/>
+<line class="grid" x1="493.62" y1="525" x2="493.62" y2="670"/>
+<line class="grid" x1="631.49" y1="525" x2="631.49" y2="670"/>
+<line class="grid" x1="769.36" y1="525" x2="769.36" y2="670"/>
+<line class="grid" x1="907.23" y1="525" x2="907.23" y2="670"/>
+<line class="grid" x1="1045.11" y1="525" x2="1045.11" y2="670"/>
+<text class="txt muted" x="80" y="513">Fill probability</text>
+<polyline class="fp" points="80.00,659.34 102.98,651.56 148.94,642.15 240.85,632.78 332.77,607.13 608.51,608.39 1160.00,574.69"/>
+<g class="legend">
+<line class="buy" x1="900" y1="34" x2="928" y2="34"/><text class="txt" x="936" y="39">Buy price</text>
+<line class="sell" x1="900" y1="52" x2="928" y2="52"/><text class="txt" x="936" y="57">Sell price</text>
+<line class="fp" x1="900" y1="70" x2="928" y2="70"/><text class="txt" x="936" y="75">Fill probability</text>
+</g>
+</svg>
