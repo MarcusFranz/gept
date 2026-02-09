@@ -3,6 +3,7 @@ import { activeTradesRepo, tradeHistoryRepo } from '../../../../../lib/repositor
 import { reportTradeOutcome, submitEngineFeedback } from '../../../../../lib/api';
 import { dispatchWebhook } from '../../../../../lib/webhook';
 import { deleteMockTrade, findMockTrade } from '../../../../../lib/mock-data';
+import { calculateFlipProfit } from '../../../../../lib/ge-tax';
 
 export const POST: APIRoute = async ({ params, request, locals }) => {
   try {
@@ -51,7 +52,16 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
     }
 
     const body = await request.json();
-    const { sellPrice, quantity, profit, notes } = body;
+    const { sellPrice, quantity, notes } = body;
+    const resolvedSellPriceRaw = typeof sellPrice === 'number' ? sellPrice : Number(sellPrice);
+    const resolvedQtyRaw = typeof quantity === 'number' ? quantity : Number(quantity);
+    const resolvedSellPrice = Number.isFinite(resolvedSellPriceRaw)
+      ? Math.max(0, Math.round(resolvedSellPriceRaw))
+      : trade.sell_price;
+    const resolvedQty = Number.isFinite(resolvedQtyRaw)
+      ? Math.max(0, Math.round(resolvedQtyRaw))
+      : trade.quantity;
+    const profit = calculateFlipProfit(trade.buy_price, resolvedSellPrice, resolvedQty);
 
     // Create history entry (preserve prediction context from active trade)
     await tradeHistoryRepo.create({
@@ -59,8 +69,8 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
       item_id: trade.item_id,
       item_name: trade.item_name,
       buy_price: trade.buy_price,
-      sell_price: sellPrice || trade.sell_price,
-      quantity: quantity || trade.quantity,
+      sell_price: resolvedSellPrice,
+      quantity: resolvedQty,
       profit,
       notes: notes || null,
       rec_id: trade.rec_id,
@@ -79,8 +89,8 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
       itemId: trade.item_id,
       itemName: trade.item_name,
       buyPrice: trade.buy_price,
-      sellPrice: sellPrice || trade.sell_price,
-      quantity: quantity || trade.quantity,
+      sellPrice: resolvedSellPrice,
+      quantity: resolvedQty,
       actualProfit: profit,
       recId: trade.rec_id || undefined,
       modelId: trade.model_id || undefined,
@@ -97,10 +107,10 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
       itemId: trade.item_id,
       itemName: trade.item_name,
       buyPrice: trade.buy_price,
-      sellPrice: sellPrice || trade.sell_price,
+      sellPrice: resolvedSellPrice,
       // `DECIMAL` from Postgres can come back as string; normalize for the webhook payload.
       offsetPct: trade.offset_pct == null ? null : Number(trade.offset_pct),
-      quantity: quantity || trade.quantity,
+      quantity: resolvedQty,
       profit,
       recId: trade.rec_id,
       modelId: trade.model_id
@@ -114,21 +124,21 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
     if (createdAtMs && Number.isFinite(expectedHours) && expectedHours > 0) {
       const elapsedHours = (Date.now() - createdAtMs) / (1000 * 60 * 60);
       const feedbackType = elapsedHours <= expectedHours ? 'filled_quickly' : 'filled_slowly';
-      submitEngineFeedback({
-        userId,
-        itemId: trade.item_id,
-        itemName: trade.item_name,
-        recId: trade.rec_id || undefined,
-        offsetPct: trade.offset_pct === null ? undefined : Number(trade.offset_pct),
-        feedbackType,
-        side: 'sell',
-        notes: `auto:trade_completed elapsedHours=${elapsedHours.toFixed(2)} expectedHours=${expectedHours}`,
-        recommendedPrice: trade.sell_price,
-        actualPrice: sellPrice || trade.sell_price
-      }).catch(() => {
-        // Silent fail - ML feedback is optional
-      });
-    }
+        submitEngineFeedback({
+          userId,
+          itemId: trade.item_id,
+          itemName: trade.item_name,
+          recId: trade.rec_id || undefined,
+          offsetPct: trade.offset_pct === null ? undefined : Number(trade.offset_pct),
+          feedbackType,
+          side: 'sell',
+          notes: `auto:trade_completed elapsedHours=${elapsedHours.toFixed(2)} expectedHours=${expectedHours}`,
+          recommendedPrice: trade.sell_price,
+          actualPrice: resolvedSellPrice
+        }).catch(() => {
+          // Silent fail - ML feedback is optional
+        });
+      }
 
     return new Response(JSON.stringify({
       success: true

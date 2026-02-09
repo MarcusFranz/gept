@@ -3,6 +3,7 @@ import { activeTradesRepo, tradeHistoryRepo } from '../../../../../lib/repositor
 import { reportTradeOutcome, submitEngineFeedback } from '../../../../../lib/api';
 import { dispatchWebhook } from '../../../../../lib/webhook';
 import { advanceMockTrade, findMockTrade } from '../../../../../lib/mock-data';
+import { calculateFlipProfit } from '../../../../../lib/ge-tax';
 
 export const POST: APIRoute = async ({ params, locals }) => {
   try {
@@ -115,7 +116,7 @@ export const POST: APIRoute = async ({ params, locals }) => {
       // Complete the trade
       const actualBuyPrice = trade.actual_buy_price || trade.buy_price;
       const actualSellPrice = trade.actual_sell_price || trade.sell_price;
-      const profit = (actualSellPrice - actualBuyPrice) * trade.quantity;
+      const profit = calculateFlipProfit(actualBuyPrice, actualSellPrice, trade.quantity);
 
       // Create history record (preserve prediction context from active trade)
       await tradeHistoryRepo.create({

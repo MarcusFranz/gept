@@ -1,6 +1,7 @@
 import { createSignal, Show } from 'solid-js';
 import type { Recommendation } from '../lib/types';
 import { formatGold, formatPercent } from '../lib/types';
+import { calculateFlipProfit } from '../lib/ge-tax';
 import FeedbackButton from './FeedbackButton';
 import Tooltip, { InfoIcon } from './Tooltip';
 import './FlipCard.css';
@@ -17,7 +18,9 @@ export default function FlipCard(props: FlipCardProps) {
 
   const roi = () => {
     const { buyPrice, sellPrice, quantity } = props.recommendation;
-    return (sellPrice - buyPrice) * quantity / (buyPrice * quantity);
+    const cost = buyPrice * quantity;
+    if (!Number.isFinite(cost) || cost <= 0) return 0;
+    return calculateFlipProfit(buyPrice, sellPrice, quantity) / cost;
   };
 
   const trendIcon = () => {
