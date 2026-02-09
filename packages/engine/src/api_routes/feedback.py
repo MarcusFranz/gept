@@ -60,6 +60,7 @@ async def submit_feedback(
             rec_id=body.recId,
             item_id=body.itemId,
             item_name=body.itemName,
+            offset_pct=body.offsetPct,
             feedback_type=body.feedbackType,
             side=body.side,
             notes=body.notes,

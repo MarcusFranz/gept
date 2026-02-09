@@ -56,6 +56,7 @@ async function handleResync(request: Request): Promise<Response> {
         itemName: trade.item_name,
         buyPrice: trade.buy_price,
         sellPrice: trade.sell_price,
+        offsetPct: trade.offset_pct == null ? null : Number(trade.offset_pct),
         quantity: trade.quantity,
         recId: trade.rec_id || null,
         modelId: trade.model_id || null,

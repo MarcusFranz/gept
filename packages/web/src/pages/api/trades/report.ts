@@ -16,7 +16,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 
     const userId = locals.user.id;
     const body = await request.json();
-    const { itemId, itemName, buyPrice, sellPrice, quantity, profit, notes, recId, modelId, expectedProfit, confidence, fillProbability, expectedHours } = body;
+    const { itemId, itemName, buyPrice, sellPrice, quantity, profit, notes, recId, modelId, offsetPct, expectedProfit, confidence, fillProbability, expectedHours } = body;
 
     // Validate required fields
     if (!itemName || profit === undefined) {
@@ -60,6 +60,16 @@ export const POST: APIRoute = async ({ request, locals }) => {
       });
     }
 
+    if (offsetPct !== undefined && (typeof offsetPct !== 'number' || !Number.isFinite(offsetPct) || offsetPct < 0.0125 || offsetPct > 0.0250)) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Invalid offsetPct (must be 0.0125-0.0250)'
+      }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
     // Create history entry
     const entry = await tradeHistoryRepo.create({
       user_id: userId,
@@ -72,6 +82,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
       notes: notes || null,
       rec_id: recId || null,
       model_id: modelId || null,
+      offset_pct: offsetPct ?? null,
       status: 'completed',
       expected_profit: expectedProfit ?? null,
       confidence: confidence ?? null,
@@ -90,7 +101,8 @@ export const POST: APIRoute = async ({ request, locals }) => {
         quantity,
         actualProfit: profit,
         recId,
-        modelId
+        modelId,
+        offsetPct
       }).catch(() => {
         // Silently fail - ML feedback is optional
       });

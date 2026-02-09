@@ -69,6 +69,7 @@ export default function FlipCarousel(props: FlipCarouselProps) {
           itemName: rec.item,
           buyPrice: rec.buyPrice,
           sellPrice: rec.sellPrice,
+          offsetPct: rec.offsetPct,
           quantity: rec.quantity,
           recId: rec.id,
           modelId: rec.modelId,

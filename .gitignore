@@ -4,6 +4,7 @@ __pycache__/
 *.pyc
 .venv/
 venv/
+.vevn/
 
 # Build outputs
 dist/

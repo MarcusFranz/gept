@@ -874,9 +874,9 @@ class TestRecommendationEngine:
         engine, _ = mock_engine
 
         expected_ranges = {
-            "low": (0.0125, 0.0175),
-            "medium": (0.0150, 0.0200),
-            "high": (0.0175, 0.0250),
+            "low": (0.0125, 0.0150),
+            "medium": (0.0125, 0.0175),
+            "high": (0.0150, 0.0225),
         }
         assert engine.OFFSET_RANGES == expected_ranges
 
@@ -897,7 +897,7 @@ class TestRecommendationEngine:
 
         call_args = mock_loader.get_best_prediction_per_item.call_args
         assert call_args.kwargs.get("min_offset_pct") == 0.0125
-        assert call_args.kwargs.get("max_offset_pct") == 0.0175
+        assert call_args.kwargs.get("max_offset_pct") == 0.0150
 
         # Test high risk -> aggressive offsets
         engine.get_recommendations(
@@ -908,8 +908,8 @@ class TestRecommendationEngine:
         )
 
         call_args = mock_loader.get_best_prediction_per_item.call_args
-        assert call_args.kwargs.get("min_offset_pct") == 0.0175
-        assert call_args.kwargs.get("max_offset_pct") == 0.0250
+        assert call_args.kwargs.get("min_offset_pct") == 0.0150
+        assert call_args.kwargs.get("max_offset_pct") == 0.0225
 
     def test_get_recommendations_with_specific_offset_pct(self, mock_engine):
         """Test that specific offset_pct overrides risk-based range."""

@@ -278,6 +278,7 @@ export function OpportunityBrowser(props: OpportunityBrowserProps) {
           itemName: opp.item,
           buyPrice: opp.buyPrice,
           sellPrice: opp.sellPrice,
+          offsetPct: opp.offsetPct ?? undefined,
           quantity,
           recId: opp.id,
           expectedHours: opp.expectedHours,

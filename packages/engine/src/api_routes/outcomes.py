@@ -50,6 +50,7 @@ async def report_trade_outcome(
         rec_id=body.recId,
         item_id=body.itemId,
         item_name=body.itemName,
+        offset_pct=body.offsetPct,
         buy_price=body.buyPrice,
         sell_price=body.sellPrice,
         quantity=body.quantity,

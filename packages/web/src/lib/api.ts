@@ -28,6 +28,7 @@ interface ApiRecommendation {
   itemId: number;
   buyPrice: number;
   sellPrice: number;
+  offsetPct?: number | null;
   quantity: number;
   capitalRequired: number;
   expectedProfit: number;
@@ -77,6 +78,7 @@ function transformRecommendation(api: ApiRecommendation): Recommendation {
     itemId: api.itemId,
     buyPrice: api.buyPrice,
     sellPrice: api.sellPrice,
+    offsetPct: api.offsetPct ?? undefined,
     quantity: api.quantity,
     capitalRequired: api.capitalRequired,
     expectedProfit: api.expectedProfit,
@@ -102,6 +104,26 @@ function getAuthHeaders(): Record<string, string> {
     headers['X-API-Key'] = apiKey;
   }
   return headers;
+}
+
+async function postJsonOptional(url: string, body: unknown): Promise<boolean> {
+  // For non-critical telemetry (outcomes/feedback), avoid tripping the circuit breaker.
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(body),
+      signal: controller.signal
+    });
+    return response.ok;
+  } catch {
+    return false;
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }
 
 async function fetchWithRetry<T>(
@@ -168,6 +190,12 @@ function hashUserId(userId: string): string {
 
 function sha256Hex(input: string): string {
   return createHash('sha256').update(input).digest('hex');
+}
+
+function isEngineRecId(recId: string | undefined): boolean {
+  if (!recId) return false;
+  // Engine expects rec_{item_id}_{YYYYMMDDHH} (see engine feedback endpoint validation)
+  return /^rec_\d+_\d{10}$/.test(recId);
 }
 
 // Get margin offset based on preference
@@ -277,6 +305,7 @@ export async function reportTradeOutcome(data: {
   actualProfit: number;
   recId?: string;
   modelId?: string;
+  offsetPct?: number;
 }): Promise<boolean> {
   // Trade outcome is reported to the recommendation endpoint
   if (!data.recId) {
@@ -287,21 +316,51 @@ export async function reportTradeOutcome(data: {
   const url = `${getApiBase()}/api/v1/recommendations/${data.recId}/outcome`;
 
   try {
-    await fetchWithRetry(url, {
-      method: 'POST',
-      body: JSON.stringify({
-        userId: sha256Hex(data.userId),
-        itemId: data.itemId,
-        itemName: data.itemName,
-        recId: data.recId,
-        buyPrice: data.buyPrice,
-        sellPrice: data.sellPrice,
-        quantity: data.quantity,
-        actualProfit: data.actualProfit,
-        reportedAt: new Date().toISOString()
-      })
+    return await postJsonOptional(url, {
+      userId: sha256Hex(data.userId),
+      itemId: data.itemId,
+      itemName: data.itemName,
+      recId: data.recId,
+      offsetPct: data.offsetPct,
+      buyPrice: data.buyPrice,
+      sellPrice: data.sellPrice,
+      quantity: data.quantity,
+      actualProfit: data.actualProfit,
+      reportedAt: new Date().toISOString()
     });
-    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function submitEngineFeedback(data: {
+  userId: string;
+  itemId: number;
+  itemName: string;
+  feedbackType: string;
+  recId?: string;
+  offsetPct?: number;
+  side?: 'buy' | 'sell';
+  notes?: string;
+  recommendedPrice?: number;
+  actualPrice?: number;
+}): Promise<boolean> {
+  const url = `${getApiBase()}/api/v1/feedback`;
+
+  try {
+    return await postJsonOptional(url, {
+      userId: sha256Hex(data.userId),
+      itemId: data.itemId,
+      itemName: data.itemName,
+      recId: isEngineRecId(data.recId) ? data.recId : undefined,
+      offsetPct: data.offsetPct,
+      feedbackType: data.feedbackType,
+      side: data.side,
+      notes: data.notes,
+      recommendedPrice: data.recommendedPrice,
+      actualPrice: data.actualPrice,
+      submittedAt: new Date().toISOString()
+    });
   } catch {
     return false;
   }

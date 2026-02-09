@@ -373,6 +373,7 @@ async def browse_opportunities(
                     icon_url=opp.get("icon_url"),
                     buy_price=opp["buy_price"],
                     sell_price=opp["sell_price"],
+                    offset_pct=opp.get("offset_pct"),
                     quantity=opp["quantity"],
                     capital_required=opp["capital_required"],
                     expected_profit=opp["expected_profit"],

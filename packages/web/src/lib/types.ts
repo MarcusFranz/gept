@@ -5,6 +5,7 @@ export interface Recommendation {
   itemId: number;
   buyPrice: number;
   sellPrice: number;
+  offsetPct?: number;
   quantity: number;
   capitalRequired: number;
   expectedProfit: number;
@@ -215,6 +216,7 @@ export interface TradeEventPayload {
   itemName: string;
   buyPrice: number;
   sellPrice: number | null;
+  offsetPct?: number | null;
   quantity: number;
   profit?: number;
   recId?: string | null;
