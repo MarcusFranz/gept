@@ -202,10 +202,12 @@ def compute_long_features(df: pd.DataFrame, current_mid: float, target_len: int 
 
 def get_db_connection():
     """Get database connection from environment or defaults."""
-    password = (os.environ.get('DB_PASSWORD') or '').strip()
+    # Prefer DB_PASSWORD, but support DB_PASS as an alias (used by collectors/docker envs).
+    password = (os.environ.get('DB_PASSWORD') or os.environ.get('DB_PASS') or '').strip()
     if not password:
         raise RuntimeError(
-            "DB_PASSWORD is required. Set DB_PASSWORD in the environment (or your .env) "
+            "DB_PASSWORD is required (or set DB_PASS as an alias). "
+            "Set it in the environment (or your .env) "
             "instead of relying on a default."
         )
     return psycopg2.connect(
