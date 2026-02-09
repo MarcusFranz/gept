@@ -4,7 +4,6 @@ import type { TradeViewModel, Guidance } from '../../lib/trade-types';
 import type { UpdateRecommendation } from '../../lib/types';
 import { CheckInBar } from './CheckInBar';
 import { GuidancePrompt } from './GuidancePrompt';
-import { AlertBanner } from './AlertBanner';
 import { Sparkline } from '../Sparkline';
 import { fetchPriceHistoryWithFallback, type PriceHistoryData } from '../../lib/price-history';
 
@@ -123,12 +122,44 @@ export function TradeDetail(props: TradeDetailProps) {
   // Use getter functions for reactive prop access
   const actualBuy = () => props.trade.actualBuyPrice || props.trade.buyPrice;
   const actualSell = () => props.trade.actualSellPrice || props.trade.sellPrice;
-  const hasPriceAlert = () =>
-    props.alert?.type === 'ADJUST_PRICE' ||
-    props.alert?.type === 'SELL_NOW' ||
-    props.alert?.type === 'HOLD';
+
+  // Price alerts can come from two sources:
+  // - Real-time alert payloads (SSE / polling), which include a suggested price.
+  // - Persisted suggested_sell_price on the trade (durable across refreshes).
+  //
+  // We intentionally render a single integrated UI (strike-through + new price)
+  // instead of a separate notification-style banner.
+  const alertSuggestedSell = () => {
+    const a = props.alert;
+    if (!a) return null;
+    const v =
+      a.type === 'ADJUST_PRICE'
+        ? a.newSellPrice
+        : a.type === 'SELL_NOW'
+          ? a.adjustedSellPrice
+          : undefined;
+    return typeof v === 'number' && Number.isFinite(v) ? v : null;
+  };
+
+  const suggestedSell = () => alertSuggestedSell() ?? props.trade.suggestedSellPrice;
+  const hasSuggestedSell = () => suggestedSell() != null;
+
+  const applySuggestedSell = () => {
+    // Prefer the alert-backed accept flow when it has an explicit suggested price,
+    // otherwise fall back to the persisted suggestion flow.
+    if (alertSuggestedSell() != null) {
+      props.onAcceptAlert?.();
+      return;
+    }
+    props.onAcknowledgePrice?.();
+  };
+
+  const dismissSuggestedSell = () => {
+    props.onDismissAlert?.();
+  };
+
   const suggestedDir = () => {
-    const suggested = props.trade.suggestedSellPrice;
+    const suggested = suggestedSell();
     if (suggested == null) return 'neutral' as const;
     const original = actualSell();
     if (suggested > original) return 'up' as const;
@@ -167,24 +198,21 @@ export function TradeDetail(props: TradeDetailProps) {
         <div class="price-box sell-price">
           <span class="price-label">Sell at</span>
           <Show
-            // Avoid rendering two separate "price alert" UIs at once:
-            // - When an active alert exists, the AlertBanner already shows the suggested price.
-            // - When the alert is dismissed, we still want the stored suggestion to be visible.
-            when={props.trade.suggestedSellPrice && !hasPriceAlert()}
+            when={hasSuggestedSell()}
             fallback={<span class="price-value">{formatExactGold(actualSell())}</span>}
           >
             <span class="price-value price-strikethrough">{formatExactGold(actualSell())}</span>
             <span class={`price-value price-suggested ${suggestedDir() === 'up' ? 'price-suggested-up' : suggestedDir() === 'down' ? 'price-suggested-down' : ''}`}>
-              {formatExactGold(props.trade.suggestedSellPrice!)}
+              {formatExactGold(suggestedSell()!)}
             </span>
             <button
               class="price-acknowledge"
               onClick={(e) => {
                 e.stopPropagation();
-                props.onAcknowledgePrice?.();
+                applySuggestedSell();
               }}
-              aria-label="Acknowledge price update"
-              title="I've updated my GE offer"
+              aria-label="Apply suggested price"
+              title="Apply suggested price"
             >
               ✓
             </button>
@@ -202,14 +230,20 @@ export function TradeDetail(props: TradeDetailProps) {
         />
       </div>
 
-      <Show when={props.alert}>
-        <AlertBanner
-          alert={props.alert!}
-          onAccept={() => props.onAcceptAlert?.()}
-          onDismiss={() => props.onDismissAlert?.()}
-          loading={loading()}
-          currentSellPrice={actualSell()}
-        />
+      <Show when={props.alert?.reason && hasSuggestedSell()}>
+        <div class="trade-detail-alert-inline">
+          <p class="trade-detail-alert-reason">{props.alert!.reason}</p>
+          <button
+            class="trade-detail-alert-dismiss"
+            onClick={(e) => {
+              e.stopPropagation();
+              dismissSuggestedSell();
+            }}
+            disabled={loading()}
+          >
+            Dismiss
+          </button>
+        </div>
       </Show>
 
       {guidance() ? (
@@ -257,6 +291,49 @@ export function TradeDetail(props: TradeDetailProps) {
           padding: 1.1rem;
           position: relative;
           box-shadow: none;
+        }
+
+        .trade-detail-alert-inline {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 0.75rem;
+          margin-top: 0.85rem;
+          padding: 0.75rem 0.9rem;
+          border-radius: var(--radius-lg);
+          background: color-mix(in srgb, var(--surface-1) 88%, var(--warning) 12%);
+          border: 1px solid color-mix(in srgb, var(--warning) 35%, transparent);
+        }
+
+        .trade-detail-alert-reason {
+          margin: 0;
+          font-size: 0.92rem;
+          line-height: 1.35;
+          color: var(--text);
+          opacity: 0.9;
+        }
+
+        .trade-detail-alert-dismiss {
+          background: transparent;
+          border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+          color: var(--text);
+          opacity: 0.85;
+          padding: 0.4rem 0.6rem;
+          border-radius: 999px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: opacity 0.2s ease, border-color 0.2s ease;
+          white-space: nowrap;
+        }
+
+        .trade-detail-alert-dismiss:hover:not(:disabled) {
+          opacity: 1;
+          border-color: color-mix(in srgb, var(--border-light) 70%, transparent);
+        }
+
+        .trade-detail-alert-dismiss:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
         }
 
         .trade-detail.is-open {

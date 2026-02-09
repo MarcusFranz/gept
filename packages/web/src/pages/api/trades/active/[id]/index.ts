@@ -160,7 +160,11 @@ export const PATCH: APIRoute = async ({ params, request, locals }) => {
     }
 
     const body = await request.json();
-    const { quantity, sellPrice } = body;
+    const { quantity, sellPrice, clearSuggestedSellPrice } = body as {
+      quantity?: number;
+      sellPrice?: number;
+      clearSuggestedSellPrice?: boolean;
+    };
 
     const previousSellPrice = trade.sell_price;
 
@@ -179,6 +183,10 @@ export const PATCH: APIRoute = async ({ params, request, locals }) => {
       if (sellPrice !== undefined) {
         await activeTradesRepo.updateSellPrice(tradeId, sellPrice);
       }
+
+      if (clearSuggestedSellPrice === true) {
+        await activeTradesRepo.clearSuggestedSellPrice(tradeId);
+      }
     }
 
     const updated = isDevUser ? findMockTrade(tradeId) : await activeTradesRepo.findById(tradeId);
@@ -187,6 +195,16 @@ export const PATCH: APIRoute = async ({ params, request, locals }) => {
     // Otherwise the UI can immediately re-show the same "Revise price" alert
     // for up to TTL.RECOMMENDATIONS even after the trade has been patched.
     cache.del(cacheKey(KEY.SSE, 'updates', userId)).catch(() => {});
+
+    // Clearing a suggestion should also suppress immediate re-alerts from polling.
+    if (clearSuggestedSellPrice === true) {
+      const ackKey = cacheKey(KEY.SSE, 'priceAlertAck', tradeId);
+      cache.set(
+        ackKey,
+        { sellPrice: trade.sell_price, at: new Date().toISOString() },
+        10 * 60, // 10 minutes
+      ).catch(() => {});
+    }
 
     // If the user just revised their sell price, suppress immediate re-alerts from
     // the polling-based updates endpoint. (The engine monitor has its own cooldown,
@@ -207,6 +225,17 @@ export const PATCH: APIRoute = async ({ params, request, locals }) => {
 
     // Dispatch webhook to ML engine (fire-and-forget)
     if (updated && !isDevUser) {
+      // Don't notify the engine if we're only clearing a UI suggestion.
+      if (clearSuggestedSellPrice === true && sellPrice === undefined && quantity === undefined) {
+        return new Response(JSON.stringify({
+          success: true,
+          data: updated
+        }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+
       dispatchWebhook('TRADE_UPDATED', userId, tradeId, {
         itemId: updated.item_id,
         itemName: updated.item_name,
