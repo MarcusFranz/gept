@@ -31,8 +31,8 @@ export const CAPITAL_PRESETS = [
 // GE Tax configuration
 export const TAX = {
   RATE: 0.02,              // 2% tax
-  THRESHOLD: 100,          // Items under 100gp exempt
-  MAX: 5_000_000,          // Max tax 5M per trade
+  THRESHOLD: 50,           // Items under 50gp exempt
+  MAX: 5_000_000,          // Max tax 5M per item
 } as const;
 
 // Prediction thresholds

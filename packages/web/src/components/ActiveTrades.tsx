@@ -1,6 +1,7 @@
 import { createSignal, createEffect, Show, For } from 'solid-js';
 import type { ActiveTrade } from '../lib/db';
 import { formatGold } from '../lib/types';
+import { calculateFlipProfit } from '../lib/ge-tax';
 
 interface ActiveTradesProps {
   initialTrades?: ActiveTrade[];
@@ -19,6 +20,9 @@ export default function ActiveTrades(props: ActiveTradesProps) {
     notes: ''
   });
   const [processing, setProcessing] = createSignal(false);
+
+  const computeProfit = (trade: ActiveTrade, sellPrice: number, quantity: number) =>
+    calculateFlipProfit(trade.buy_price, sellPrice, quantity);
 
   const fetchTrades = async () => {
     setLoading(true);
@@ -49,21 +53,15 @@ export default function ActiveTrades(props: ActiveTradesProps) {
 
   const openCompleteModal = (trade: ActiveTrade) => {
     setSelectedTrade(trade);
+    const sellPrice = trade.sell_price;
+    const quantity = trade.quantity;
     setCompletionData({
-      sellPrice: trade.sell_price,
-      quantity: trade.quantity,
-      profit: (trade.sell_price - trade.buy_price) * trade.quantity,
+      sellPrice,
+      quantity,
+      profit: computeProfit(trade, sellPrice, quantity),
       notes: ''
     });
     setShowCompleteModal(true);
-  };
-
-  const updateProfit = () => {
-    const trade = selectedTrade();
-    if (!trade) return;
-    const data = completionData();
-    const profit = (data.sellPrice - trade.buy_price) * data.quantity;
-    setCompletionData({ ...data, profit });
   };
 
   const completeTrade = async () => {
@@ -195,7 +193,7 @@ export default function ActiveTrades(props: ActiveTradesProps) {
                   <div class="trade-info-item">
                     <span class="trade-info-label">Target Profit</span>
                     <span class="trade-info-value font-mono text-success">
-                      +{formatGold((trade.sell_price - trade.buy_price) * trade.quantity)}
+                      +{formatGold(computeProfit(trade, trade.sell_price, trade.quantity))}
                     </span>
                   </div>
                 </div>
@@ -247,11 +245,14 @@ export default function ActiveTrades(props: ActiveTradesProps) {
                   class="input"
                   value={completionData().sellPrice}
                   onInput={(e) => {
-                    setCompletionData({
-                      ...completionData(),
-                      sellPrice: parseInt(e.currentTarget.value) || 0
-                    });
-                    updateProfit();
+                    const nextSellPrice = parseInt(e.currentTarget.value) || 0;
+                    const trade = selectedTrade();
+                    if (!trade) return;
+                    setCompletionData((prev) => ({
+                      ...prev,
+                      sellPrice: nextSellPrice,
+                      profit: computeProfit(trade, nextSellPrice, prev.quantity),
+                    }));
                   }}
                 />
               </div>
@@ -263,11 +264,14 @@ export default function ActiveTrades(props: ActiveTradesProps) {
                   class="input"
                   value={completionData().quantity}
                   onInput={(e) => {
-                    setCompletionData({
-                      ...completionData(),
-                      quantity: parseInt(e.currentTarget.value) || 0
-                    });
-                    updateProfit();
+                    const nextQty = parseInt(e.currentTarget.value) || 0;
+                    const trade = selectedTrade();
+                    if (!trade) return;
+                    setCompletionData((prev) => ({
+                      ...prev,
+                      quantity: nextQty,
+                      profit: computeProfit(trade, prev.sellPrice, nextQty),
+                    }));
                   }}
                 />
               </div>

@@ -1,5 +1,6 @@
 import type { ActiveTrade } from './db';
 import type { Opportunity } from './trade-types';
+import { calculateFlipProfit } from './ge-tax';
 
 const now = Date.now();
 
@@ -275,7 +276,7 @@ export const advanceMockTrade = (id: string) => {
     return { trade: updated, message: 'Advanced to selling phase' };
   }
   deleteMockTrade(id);
-  return { trade: null, message: 'Trade completed', profit: (trade.sell_price - trade.buy_price) * trade.quantity };
+  return { trade: null, message: 'Trade completed', profit: calculateFlipProfit(trade.buy_price, trade.sell_price, trade.quantity) };
 };
 
 export const getMockOpportunities = (filters: {
