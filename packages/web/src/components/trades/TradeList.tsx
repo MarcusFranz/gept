@@ -7,6 +7,8 @@ import { TradeCard } from './TradeCard';
 import { TradeDetail } from './TradeDetail';
 import { addToast, removeToast } from '../ToastContainer';
 
+type CancelReason = 'changed_mind' | 'did_not_fill';
+
 interface TradeListProps {
   initialTrades: ActiveTrade[];
   onNavigateToOpportunities: () => void;
@@ -21,6 +23,11 @@ export function TradeList(props: TradeListProps) {
   );
   const [expandedId, setExpandedId] = createSignal<string | null>(null);
   const [error, setError] = createSignal<string | null>(null);
+  const [cancelModal, setCancelModal] = createSignal<{
+    tradeId: string;
+    trade: TradeViewModel;
+  } | null>(null);
+  const [cancelReason, setCancelReason] = createSignal<CancelReason>('changed_mind');
 
   // Refresh trades from server
   const refreshTrades = async () => {
@@ -90,16 +97,16 @@ export function TradeList(props: TradeListProps) {
     }
   };
 
-  // Track pending cancellations: tradeId → { timer, toastId, trade, index }
-  const pendingCancels = new Map<string, { timer: ReturnType<typeof setTimeout>; toastId: string; trade: TradeViewModel; index: number }>();
+  // Track pending cancellations: tradeId → { timer, toastId, trade, index, reason }
+  const pendingCancels = new Map<string, { timer: ReturnType<typeof setTimeout>; toastId: string; trade: TradeViewModel; index: number; reason: CancelReason }>();
 
   const UNDO_WINDOW_MS = 6000;
 
   // Commit a pending cancel to the backend
-  const commitCancel = async (tradeId: string) => {
+  const commitCancel = async (tradeId: string, reason: CancelReason) => {
     pendingCancels.delete(tradeId);
     try {
-      const res = await fetch(`/api/trades/active/${tradeId}`, {
+      const res = await fetch(`/api/trades/active/${tradeId}?reason=${encodeURIComponent(reason)}`, {
         method: 'DELETE'
       });
       if (!res.ok) throw new Error('Failed to cancel trade');
@@ -112,8 +119,8 @@ export function TradeList(props: TradeListProps) {
     }
   };
 
-  // Handle cancel — optimistic removal + undo toast
-  const handleCancel = (tradeId: string) => {
+  // Start cancel — optimistic removal + undo toast
+  const startCancel = (tradeId: string, reason: CancelReason) => {
     const currentTrades = trades();
     const index = currentTrades.findIndex(t => t.id === tradeId);
     if (index === -1) return;
@@ -128,7 +135,7 @@ export function TradeList(props: TradeListProps) {
       const pending = pendingCancels.get(tradeId);
       if (pending) {
         removeToast(pending.toastId);
-        commitCancel(tradeId);
+        commitCancel(tradeId, pending.reason);
       }
     }, UNDO_WINDOW_MS);
 
@@ -136,7 +143,7 @@ export function TradeList(props: TradeListProps) {
     const toastId = addToast({
       type: 'info',
       title: 'Trade cancelled',
-      message: trade.itemName,
+      message: `${trade.itemName}${reason === 'did_not_fill' ? ' (did not fill)' : ''}`,
       duration: UNDO_WINDOW_MS,
       action: {
         label: 'Undo',
@@ -158,7 +165,16 @@ export function TradeList(props: TradeListProps) {
       }
     });
 
-    pendingCancels.set(tradeId, { timer, toastId, trade, index });
+    pendingCancels.set(tradeId, { timer, toastId, trade, index, reason });
+  };
+
+  const promptCancel = (tradeId: string) => {
+    const currentTrades = trades();
+    const index = currentTrades.findIndex(t => t.id === tradeId);
+    if (index === -1) return;
+    const trade = currentTrades[index];
+    setCancelReason('changed_mind');
+    setCancelModal({ tradeId, trade });
   };
 
   const startCollapse = () => {
@@ -167,9 +183,9 @@ export function TradeList(props: TradeListProps) {
 
   // Cleanup pending timers on unmount
   onCleanup(() => {
-    for (const [tradeId, { timer }] of pendingCancels) {
+    for (const [tradeId, { timer, reason }] of pendingCancels) {
       clearTimeout(timer);
-      commitCancel(tradeId);
+      commitCancel(tradeId, reason);
     }
   });
 
@@ -218,21 +234,21 @@ export function TradeList(props: TradeListProps) {
                         return;
                       }
                       setExpandedId(trade.id);
-                    }}
-                    onCancel={() => handleCancel(trade.id)}
-                    alert={props.alerts?.get(trade.id)}
-                  />
+	                    }}
+	                    onCancel={() => promptCancel(trade.id)}
+	                    alert={props.alerts?.get(trade.id)}
+	                  />
                 </div>
                 <div class={`trade-detail-wrap ${expandedId() === trade.id ? 'is-expanded' : ''}`}>
                   <Show when={expandedId() === trade.id}>
                     <TradeDetail
-                      trade={trade}
-                      onCheckIn={(progress) => handleCheckIn(trade.id, progress)}
-                      onAdvance={() => handleAdvance(trade.id)}
-                      onCancel={() => handleCancel(trade.id)}
-                      onClose={() => startCollapse()}
-                      showHeader={false}
-                      alert={props.alerts?.get(trade.id)}
+	                      trade={trade}
+	                      onCheckIn={(progress) => handleCheckIn(trade.id, progress)}
+	                      onAdvance={() => handleAdvance(trade.id)}
+	                      onCancel={() => promptCancel(trade.id)}
+	                      onClose={() => startCollapse()}
+	                      showHeader={false}
+	                      alert={props.alerts?.get(trade.id)}
                       onAcceptAlert={() => {
                         const alert = props.alerts?.get(trade.id);
                       const newPrice = alert?.newSellPrice ?? alert?.adjustedSellPrice;
@@ -253,6 +269,78 @@ export function TradeList(props: TradeListProps) {
               </div>
             )}}
           </For>
+        </div>
+      </Show>
+
+      <Show when={cancelModal()}>
+        <div
+          class="trade-cancel-backdrop"
+          role="presentation"
+          onClick={() => setCancelModal(null)}
+        >
+          <div
+            class="trade-cancel-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Cancel trade"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 class="trade-cancel-title">Cancel trade?</h3>
+            <p class="trade-cancel-subtitle">
+              Why are you cancelling <span class="trade-cancel-item">{cancelModal()!.trade.itemName}</span>?
+            </p>
+
+            <div class="trade-cancel-options">
+              <label class={`trade-cancel-option ${cancelReason() === 'did_not_fill' ? 'is-selected' : ''}`}>
+                <input
+                  type="radio"
+                  name="cancel-reason"
+                  value="did_not_fill"
+                  checked={cancelReason() === 'did_not_fill'}
+                  onChange={() => setCancelReason('did_not_fill')}
+                />
+                <span class="trade-cancel-option-text">
+                  <span class="trade-cancel-option-title">Did not fill</span>
+                  <span class="trade-cancel-option-help">Helps us tune prices to improve fills.</span>
+                </span>
+              </label>
+
+              <label class={`trade-cancel-option ${cancelReason() === 'changed_mind' ? 'is-selected' : ''}`}>
+                <input
+                  type="radio"
+                  name="cancel-reason"
+                  value="changed_mind"
+                  checked={cancelReason() === 'changed_mind'}
+                  onChange={() => setCancelReason('changed_mind')}
+                />
+                <span class="trade-cancel-option-text">
+                  <span class="trade-cancel-option-title">Changed my mind</span>
+                  <span class="trade-cancel-option-help">We will not treat this as a pricing issue.</span>
+                </span>
+              </label>
+            </div>
+
+            <div class="trade-cancel-actions">
+              <button
+                class="trade-cancel-btn trade-cancel-btn-secondary"
+                onClick={() => setCancelModal(null)}
+              >
+                Keep trade
+              </button>
+              <button
+                class="trade-cancel-btn trade-cancel-btn-danger"
+                onClick={() => {
+                  const modal = cancelModal();
+                  if (!modal) return;
+                  const reason = cancelReason();
+                  setCancelModal(null);
+                  startCancel(modal.tradeId, reason);
+                }}
+              >
+                Cancel trade
+              </button>
+            </div>
+          </div>
         </div>
       </Show>
 
@@ -368,6 +456,135 @@ export function TradeList(props: TradeListProps) {
           cursor: pointer;
           font-size: 1.25rem;
           padding: 0 0.25rem;
+        }
+
+        .trade-cancel-backdrop {
+          position: fixed;
+          inset: 0;
+          background: rgba(0, 0, 0, 0.55);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 1.25rem;
+          z-index: 50;
+        }
+
+        .trade-cancel-modal {
+          width: min(520px, 100%);
+          background: var(--surface-1);
+          border: 1px solid var(--border);
+          border-radius: var(--radius-xl);
+          box-shadow: 0 26px 70px -40px rgba(0, 0, 0, 0.75);
+          padding: 1.2rem 1.2rem 1rem;
+        }
+
+        .trade-cancel-title {
+          margin: 0 0 0.25rem;
+          font-size: var(--font-size-lg);
+          font-weight: 700;
+          color: var(--text-primary);
+          letter-spacing: -0.01em;
+        }
+
+        .trade-cancel-subtitle {
+          margin: 0 0 1rem;
+          font-size: var(--font-size-sm);
+          color: var(--text-secondary);
+          line-height: 1.35;
+        }
+
+        .trade-cancel-item {
+          color: var(--text-primary);
+          font-weight: 600;
+        }
+
+        .trade-cancel-options {
+          display: grid;
+          gap: 0.65rem;
+          margin-bottom: 1rem;
+        }
+
+        .trade-cancel-option {
+          display: grid;
+          grid-template-columns: 18px 1fr;
+          gap: 0.75rem;
+          align-items: start;
+          padding: 0.85rem 0.9rem;
+          border-radius: var(--radius-lg);
+          border: 1px solid var(--border);
+          background: color-mix(in srgb, var(--surface-2) 55%, transparent);
+          cursor: pointer;
+          transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+        }
+
+        .trade-cancel-option:hover {
+          transform: translateY(-1px);
+          border-color: var(--border-light);
+        }
+
+        .trade-cancel-option.is-selected {
+          border-color: color-mix(in srgb, var(--action) 60%, var(--border));
+          background: color-mix(in srgb, var(--action) 10%, var(--surface-2));
+        }
+
+        .trade-cancel-option input {
+          margin-top: 2px;
+          accent-color: var(--action);
+        }
+
+        .trade-cancel-option-text {
+          display: grid;
+          gap: 0.15rem;
+        }
+
+        .trade-cancel-option-title {
+          font-weight: 700;
+          color: var(--text-primary);
+          font-size: var(--font-size-sm);
+        }
+
+        .trade-cancel-option-help {
+          font-size: 0.85rem;
+          color: var(--text-secondary);
+        }
+
+        .trade-cancel-actions {
+          display: flex;
+          gap: 0.6rem;
+          justify-content: flex-end;
+        }
+
+        .trade-cancel-btn {
+          border-radius: var(--radius-full);
+          padding: 0.7rem 1rem;
+          font-weight: 650;
+          border: 1px solid transparent;
+          cursor: pointer;
+          transition: transform 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+        }
+
+        .trade-cancel-btn:active {
+          transform: translateY(1px);
+        }
+
+        .trade-cancel-btn-secondary {
+          background: transparent;
+          border-color: var(--border);
+          color: var(--text-primary);
+        }
+
+        .trade-cancel-btn-secondary:hover {
+          border-color: var(--border-light);
+          background: color-mix(in srgb, var(--surface-2) 80%, transparent);
+        }
+
+        .trade-cancel-btn-danger {
+          background: color-mix(in srgb, var(--danger) 88%, black);
+          color: white;
+        }
+
+        .trade-cancel-btn-danger:hover {
+          background: color-mix(in srgb, var(--danger) 95%, black);
         }
       `}</style>
     </div>

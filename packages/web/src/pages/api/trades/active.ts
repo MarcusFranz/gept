@@ -62,7 +62,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
     const userId = locals.user.id;
     const isDevUser = import.meta.env.DEV && userId === 'dev-user';
     const body = await request.json();
-    const { itemId, itemName, buyPrice, sellPrice, quantity, recId, modelId, expectedHours, confidence, fillProbability, expectedProfit } = body;
+    const { itemId, itemName, buyPrice, sellPrice, quantity, recId, modelId, expectedHours, offsetPct, confidence, fillProbability, expectedProfit } = body;
 
     // Validate required fields
     if (!itemId || !itemName || !buyPrice || !sellPrice || !quantity) {
@@ -137,6 +137,17 @@ export const POST: APIRoute = async ({ request, locals }) => {
       });
     }
 
+    // Optional: offset pct attribution (used for feedback loop)
+    if (offsetPct !== undefined && (typeof offsetPct !== 'number' || !Number.isFinite(offsetPct) || offsetPct < 0.0125 || offsetPct > 0.0250)) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Invalid offsetPct (must be 0.0125-0.0250)'
+      }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
     // Optional: prediction context fields
     if (confidence !== undefined && (typeof confidence !== 'string' || !['low', 'medium', 'high'].includes(confidence))) {
       return new Response(JSON.stringify({
@@ -178,6 +189,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
         quantity,
         rec_id: recId || null,
         model_id: modelId || null,
+        offset_pct: offsetPct ?? null,
         expected_hours: expectedHours ?? undefined,
         confidence: confidence ?? null,
         fill_probability: fillProbability ?? null,
@@ -214,6 +226,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
       quantity,
       rec_id: recId || null,
       model_id: modelId || null,
+      offset_pct: offsetPct ?? null,
       expected_hours: expectedHours ?? undefined,
       suggested_sell_price: null,
       confidence: confidence ?? null,
@@ -230,6 +243,8 @@ export const POST: APIRoute = async ({ request, locals }) => {
       quantity,
       recId: recId || null,
       modelId: modelId || null,
+      // `DECIMAL` from Postgres can come back as string; normalize for the webhook payload.
+      offsetPct: trade.offset_pct == null ? null : Number(trade.offset_pct),
       expectedHours: trade.expected_hours ?? null,
       createdAt: trade.created_at ? new Date(trade.created_at).toISOString() : null
     });

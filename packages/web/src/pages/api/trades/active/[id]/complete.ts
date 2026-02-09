@@ -1,6 +1,6 @@
 import type { APIRoute } from 'astro';
 import { activeTradesRepo, tradeHistoryRepo } from '../../../../../lib/repositories';
-import { reportTradeOutcome } from '../../../../../lib/api';
+import { reportTradeOutcome, submitEngineFeedback } from '../../../../../lib/api';
 import { dispatchWebhook } from '../../../../../lib/webhook';
 import { deleteMockTrade, findMockTrade } from '../../../../../lib/mock-data';
 
@@ -65,6 +65,7 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
       notes: notes || null,
       rec_id: trade.rec_id,
       model_id: trade.model_id,
+      offset_pct: trade.offset_pct ?? null,
       status: 'completed',
       expected_profit: trade.expected_profit,
       confidence: trade.confidence,
@@ -82,7 +83,8 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
       quantity: quantity || trade.quantity,
       actualProfit: profit,
       recId: trade.rec_id || undefined,
-      modelId: trade.model_id || undefined
+      modelId: trade.model_id || undefined,
+      offsetPct: trade.offset_pct === null ? undefined : Number(trade.offset_pct)
     }).catch(() => {
       // Silently fail - ML feedback is optional
     });
@@ -96,11 +98,37 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
       itemName: trade.item_name,
       buyPrice: trade.buy_price,
       sellPrice: sellPrice || trade.sell_price,
+      // `DECIMAL` from Postgres can come back as string; normalize for the webhook payload.
+      offsetPct: trade.offset_pct == null ? null : Number(trade.offset_pct),
       quantity: quantity || trade.quantity,
       profit,
       recId: trade.rec_id,
       modelId: trade.model_id
     });
+
+    // Structured ML feedback: sell leg filled (non-blocking).
+    const createdAtMs = trade.created_at ? new Date(trade.created_at).getTime() : null;
+    const expectedHoursRaw = trade.expected_hours;
+    const expectedHours =
+      typeof expectedHoursRaw === 'number' ? expectedHoursRaw : Number(expectedHoursRaw);
+    if (createdAtMs && Number.isFinite(expectedHours) && expectedHours > 0) {
+      const elapsedHours = (Date.now() - createdAtMs) / (1000 * 60 * 60);
+      const feedbackType = elapsedHours <= expectedHours ? 'filled_quickly' : 'filled_slowly';
+      submitEngineFeedback({
+        userId,
+        itemId: trade.item_id,
+        itemName: trade.item_name,
+        recId: trade.rec_id || undefined,
+        offsetPct: trade.offset_pct === null ? undefined : Number(trade.offset_pct),
+        feedbackType,
+        side: 'sell',
+        notes: `auto:trade_completed elapsedHours=${elapsedHours.toFixed(2)} expectedHours=${expectedHours}`,
+        recommendedPrice: trade.sell_price,
+        actualPrice: sellPrice || trade.sell_price
+      }).catch(() => {
+        // Silent fail - ML feedback is optional
+      });
+    }
 
     return new Response(JSON.stringify({
       success: true

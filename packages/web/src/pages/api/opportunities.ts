@@ -162,6 +162,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
           iconUrl: item.icon_url,
           buyPrice: item.buy_price,
           sellPrice: item.sell_price,
+          offsetPct: item.offset_pct ?? null,
           quantity: item.quantity,
           capitalRequired: item.capital_required,
           expectedProfit: item.expected_profit,

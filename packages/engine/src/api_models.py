@@ -57,6 +57,12 @@ class RecommendationResponse(BaseModel):
     item: str
     buyPrice: int
     sellPrice: int
+    offsetPct: Optional[float] = Field(
+        default=None,
+        ge=0.0125,
+        le=0.0250,
+        description="Offset percentage used for this recommendation (from predictions)",
+    )
     quantity: int
     capitalRequired: int
     expectedProfit: int
@@ -268,6 +274,12 @@ class TradeOutcomeRequest(BaseModel):
     itemId: int = Field(description="OSRS item ID")
     itemName: str = Field(description="Item name")
     recId: str = Field(description="Recommendation ID that led to this trade")
+    offsetPct: Optional[float] = Field(
+        default=None,
+        ge=0.0125,
+        le=0.0250,
+        description="Offset percentage used for the underlying recommendation (optional)",
+    )
     buyPrice: int = Field(ge=1, description="Buy price in gp")
     sellPrice: int = Field(ge=1, description="Sell price in gp")
     quantity: int = Field(ge=1, description="Quantity traded")
@@ -344,6 +356,12 @@ class FeedbackRequest(BaseModel):
     recId: Optional[str] = Field(
         default=None,
         description="Recommendation ID (optional - for linking to specific recommendation)",
+    )
+    offsetPct: Optional[float] = Field(
+        default=None,
+        ge=0.0125,
+        le=0.0250,
+        description="Offset percentage used for the underlying recommendation (optional)",
     )
     side: Optional[TradeSide] = Field(
         default=None, description="Which side had the issue (buy/sell)"
@@ -589,6 +607,12 @@ class OpportunityResponse(BaseModel):
     icon_url: Optional[str] = None
     buy_price: int
     sell_price: int
+    offset_pct: Optional[float] = Field(
+        default=None,
+        ge=0.0125,
+        le=0.0250,
+        description="Offset percentage used for this opportunity (from predictions)",
+    )
     quantity: int
     capital_required: int
     expected_profit: int
@@ -643,6 +667,12 @@ class TradeWebhookPayload(BaseModel):
     itemName: str = Field(description="Item name")
     buyPrice: int = Field(ge=1, description="Buy price in gp")
     sellPrice: int = Field(ge=1, description="Sell price in gp")
+    offsetPct: Optional[float] = Field(
+        default=None,
+        ge=0.0125,
+        le=0.0250,
+        description="Offset percentage used for the underlying recommendation (optional)",
+    )
     quantity: int = Field(ge=1, description="Quantity")
     profit: Optional[int] = Field(
         default=None, description="Actual profit (only on TRADE_COMPLETED)"

@@ -53,6 +53,7 @@ export interface ActiveTrade {
   quantity: number;
   rec_id: string | null;
   model_id: string | null;
+  offset_pct: number | null;
   created_at: Date;
   // Phase tracking fields for trade-centric UI
   phase: 'buying' | 'selling';
@@ -80,6 +81,7 @@ export interface TradeHistory {
   notes: string | null;
   rec_id: string | null;
   model_id: string | null;
+  offset_pct?: number | null;
   status: 'completed' | 'cancelled';
   expected_profit?: number | null;
   confidence?: string | null;

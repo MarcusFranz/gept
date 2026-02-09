@@ -94,6 +94,7 @@ export interface Opportunity {
   iconUrl?: string;
   buyPrice: number;
   sellPrice: number;
+  offsetPct?: number | null;
   quantity: number;
   capitalRequired: number;
   expectedProfit: number;

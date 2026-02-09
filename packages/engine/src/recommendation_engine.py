@@ -56,9 +56,13 @@ class RecommendationEngine:
 
     # Offset percentage ranges by risk level
     OFFSET_RANGES = {
-        "low": (0.0125, 0.0175),  # Conservative: 1.25% - 1.75%
-        "medium": (0.0150, 0.0200),  # Moderate: 1.5% - 2.0%
-        "high": (0.0175, 0.0250),  # Aggressive: 1.75% - 2.5%
+        # Note: The model currently supports offsets in the range 0.0125-0.0250
+        # (typically in 0.0025 increments). These defaults were tuned to be
+        # slightly more fill-friendly: narrower and shifted toward smaller
+        # offsets than the previous configuration.
+        "low": (0.0125, 0.0150),  # Conservative: 1.25% - 1.50%
+        "medium": (0.0125, 0.0175),  # Moderate: 1.25% - 1.75%
+        "high": (0.0150, 0.0225),  # Aggressive: 1.50% - 2.25%
     }
 
     # Risk penalty weights by risk level
@@ -582,6 +586,9 @@ class RecommendationEngine:
                 "item": cand["item_name"],
                 "buyPrice": buy_price,
                 "sellPrice": cand["sell_price"],
+                "offsetPct": (
+                    round(float(cand["offset_pct"]), 4) if cand.get("offset_pct") is not None else None
+                ),
                 "quantity": max_quantity,
                 "capitalRequired": capital_used,
                 "expectedProfit": expected_profit,
@@ -1575,6 +1582,9 @@ class RecommendationEngine:
                 "item": cand["item_name"],
                 "buyPrice": cand["buy_price"],
                 "sellPrice": cand["sell_price"],
+                "offsetPct": (
+                    round(float(cand["offset_pct"]), 4) if cand.get("offset_pct") is not None else None
+                ),
                 "quantity": opt["quantity"],
                 "capitalRequired": opt["capital_used"],
                 "expectedProfit": opt["expected_profit"],
@@ -2269,6 +2279,11 @@ class RecommendationEngine:
         df['fill_probability'] = df['fill_probability'].astype(float)
         df['expected_value'] = df['expected_value'].astype(float)
         df['hour_offset'] = df['hour_offset'].astype(int)
+        if 'offset_pct' in df.columns:
+            # Offset attribution for downstream feedback loop/analytics
+            df['offset_pct'] = df['offset_pct'].astype(float).round(4)
+        else:
+            df['offset_pct'] = None
 
         # Handle optional columns with defaults
         if 'confidence' not in df.columns:
@@ -2334,6 +2349,7 @@ class RecommendationEngine:
         df['category'] = None  # Not currently in items table
         opportunities = df[[
             'item_id', 'item_name', 'icon_url', 'buy_price', 'sell_price',
+            'offset_pct',
             'max_quantity', 'capital_required', 'expected_profit', 'hour_offset',
             'confidence', 'fill_probability_rounded', 'expected_value_rounded',
             'volume_24h', 'trend', 'category', '_spread_pct'
@@ -2588,6 +2604,11 @@ class RecommendationEngine:
             "item": item_name,
             "buyPrice": buy_price,
             "sellPrice": candidate["sell_price"],
+            "offsetPct": (
+                round(float(candidate["offset_pct"]), 4)
+                if candidate.get("offset_pct") is not None
+                else None
+            ),
             "quantity": max_quantity,
             "capitalRequired": capital_used,
             "expectedProfit": expected_profit,

@@ -178,7 +178,7 @@ export const activeTradesRepo = {
     return Number(result[0]?.count || 0);
   },
 
-  async create(trade: Omit<ActiveTrade, 'id' | 'created_at' | 'phase' | 'progress' | 'last_check_in' | 'next_check_in' | 'actual_buy_price' | 'actual_sell_price'> & { expected_hours?: number }): Promise<ActiveTrade> {
+  async create(trade: Omit<ActiveTrade, 'id' | 'created_at' | 'phase' | 'progress' | 'last_check_in' | 'next_check_in' | 'actual_buy_price' | 'actual_sell_price' | 'offset_pct'> & { expected_hours?: number; offset_pct?: number | null }): Promise<ActiveTrade> {
     const id = generateId();
     // Calculate first check-in at 25% of expected time (or 1 hour if not specified)
     const expectedHours = trade.expected_hours || 4;
@@ -186,8 +186,8 @@ export const activeTradesRepo = {
     const nextCheckIn = new Date(Date.now() + firstCheckInMs);
 
     await sql`
-      INSERT INTO active_trades (id, user_id, item_id, item_name, buy_price, sell_price, quantity, rec_id, model_id, phase, progress, next_check_in, expected_hours, confidence, fill_probability, expected_profit)
-      VALUES (${id}, ${trade.user_id}, ${trade.item_id}, ${trade.item_name}, ${trade.buy_price}, ${trade.sell_price}, ${trade.quantity}, ${trade.rec_id || null}, ${trade.model_id || null}, 'buying', 0, ${nextCheckIn.toISOString()}, ${expectedHours}, ${trade.confidence ?? null}, ${trade.fill_probability ?? null}, ${trade.expected_profit ?? null})
+      INSERT INTO active_trades (id, user_id, item_id, item_name, buy_price, sell_price, quantity, rec_id, model_id, offset_pct, phase, progress, next_check_in, expected_hours, confidence, fill_probability, expected_profit)
+      VALUES (${id}, ${trade.user_id}, ${trade.item_id}, ${trade.item_name}, ${trade.buy_price}, ${trade.sell_price}, ${trade.quantity}, ${trade.rec_id || null}, ${trade.model_id || null}, ${trade.offset_pct ?? null}, 'buying', 0, ${nextCheckIn.toISOString()}, ${expectedHours}, ${trade.confidence ?? null}, ${trade.fill_probability ?? null}, ${trade.expected_profit ?? null})
     `;
     return (await this.findById(id))!;
   },
@@ -344,8 +344,8 @@ export const tradeHistoryRepo = {
   async create(trade: Omit<TradeHistory, 'id' | 'created_at'>): Promise<TradeHistory> {
     const id = generateId();
     await sql`
-      INSERT INTO trade_history (id, user_id, item_id, item_name, buy_price, sell_price, quantity, profit, notes, rec_id, model_id, status, expected_profit, confidence, fill_probability, expected_hours)
-      VALUES (${id}, ${trade.user_id}, ${trade.item_id ?? null}, ${trade.item_name}, ${trade.buy_price ?? null}, ${trade.sell_price ?? null}, ${trade.quantity ?? null}, ${trade.profit}, ${trade.notes || null}, ${trade.rec_id || null}, ${trade.model_id || null}, ${trade.status || 'completed'}, ${trade.expected_profit ?? null}, ${trade.confidence ?? null}, ${trade.fill_probability ?? null}, ${trade.expected_hours ?? null})
+      INSERT INTO trade_history (id, user_id, item_id, item_name, buy_price, sell_price, quantity, profit, notes, rec_id, model_id, offset_pct, status, expected_profit, confidence, fill_probability, expected_hours)
+      VALUES (${id}, ${trade.user_id}, ${trade.item_id ?? null}, ${trade.item_name}, ${trade.buy_price ?? null}, ${trade.sell_price ?? null}, ${trade.quantity ?? null}, ${trade.profit}, ${trade.notes || null}, ${trade.rec_id || null}, ${trade.model_id || null}, ${trade.offset_pct ?? null}, ${trade.status || 'completed'}, ${trade.expected_profit ?? null}, ${trade.confidence ?? null}, ${trade.fill_probability ?? null}, ${trade.expected_hours ?? null})
     `;
     const result = await sql<TradeHistory>`SELECT * FROM trade_history WHERE id = ${id}`;
     return result[0];

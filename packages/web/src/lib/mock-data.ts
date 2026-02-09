@@ -14,6 +14,7 @@ let mockTrades: ActiveTrade[] = [
     quantity: 7000,
     rec_id: 'opp-1',
     model_id: 'v2',
+    offset_pct: 0.0125,
     created_at: new Date(now - 6 * 60 * 60 * 1000),
     phase: 'buying',
     progress: 35,
@@ -37,6 +38,7 @@ let mockTrades: ActiveTrade[] = [
     quantity: 9000,
     rec_id: 'opp-2',
     model_id: 'v2',
+    offset_pct: 0.015,
     created_at: new Date(now - 4.5 * 60 * 60 * 1000),
     phase: 'selling',
     progress: 70,
@@ -60,6 +62,7 @@ let mockTrades: ActiveTrade[] = [
     quantity: 220,
     rec_id: 'opp-3',
     model_id: 'v3',
+    offset_pct: 0.0175,
     created_at: new Date(now - 1.2 * 60 * 60 * 1000),
     phase: 'buying',
     progress: 55,
@@ -199,6 +202,7 @@ export const createMockTrade = (input: {
   quantity: number;
   rec_id?: string | null;
   model_id?: string | null;
+  offset_pct?: number | null;
   expected_hours?: number;
   confidence?: string | null;
   fill_probability?: number | null;
@@ -216,6 +220,7 @@ export const createMockTrade = (input: {
     quantity: input.quantity,
     rec_id: input.rec_id ?? null,
     model_id: input.model_id ?? null,
+    offset_pct: input.offset_pct ?? null,
     created_at: new Date(),
     phase: 'buying',
     progress: 0,
