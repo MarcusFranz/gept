@@ -1,5 +1,5 @@
 // packages/web/src/components/trades/TradeList.tsx
-import { createSignal, For, Show, onCleanup } from 'solid-js';
+import { createEffect, createSignal, For, Show, onCleanup, untrack } from 'solid-js';
 import type { ActiveTrade } from '../../lib/db';
 import { toTradeViewModel, type TradeViewModel, type Guidance } from '../../lib/trade-types';
 import type { UpdateRecommendation } from '../../lib/types';
@@ -28,6 +28,20 @@ export function TradeList(props: TradeListProps) {
     trade: TradeViewModel;
   } | null>(null);
   const [cancelReason, setCancelReason] = createSignal<CancelReason>('changed_mind');
+
+  // Keep internal view-model list in sync with parent refreshes.
+  // TradeList owns some local UI state (expanded/cancel/undo), but the trade
+  // source-of-truth lives in the parent, which refetches after actions like
+  // "Revise price". Without this, the UI can look like the trade never updated.
+  createEffect(() => {
+    const next = props.initialTrades.map(toTradeViewModel);
+    setTrades(next);
+
+    const expanded = untrack(() => expandedId());
+    if (expanded && !next.some(t => t.id === expanded)) {
+      setExpandedId(null);
+    }
+  });
 
   // Refresh trades from server
   const refreshTrades = async () => {

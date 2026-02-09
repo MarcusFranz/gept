@@ -2,6 +2,7 @@ import type { APIRoute } from 'astro';
 import { activeTradesRepo, tradeHistoryRepo } from '../../../../../lib/repositories';
 import { submitEngineFeedback } from '../../../../../lib/api';
 import { dispatchWebhook } from '../../../../../lib/webhook';
+import { cache, cacheKey, KEY } from '../../../../../lib/cache';
 import { deleteMockTrade, findMockTrade, updateMockTradeQuantity, updateMockTradeSellPrice } from '../../../../../lib/mock-data';
 
 type CancelReason = 'changed_mind' | 'did_not_fill';
@@ -179,6 +180,11 @@ export const PATCH: APIRoute = async ({ params, request, locals }) => {
     }
 
     const updated = isDevUser ? findMockTrade(tradeId) : await activeTradesRepo.findById(tradeId);
+
+    // Invalidate short-lived cached update recommendations for this user.
+    // Otherwise the UI can immediately re-show the same "Revise price" alert
+    // for up to TTL.RECOMMENDATIONS even after the trade has been patched.
+    cache.del(cacheKey(KEY.SSE, 'updates', userId)).catch(() => {});
 
     // Dispatch webhook to ML engine (fire-and-forget)
     if (updated && !isDevUser) {
