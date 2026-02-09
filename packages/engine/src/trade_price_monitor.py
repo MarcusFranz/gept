@@ -73,10 +73,25 @@ class TradePriceMonitor:
             trade_id: Identifier of the affected trade
         """
         if event_type == TradeEventType.TRADE_UPDATED:
-            # Clear cooldown so trade is re-evaluated next cycle
-            self._cooldowns.pop(trade_id, None)
+            # Updating a trade (most commonly revising sell price) should not
+            # immediately trigger another price alert on the very next cycle.
+            #
+            # Instead of clearing cooldown entirely, reset it relative to the
+            # trade's current sell price so we avoid "alert after alert" spam.
+            trade = self.trade_event_handler.get_active_trades().get(trade_id)
+            sell_price = 0
+            if trade is not None:
+                try:
+                    sell_price = int(trade.payload.sell_price)
+                except Exception:
+                    sell_price = 0
+
+            self._cooldowns[trade_id] = CooldownEntry(
+                last_alert_time=datetime.now(timezone.utc).timestamp(),
+                last_suggested_price=sell_price,
+            )
             logger.debug(
-                "Cleared price monitor cooldown for updated trade",
+                "Reset price monitor cooldown for updated trade",
                 trade_id=trade_id,
             )
         elif event_type in (
@@ -259,8 +274,8 @@ class TradePriceMonitor:
                     price_change_pct = abs(
                         suggested_sell - existing.last_suggested_price
                     ) / existing.last_suggested_price
-                    if price_change_pct <= 0.01:
-                        # Price hasn't changed by more than 1%, skip
+                    if price_change_pct <= self.config.price_drop_reissue_min_pct:
+                        # Price hasn't changed materially, skip
                         return
                 else:
                     return
