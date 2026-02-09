@@ -152,7 +152,7 @@ export function toTradeViewModel(trade: ActiveTrade): TradeViewModel {
     actualBuyPrice: trade.actual_buy_price,
     actualSellPrice: trade.actual_sell_price,
     suggestedSellPrice: trade.suggested_sell_price ?? null,
-    targetProfit: ((trade.suggested_sell_price ?? trade.sell_price) - trade.buy_price) * trade.quantity,
+    targetProfit: (trade.sell_price - trade.buy_price) * trade.quantity,
     quantity: trade.quantity,
     createdAt,
     expectedHours,

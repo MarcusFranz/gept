@@ -45,6 +45,9 @@ async function main() {
   // from a previous run, so we clean it to keep this test idempotent.
   const here = path.dirname(fileURLToPath(import.meta.url));
   await rm(path.resolve(here, '..', '.vercel', 'output'), { recursive: true, force: true });
+  // Also clean the build output directory. We've seen rare ENOENT issues during
+  // Astro's SSR asset move step when re-building over an existing `dist/`.
+  await rm(path.resolve(here, '..', 'dist'), { recursive: true, force: true });
 
   const build = run('npm', ['run', 'build'], {
     env: { ...process.env, NODE_ENV: 'production' },

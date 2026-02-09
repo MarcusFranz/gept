@@ -123,6 +123,14 @@ export function TradeDetail(props: TradeDetailProps) {
   // Use getter functions for reactive prop access
   const actualBuy = () => props.trade.actualBuyPrice || props.trade.buyPrice;
   const actualSell = () => props.trade.actualSellPrice || props.trade.sellPrice;
+  const suggestedDir = () => {
+    const suggested = props.trade.suggestedSellPrice;
+    if (suggested == null) return 'neutral' as const;
+    const original = actualSell();
+    if (suggested > original) return 'up' as const;
+    if (suggested < original) return 'down' as const;
+    return 'neutral' as const;
+  };
 
   const handleClose = () => {
     if (closing()) return;
@@ -159,7 +167,9 @@ export function TradeDetail(props: TradeDetailProps) {
             fallback={<span class="price-value">{formatExactGold(actualSell())}</span>}
           >
             <span class="price-value price-strikethrough">{formatExactGold(actualSell())}</span>
-            <span class="price-value price-suggested">{formatExactGold(props.trade.suggestedSellPrice!)}</span>
+            <span class={`price-value price-suggested ${suggestedDir() === 'up' ? 'price-suggested-up' : suggestedDir() === 'down' ? 'price-suggested-down' : ''}`}>
+              {formatExactGold(props.trade.suggestedSellPrice!)}
+            </span>
             <button
               class="price-acknowledge"
               onClick={(e) => {
@@ -191,6 +201,7 @@ export function TradeDetail(props: TradeDetailProps) {
           onAccept={() => props.onAcceptAlert?.()}
           onDismiss={() => props.onDismissAlert?.()}
           loading={loading()}
+          currentSellPrice={actualSell()}
         />
       </Show>
 
@@ -361,7 +372,15 @@ export function TradeDetail(props: TradeDetailProps) {
         }
 
         .price-suggested {
-          color: var(--warning) !important;
+          color: var(--text-primary) !important;
+        }
+
+        .price-suggested-up {
+          color: var(--success) !important;
+        }
+
+        .price-suggested-down {
+          color: var(--danger) !important;
         }
 
         .price-acknowledge {
