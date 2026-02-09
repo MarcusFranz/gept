@@ -2446,7 +2446,7 @@ class TestWebFrontendEndpoints:
                 yield TestClient(app), mock_engine
 
     def test_health_alias_endpoint(self, client):
-        """Test /health alias returns same as /api/v1/health."""
+        """Test /health alias returns a lightweight public response."""
         test_client, mock_engine = client
         response = test_client.get("/health")
 
@@ -2454,6 +2454,7 @@ class TestWebFrontendEndpoints:
         data = response.json()
         assert data["status"] == "ok"
         assert "checks" in data
+        assert data["checks"] == []
 
     def test_recommendations_web_endpoint(self, client):
         """Test /recommendations web frontend endpoint."""
@@ -3319,18 +3320,27 @@ class TestAPIAuthentication:
             importlib.reload(api_module)
 
     def test_health_endpoint_public_with_auth_enabled(self, client_with_auth):
-        """Test health endpoint is accessible without API key even when auth is enabled."""
+        """Test /api/v1/health requires API key when auth is enabled."""
         test_client, mock_engine, _ = client_with_auth
         response = test_client.get("/api/v1/health")
 
-        assert response.status_code == 200
+        assert response.status_code == 401
         data = response.json()
-        assert data["status"] == "ok"
+        assert "Missing API key" in data["detail"]
 
     def test_health_alias_public_with_auth_enabled(self, client_with_auth):
         """Test /health alias is accessible without API key."""
         test_client, mock_engine, _ = client_with_auth
         response = test_client.get("/health")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "ok"
+
+    def test_health_endpoint_with_valid_api_key(self, client_with_auth):
+        """Test /api/v1/health works with a valid API key when auth is enabled."""
+        test_client, _mock_engine, api_key = client_with_auth
+        response = test_client.get("/api/v1/health", headers={"X-API-Key": api_key})
 
         assert response.status_code == 200
         data = response.json()

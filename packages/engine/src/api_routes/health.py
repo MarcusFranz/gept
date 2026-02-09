@@ -1,13 +1,15 @@
 """Health and probe endpoints."""
 
 
+from typing import Optional
+
 import time
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Depends, Request
 
 from ..api_dependencies import get_state
 from ..api_models import HealthResponse, LivenessResponse, ReadinessResponse, StartupResponse
-from ..api_security import limiter
+from ..api_security import limiter, verify_api_key
 from ..cache import get_cache_stats
 import src.config as config_module
 from ..logging_config import get_logger
@@ -25,7 +27,10 @@ def _get_uptime_seconds(startup_time: float | None) -> int:
 
 @router.get("/api/v1/health", response_model=HealthResponse)
 @limiter.limit(config_module.config.rate_limit_health)
-async def health_check(request: Request):
+async def health_check(
+    request: Request,
+    _api_key: Optional[str] = Depends(verify_api_key),
+):
     """Check system health status with full details."""
     state = get_state(request)
 
@@ -69,7 +74,10 @@ async def health_liveness():
 
 @router.get("/ready", response_model=ReadinessResponse)
 @limiter.limit(config_module.config.rate_limit_health)
-async def health_readiness(request: Request):
+async def health_readiness(
+    request: Request,
+    _api_key: Optional[str] = Depends(verify_api_key),
+):
     """Detailed readiness probe with dependency checks."""
     state = get_state(request)
     checks: dict[str, dict] = {}
@@ -131,7 +139,10 @@ async def health_readiness(request: Request):
 
 
 @router.get("/startup", response_model=StartupResponse)
-async def health_startup(request: Request):
+async def health_startup(
+    request: Request,
+    _api_key: Optional[str] = Depends(verify_api_key),
+):
     """Startup probe for container orchestration."""
     from fastapi.responses import JSONResponse
 
