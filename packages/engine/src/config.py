@@ -27,6 +27,15 @@ class Config:
         default_factory=lambda: int(environ.get("OUTCOME_DB_POOL_SIZE", "5"))
     )
 
+    # Prediction ranking policy (controls how we select a single "best" offset per item).
+    # "ev_x_fill" is less aggressive than pure EV and tends to recommend prices that fill more often.
+    best_prediction_rank_metric: str = field(
+        default_factory=lambda: environ.get(
+            "BEST_PREDICTION_RANK_METRIC",
+            "ev_x_fill",
+        )
+    )
+
     # Active Trades Database (optional) - connects to the web app database (Neon/Postgres)
     # If set, the engine will load active trades directly on startup to seed the in-memory
     # trade monitor, avoiding dependency on web resync endpoints (which may be blocked by WAF/CDN).
@@ -307,6 +316,12 @@ class Config:
                 errors.append(
                     "WEB_APP_WEBHOOK_URL is required when PRICE_DROP_MONITOR_ENABLED=true"
                 )
+
+        allowed_rank = {"expected_value", "ev_x_fill"}
+        if self.best_prediction_rank_metric not in allowed_rank:
+            errors.append(
+                "BEST_PREDICTION_RANK_METRIC must be one of: expected_value, ev_x_fill"
+            )
         return errors
 
 
