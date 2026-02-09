@@ -23,7 +23,7 @@ export function AlertBanner(props: AlertBannerProps) {
 
   const getHeader = () => {
     if (props.alert.type === 'SELL_NOW') return 'Sell price at risk';
-    if (props.alert.type === 'ADJUST_PRICE') return 'Price dropping';
+    if (props.alert.type === 'ADJUST_PRICE') return 'Consider repricing';
     return 'Trade alert';
   };
 
@@ -34,7 +34,12 @@ export function AlertBanner(props: AlertBannerProps) {
 
   const getBody = () => {
     if (props.alert.type === 'ADJUST_PRICE' && props.alert.newSellPrice) {
-      return `Predicted sell price dropped to ${formatPrice(props.alert.newSellPrice)}gp. Consider revising to fill faster.`;
+      const original = props.alert.originalSellPrice;
+      const suggested = props.alert.newSellPrice;
+      const fromText = (typeof original === 'number' && original > 0)
+        ? ` (from ${formatPrice(original)}gp)`
+        : '';
+      return `${props.alert.reason} Suggested sell price: ${formatPrice(suggested)}gp${fromText} to improve fill probability.`;
     }
     if (props.alert.type === 'SELL_NOW' && props.alert.adjustedSellPrice) {
       return `Prices have dropped below your buy price. Consider selling now at ${formatPrice(props.alert.adjustedSellPrice)}gp to limit loss.`;

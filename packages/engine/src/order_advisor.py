@@ -28,9 +28,9 @@ class OrderAdvisor:
     LOW_FILL_PROB_THRESHOLD = 0.1
     UNFAVORABLE_MOVE_THRESHOLD = 0.02
     TARGET_FILL_PROB = 0.6
+    SELL_TARGET_FILL_PROB = 0.8
     # When the market is moving against the user (especially on sells in a downturn),
     # we should bias toward faster fills to avoid "chasing" the price down.
-    DOWNTURN_TARGET_FILL_PROB = 0.8
     SHARP_DOWNTURN_TARGET_FILL_PROB = 0.9
     DEFAULT_HOUR_WINDOW = 4
     # Fallback heuristic when predictions are missing:
@@ -404,15 +404,18 @@ class OrderAdvisor:
         # Dynamic target fill probability: in a downturn (or when price moved
         # against the user), bias toward being more aggressive to avoid repeated
         # revisions that still don't fill.
-        target_fill_prob = float(self.TARGET_FILL_PROB)
+        target_fill_prob = float(
+            self.SELL_TARGET_FILL_PROB if order_type == "sell" else self.TARGET_FILL_PROB
+        )
         trend_l = str(trend or "").strip().lower()
         moved_against = (not price_moved_favorably) and price_move_pct > self.UNFAVORABLE_MOVE_THRESHOLD
         if order_type == "sell" and (trend_l.startswith("down") or moved_against):
-            target_fill_prob = max(target_fill_prob, float(self.DOWNTURN_TARGET_FILL_PROB))
             if price_move_pct >= 0.05:
-                target_fill_prob = max(target_fill_prob, float(self.SHARP_DOWNTURN_TARGET_FILL_PROB))
+                target_fill_prob = max(
+                    target_fill_prob, float(self.SHARP_DOWNTURN_TARGET_FILL_PROB)
+                )
         if order_type == "buy" and (trend_l.startswith("up") or moved_against):
-            target_fill_prob = max(target_fill_prob, float(self.DOWNTURN_TARGET_FILL_PROB))
+            target_fill_prob = max(target_fill_prob, float(self.SELL_TARGET_FILL_PROB))
 
         predicted_window_minutes = max(1, int(predicted_window_hours) * 60)
         time_ratio = time_elapsed_minutes / predicted_window_minutes

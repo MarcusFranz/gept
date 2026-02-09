@@ -21,6 +21,21 @@ export function TradeCard(props: TradeCardProps) {
     return amount.toLocaleString();
   };
 
+  // Reflect alert/suggested prices in the profit shown on the card.
+  // Otherwise the "PRED. PROFIT" number can look stale while the user is
+  // being told to revise their sell price.
+  const effectiveSellPrice = () => {
+    if (props.alert?.type === 'ADJUST_PRICE') {
+      return props.alert.newSellPrice ?? props.trade.suggestedSellPrice ?? props.trade.sellPrice;
+    }
+    if (props.alert?.type === 'SELL_NOW') {
+      return props.alert.adjustedSellPrice ?? props.trade.sellPrice;
+    }
+    return props.trade.suggestedSellPrice ?? props.trade.sellPrice;
+  };
+
+  const effectiveProfit = () => (effectiveSellPrice() - props.trade.buyPrice) * props.trade.quantity;
+
   const timeInTradeMinutes = () =>
     Math.max(0, Math.round((Date.now() - props.trade.createdAt.getTime()) / (1000 * 60)));
 
@@ -78,7 +93,9 @@ export function TradeCard(props: TradeCardProps) {
         </div>
         <div class="trade-card-profit">
           <span class="trade-card-kicker">PRED. PROFIT</span>
-          <span class="trade-card-profit-value">+{formatGold(props.trade.targetProfit)}</span>
+          <span class="trade-card-profit-value">
+            {(effectiveProfit() >= 0 ? '+' : '-')}{formatGold(Math.abs(effectiveProfit()))}
+          </span>
         </div>
       </div>
 
