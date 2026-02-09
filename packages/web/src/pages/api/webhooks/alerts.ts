@@ -68,6 +68,42 @@ export const POST: APIRoute = async ({ request }) => {
     // Persist suggested sell price to DB for durable display
     const suggestedPrice = alert.newSellPrice ?? alert.adjustedSellPrice;
     if (suggestedPrice && alert.tradeId) {
+      // Suppress redundant alerts:
+      // - If the user already revised their sell price to the suggested price.
+      // - If we've already stored this exact suggestion (avoid re-pushing the same alert).
+      //
+      // This helps prevent the "accept -> immediate new alert" loop when the engine
+      // hasn't yet received the TRADE_UPDATED webhook.
+      try {
+        const trade = await activeTradesRepo.findById(alert.tradeId);
+        if (trade && trade.user_id === payload.userId) {
+          if (Number(trade.sell_price) === Number(suggestedPrice)) {
+            return new Response(JSON.stringify({
+              success: true,
+              data: { delivered: 0, queued: false, suppressed: true }
+            }), {
+              status: 200,
+              headers: { 'Content-Type': 'application/json' }
+            });
+          }
+
+          if (
+            trade.suggested_sell_price != null
+            && Number(trade.suggested_sell_price) === Number(suggestedPrice)
+          ) {
+            return new Response(JSON.stringify({
+              success: true,
+              data: { delivered: 0, queued: false, suppressed: true }
+            }), {
+              status: 200,
+              headers: { 'Content-Type': 'application/json' }
+            });
+          }
+        }
+      } catch (err) {
+        console.warn('Failed to load trade for alert suppression:', (err as Error)?.message);
+      }
+
       await activeTradesRepo.setSuggestedSellPrice(alert.tradeId, suggestedPrice);
     }
 

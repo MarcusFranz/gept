@@ -71,6 +71,23 @@ export function HomePage(props: HomePageProps) {
     }
   };
 
+  const handleDismissPriceAlert = async (tradeId: string) => {
+    try {
+      // Clear the persisted suggestion so the inline UI (and badge) disappears.
+      // Also ensures polling doesn't immediately recreate the same suggestion.
+      await fetch(`/api/trades/active/${tradeId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clearSuggestedSellPrice: true })
+      });
+    } catch (err) {
+      console.error('Failed to dismiss price alert:', err);
+    } finally {
+      dismissAlert(tradeId);
+      await handleTradeAdded();
+    }
+  };
+
   return (
     <div class="home-page">
       <nav class="home-nav">
@@ -105,7 +122,7 @@ export function HomePage(props: HomePageProps) {
             onNavigateToOpportunities={() => setActiveTab('opportunities')}
             alerts={alerts()}
             onAcceptAlert={handleAcceptAlert}
-            onDismissAlert={(tradeId) => dismissAlert(tradeId)}
+            onDismissAlert={(tradeId) => handleDismissPriceAlert(tradeId)}
           />
         </Show>
 
