@@ -2571,9 +2571,15 @@ class RecommendationEngine:
         # Pure EV selection can be too aggressive (prices that don't fill). Prefer
         # EV * fill_probability to bias toward configs that actually execute.
         filtered = filtered.copy()
-        filtered["_rank_score"] = filtered["expected_value"].astype(float) * filtered[
-            "fill_probability"
-        ].astype(float)
+        try:
+            alpha = float(getattr(self.config, "fill_prob_alpha", 1.0))
+        except Exception:
+            alpha = 1.0
+        if alpha <= 0:
+            alpha = 1.0
+        filtered["_rank_score"] = filtered["expected_value"].astype(float) * (
+            filtered["fill_probability"].astype(float) ** alpha
+        )
         best = filtered.loc[filtered["_rank_score"].idxmax()]
         pred_age = self.loader.get_prediction_age_seconds()
 
@@ -2716,7 +2722,15 @@ class RecommendationEngine:
 
         # Use the same less-aggressive ranking as recommendations.
         df = df.copy()
-        df["_rank_score"] = df["expected_value"].astype(float) * df["fill_probability"].astype(float)
+        try:
+            alpha = float(getattr(self.config, "fill_prob_alpha", 1.0))
+        except Exception:
+            alpha = 1.0
+        if alpha <= 0:
+            alpha = 1.0
+        df["_rank_score"] = df["expected_value"].astype(float) * (
+            df["fill_probability"].astype(float) ** alpha
+        )
         best = df.loc[df["_rank_score"].idxmax()]
 
         return {

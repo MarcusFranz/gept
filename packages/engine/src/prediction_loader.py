@@ -251,7 +251,18 @@ class PredictionLoader:
             per_item_order = [p.c.expected_value.desc(), p.c.fill_probability.desc()]
             overall_order_col = "expected_value"
         else:
-            rank_score = (p.c.expected_value * p.c.fill_probability).label("rank_score")
+            # Allow further bias toward fills via an exponent on fill_probability.
+            # When alpha == 1.0, this is the original EV * fill_probability ranking.
+            try:
+                alpha = float(getattr(self.config, "fill_prob_alpha", 1.0))
+            except Exception:
+                alpha = 1.0
+            if alpha == 1.0:
+                rank_score = (p.c.expected_value * p.c.fill_probability).label("rank_score")
+            else:
+                rank_score = (
+                    p.c.expected_value * func.power(p.c.fill_probability, alpha)
+                ).label("rank_score")
             rank_cols.append(rank_score)
             per_item_order = [
                 rank_score.desc(),
