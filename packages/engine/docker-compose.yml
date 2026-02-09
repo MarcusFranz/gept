@@ -1,18 +1,20 @@
 services:
   engine:
-    image: ghcr.io/marcusfranz/gept-engine:latest
+    image: ghcr.io/marcusfranz/gept-engine:${GEPT_ENGINE_TAG:-latest}
     container_name: gept-engine
     restart: unless-stopped
     network_mode: host
     env_file:
-      - .env
+      # Production host keeps secrets in /home/ubuntu/gept/.env (also used by systemd).
+      - /home/ubuntu/gept/.env
     volumes:
       # Mount ML ranker model from host (read-only)
       - /home/ubuntu/gept/models/ranker:/app/models/ranker:ro
       # Persist logs (optional - structured logs also go to stdout)
       - ./logs:/app/logs
+    command: ["uvicorn", "src.api:app", "--host", "127.0.0.1", "--port", "8001", "--workers", "1"]
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/healthz"]
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:8001/healthz"]
       interval: 30s
       timeout: 5s
       start_period: 60s
