@@ -419,6 +419,15 @@ class OrderUpdateRequest(BaseModel):
     quantity: int = Field(ge=1, description="Order quantity")
     time_elapsed_minutes: int = Field(ge=0, description="Minutes since order placed")
     user_id: Optional[str] = Field(default=None, description="Hashed user ID (SHA256)")
+    # Optional model selection
+    use_beta_model: bool = Field(
+        default=False,
+        description="Use beta model predictions if available (falls back to preferred model if not configured)",
+    )
+    model_id: Optional[str] = Field(
+        default=None,
+        description="Explicit model_id to use for predictions (overrides use_beta_model when it matches configured models)",
+    )
 
 
 class AdjustPriceRecommendation(BaseModel):
