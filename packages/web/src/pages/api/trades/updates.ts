@@ -131,6 +131,27 @@ export const GET: APIRoute = async ({ locals }) => {
         if (data.action === 'adjust_price' && data.recommendations?.adjust_price?.suggested_price) {
           const newSellPrice = Math.round(data.recommendations.adjust_price.suggested_price);
           const profitDelta = (newSellPrice - trade.sell_price) * trade.quantity;
+
+          // Persist suggested sell price so the UI can show it durably (even if the
+          // user refreshes). Also use it as a server-side throttle: if a trade
+          // already has an outstanding suggested price, don't keep re-showing the
+          // same "Revise price" banner every poll.
+          //
+          // If the engine's suggestion changes over time, we still update the
+          // stored suggestion so the user sees the latest number without being
+          // spammed by repeated banners.
+          try {
+            await activeTradesRepo.setSuggestedSellPrice(trade.id, newSellPrice);
+          } catch (err) {
+            console.error('[TradeUpdates] Failed to persist suggested sell price:', (err as Error)?.message);
+          }
+
+          if (trade.suggested_sell_price != null) {
+            // Already alerted (or still outstanding). Update the stored suggestion
+            // above, but suppress the banner.
+            return null;
+          }
+
           return {
             ...base,
             type: 'ADJUST_PRICE' as const,
@@ -168,8 +189,13 @@ export const GET: APIRoute = async ({ locals }) => {
       nextCheckIn: updates.some(u => u.urgency === 'high') ? 15 : updates.length > 0 ? 30 : 60,
     };
 
-    // Cache briefly
-    cache.set(redisKey, response, TTL.RECOMMENDATIONS).catch(() => {});
+    // Cache briefly, but only when there are no updates. If we cache a response
+    // containing ADJUST_PRICE updates, a user who dismisses the banner can see
+    // it "reappear" until the cache expires, even though we persist the
+    // suggestion in the DB and would otherwise suppress repeat banners.
+    if (updates.length === 0) {
+      cache.set(redisKey, response, TTL.RECOMMENDATIONS).catch(() => {});
+    }
 
     return new Response(JSON.stringify({ success: true, data: response }), {
       status: 200,

@@ -270,6 +270,11 @@ class Config:
     price_drop_cooldown_high: int = field(
         default_factory=lambda: int(environ.get("PRICE_DROP_COOLDOWN_HIGH", "600"))
     )
+    # If we have already alerted within the cooldown window, only re-issue if the
+    # newly suggested price moved by at least this pct (relative to last suggestion).
+    price_drop_reissue_min_pct: float = field(
+        default_factory=lambda: float(environ.get("PRICE_DROP_REISSUE_MIN_PCT", "0.03"))
+    )
 
     # Webhook configuration for web app integration
     # Shared secret for HMAC-SHA256 signature verification

@@ -115,6 +115,30 @@ class TestOrderAdvisor:
         assert "adjust_price" in result["recommendations"]
         assert result["recommendations"]["adjust_price"]["suggested_price"] > 0
 
+    def test_evaluate_order_sell_downtrend_caps_at_market(self, advisor, mock_loader):
+        """In a downtrend, sell adjust_price should be aggressive (at or below current_high)."""
+        mock_loader.get_item_trend.return_value = "Down"
+        mock_loader.get_latest_price.return_value = {
+            "timestamp": "2024-01-01T00:00:00Z",
+            "high": 1_000_000,
+            "low": 980_000,
+            "high_time": "2024-01-01T00:00:00Z",
+            "low_time": "2024-01-01T00:00:00Z",
+        }
+
+        # User is listing well above market while price is dropping.
+        result = advisor.evaluate_order(
+            item_id=4151,
+            order_type="sell",
+            user_price=1_050_000,
+            quantity=1,
+            time_elapsed_minutes=60,
+        )
+
+        assert "adjust_price" in result["recommendations"]
+        suggested = result["recommendations"]["adjust_price"]["suggested_price"]
+        assert suggested <= mock_loader.get_latest_price.return_value["high"]
+
     def test_evaluate_order_low_fill_prob_with_alternatives(self, advisor, mock_loader):
         """Very low fill probability with alternatives should recommend abort_retry."""
         # Set up low fill probability scenario

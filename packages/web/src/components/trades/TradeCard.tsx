@@ -21,6 +21,29 @@ export function TradeCard(props: TradeCardProps) {
     return amount.toLocaleString();
   };
 
+  // Reflect alert/suggested prices in the profit shown on the card.
+  // Otherwise the "PRED. PROFIT" number can look stale while the user is
+  // being told to revise their sell price.
+  const effectiveSellPrice = () => {
+    if (props.alert?.type === 'ADJUST_PRICE') {
+      return props.alert.newSellPrice ?? props.trade.suggestedSellPrice ?? props.trade.sellPrice;
+    }
+    if (props.alert?.type === 'SELL_NOW') {
+      return props.alert.adjustedSellPrice ?? props.trade.sellPrice;
+    }
+    return props.trade.suggestedSellPrice ?? props.trade.sellPrice;
+  };
+
+  const originalProfit = () => (props.trade.sellPrice - props.trade.buyPrice) * props.trade.quantity;
+  const effectiveProfit = () => (effectiveSellPrice() - props.trade.buyPrice) * props.trade.quantity;
+  const profitDir = () => {
+    const orig = originalProfit();
+    const next = effectiveProfit();
+    if (next > orig) return 'up' as const;
+    if (next < orig) return 'down' as const;
+    return 'neutral' as const;
+  };
+
   const timeInTradeMinutes = () =>
     Math.max(0, Math.round((Date.now() - props.trade.createdAt.getTime()) / (1000 * 60)));
 
@@ -78,7 +101,20 @@ export function TradeCard(props: TradeCardProps) {
         </div>
         <div class="trade-card-profit">
           <span class="trade-card-kicker">PRED. PROFIT</span>
-          <span class="trade-card-profit-value">+{formatGold(props.trade.targetProfit)}</span>
+          {effectiveSellPrice() !== props.trade.sellPrice ? (
+            <span class={`trade-card-profit-value is-split ${profitDir() === 'up' ? 'is-up' : profitDir() === 'down' ? 'is-down' : ''}`}>
+              <span class="trade-card-profit-old">
+                {(originalProfit() >= 0 ? '+' : '-')}{formatGold(Math.abs(originalProfit()))}
+              </span>
+              <span class="trade-card-profit-new">
+                {(effectiveProfit() >= 0 ? '+' : '-')}{formatGold(Math.abs(effectiveProfit()))}
+              </span>
+            </span>
+          ) : (
+            <span class="trade-card-profit-value">
+              {(effectiveProfit() >= 0 ? '+' : '-')}{formatGold(Math.abs(effectiveProfit()))}
+            </span>
+          )}
         </div>
       </div>
 
@@ -227,6 +263,35 @@ export function TradeCard(props: TradeCardProps) {
           color: var(--success);
           font-size: var(--font-size-sm);
           white-space: nowrap;
+        }
+
+        .trade-card-profit-value.is-split {
+          display: inline-flex;
+          flex-direction: column;
+          align-items: flex-end;
+          gap: 0.1rem;
+          color: var(--text-primary);
+        }
+
+        .trade-card-profit-old {
+          text-decoration: line-through;
+          color: var(--text-muted);
+          opacity: 0.75;
+          font-size: 0.7rem;
+          font-weight: 600;
+        }
+
+        .trade-card-profit-new {
+          font-size: var(--font-size-sm);
+          font-weight: 800;
+        }
+
+        .trade-card-profit-value.is-split.is-up .trade-card-profit-new {
+          color: var(--success);
+        }
+
+        .trade-card-profit-value.is-split.is-down .trade-card-profit-new {
+          color: var(--danger);
         }
 
         .trade-card-footer {
