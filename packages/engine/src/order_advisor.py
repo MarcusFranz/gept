@@ -17,6 +17,7 @@ if TYPE_CHECKING:
     from .prediction_loader import PredictionLoader
     from .recommendation_engine import RecommendationEngine
 
+from .config import Config
 from .tax_calculator import calculate_flip_profit
 
 logger = logging.getLogger(__name__)
@@ -58,6 +59,25 @@ class OrderAdvisor:
         self.engine = engine
         self.use_beta_model = use_beta_model
 
+    def _get_max_hour_offset(self) -> int:
+        """Read max_hour_offset from the loader's config, with safe defaults.
+
+        In production, PredictionLoader carries a real Config object. In tests, we
+        often pass a MagicMock loader; reading mock.config.max_hour_offset can
+        silently coerce to 1 via MagicMock.__int__, unintentionally clamping the
+        horizon and changing decision logic.
+        """
+        cfg = getattr(self.loader, "config", None)
+        if isinstance(cfg, Config):
+            raw = getattr(cfg, "max_hour_offset", 24)
+        else:
+            raw = 24
+        try:
+            val = int(raw)
+        except Exception:
+            val = 24
+        return max(1, min(val, 24))
+
     def evaluate_order(
         self,
         item_id: int,
@@ -93,12 +113,7 @@ class OrderAdvisor:
         # Get predictions for this item
         predictions_df = self.loader.get_predictions_for_item(item_id)
         # Cap horizon to reduce long-horizon risk (and to match product expectations).
-        max_hour_offset = getattr(getattr(self.loader, "config", None), "max_hour_offset", 24) or 24
-        try:
-            max_hour_offset = int(max_hour_offset)
-        except Exception:
-            max_hour_offset = 24
-        max_hour_offset = max(1, min(max_hour_offset, 24))
+        max_hour_offset = self._get_max_hour_offset()
 
         has_predictions = not predictions_df.empty
         if has_predictions and "hour_offset" in predictions_df.columns:
@@ -374,12 +389,8 @@ class OrderAdvisor:
             median = int(reasonable["hour_offset"].median())
         except Exception:
             median = self.DEFAULT_HOUR_WINDOW
-        max_hour_offset = getattr(getattr(self.loader, "config", None), "max_hour_offset", 24) or 24
-        try:
-            max_hour_offset = int(max_hour_offset)
-        except Exception:
-            max_hour_offset = 24
-        return max(1, min(median, max_hour_offset, 24))
+        max_hour_offset = self._get_max_hour_offset()
+        return max(1, min(median, max_hour_offset))
 
     def _min_profitable_sell_price(self, buy_price: int, qty: int) -> int:
         """Small helper to find the minimum sell price that is break-even after GE tax."""
@@ -572,12 +583,7 @@ class OrderAdvisor:
         # Pick target offset from model grid, respecting the trade's remaining window.
         # We prefer finishing within the remaining expected time, but if that would
         # require selling at a loss, we allow extending up to max_hour_offset.
-        max_hour_offset = getattr(getattr(self.loader, "config", None), "max_hour_offset", 24) or 24
-        try:
-            max_hour_offset = int(max_hour_offset)
-        except Exception:
-            max_hour_offset = 24
-        max_hour_offset = max(1, min(max_hour_offset, 24))
+        max_hour_offset = self._get_max_hour_offset()
 
         schedule_cap = remaining_hours if remaining_hours is not None else predicted_window_hours
         schedule_cap = max(1, min(int(schedule_cap), max_hour_offset))
@@ -587,7 +593,13 @@ class OrderAdvisor:
                 return None
             cand = df[df["fill_probability"] >= target_fill_prob]
             if cand.empty:
-                return None
+                # If nothing meets the target fill probability, fall back to the
+                # most fill-friendly config we have within the window.
+                #
+                # This matters most on sells during downturns: we still want to
+                # recommend a proactive adjustment (often at-market) even when
+                # the model doesn't offer an 80%+ fill option in the grid.
+                cand = df
             if order_type == "sell" and buy_price is not None and "sell_price" in cand.columns:
                 # Filter out candidates that would realize a loss after tax.
                 try:
@@ -597,9 +609,14 @@ class OrderAdvisor:
                     pass
                 if cand.empty:
                     return None
-            # Choose the most profitable config that still meets the fill target within the window:
-            # prefer longer horizon (within cap), then wider margin (higher offset).
-            row = cand.sort_values(["hour_offset", "offset_pct"], ascending=[False, False]).iloc[0]
+            # Choose the most fillable config available within the window.
+            # - Prefer higher fill_probability first.
+            # - Then prefer longer horizon (still within cap).
+            # - Then prefer narrower margin (lower offset_pct) to avoid stuck exits.
+            row = cand.sort_values(
+                ["fill_probability", "hour_offset", "offset_pct"],
+                ascending=[False, False, True],
+            ).iloc[0]
             return row.get("offset_pct")
 
         target_offset = _pick_offset(predictions_df[predictions_df["hour_offset"] <= schedule_cap])
