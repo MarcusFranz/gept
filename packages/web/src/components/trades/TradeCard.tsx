@@ -1,6 +1,7 @@
 // packages/web/src/components/trades/TradeCard.tsx
 import type { TradeViewModel } from '../../lib/trade-types';
 import type { UpdateRecommendation } from '../../lib/types';
+import { calculateFlipProfit } from '../../lib/ge-tax';
 import Tooltip from '../Tooltip';
 
 interface TradeCardProps {
@@ -34,8 +35,10 @@ export function TradeCard(props: TradeCardProps) {
     return props.trade.suggestedSellPrice ?? props.trade.sellPrice;
   };
 
-  const originalProfit = () => (props.trade.sellPrice - props.trade.buyPrice) * props.trade.quantity;
-  const effectiveProfit = () => (effectiveSellPrice() - props.trade.buyPrice) * props.trade.quantity;
+  const originalProfit = () =>
+    calculateFlipProfit(props.trade.buyPrice, props.trade.sellPrice, props.trade.quantity);
+  const effectiveProfit = () =>
+    calculateFlipProfit(props.trade.buyPrice, effectiveSellPrice(), props.trade.quantity);
   const profitDir = () => {
     const orig = originalProfit();
     const next = effectiveProfit();

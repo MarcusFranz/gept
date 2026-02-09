@@ -2,6 +2,7 @@ import type { APIRoute } from 'astro';
 import type { UpdateCheckResponse, UpdateRecommendation } from '../../../lib/types';
 import { activeTradesRepo, userRepo } from '../../../lib/repositories';
 import { cache, cacheKey, TTL, KEY } from '../../../lib/cache';
+import { calculateNetProceeds } from '../../../lib/ge-tax';
 
 const PREDICTION_API = process.env.PREDICTION_API || 'http://localhost:8000';
 const API_KEY = process.env.PREDICTION_API_KEY || '';
@@ -135,7 +136,9 @@ export const GET: APIRoute = async ({ locals }) => {
 
         if (data.action === 'adjust_price' && data.recommendations?.adjust_price?.suggested_price) {
           const newSellPrice = Math.round(data.recommendations.adjust_price.suggested_price);
-          const profitDelta = (newSellPrice - trade.sell_price) * trade.quantity;
+          const profitDelta =
+            calculateNetProceeds(newSellPrice, trade.quantity) -
+            calculateNetProceeds(trade.sell_price, trade.quantity);
 
           // Persist suggested sell price so the UI can show it durably (even if the
           // user refreshes). Also use it as a server-side throttle: if a trade
