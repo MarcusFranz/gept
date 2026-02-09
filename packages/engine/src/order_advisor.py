@@ -28,6 +28,10 @@ class OrderAdvisor:
     LOW_FILL_PROB_THRESHOLD = 0.1
     UNFAVORABLE_MOVE_THRESHOLD = 0.02
     TARGET_FILL_PROB = 0.6
+    # When the market is moving against the user (especially on sells in a downturn),
+    # we should bias toward faster fills to avoid "chasing" the price down.
+    DOWNTURN_TARGET_FILL_PROB = 0.8
+    SHARP_DOWNTURN_TARGET_FILL_PROB = 0.9
     DEFAULT_HOUR_WINDOW = 4
     # Fallback heuristic when predictions are missing:
     # fill_prob ~= base * exp(-k * offset_from_market)
@@ -118,6 +122,9 @@ class OrderAdvisor:
             current_high=current_high,
             current_low=current_low,
             predictions_df=predictions_df,
+            trend=trend,
+            price_move_pct=price_move_pct,
+            price_moved_favorably=moved_favorably,
             time_elapsed_minutes=time_elapsed_minutes,
             predicted_window_hours=predicted_window_hours,
         )
@@ -319,6 +326,9 @@ class OrderAdvisor:
         current_high: int,
         current_low: int,
         predictions_df,
+        trend: str,
+        price_move_pct: float,
+        price_moved_favorably: bool,
         time_elapsed_minutes: int,
         predicted_window_hours: int,
     ) -> dict:
@@ -333,6 +343,11 @@ class OrderAdvisor:
             quantity=quantity,
             current_high=current_high,
             current_low=current_low,
+            trend=trend,
+            price_move_pct=price_move_pct,
+            price_moved_favorably=price_moved_favorably,
+            time_elapsed_minutes=time_elapsed_minutes,
+            predicted_window_hours=predicted_window_hours,
         )
         if adjust:
             recommendations["adjust_price"] = adjust
@@ -379,8 +394,31 @@ class OrderAdvisor:
         quantity: int,
         current_high: int,
         current_low: int,
+        trend: str,
+        price_move_pct: float,
+        price_moved_favorably: bool,
+        time_elapsed_minutes: int,
+        predicted_window_hours: int,
     ) -> Optional[dict]:
         """Calculate suggested price adjustment to achieve target fill probability."""
+        # Dynamic target fill probability: in a downturn (or when price moved
+        # against the user), bias toward being more aggressive to avoid repeated
+        # revisions that still don't fill.
+        target_fill_prob = float(self.TARGET_FILL_PROB)
+        trend_l = str(trend or "").strip().lower()
+        moved_against = (not price_moved_favorably) and price_move_pct > self.UNFAVORABLE_MOVE_THRESHOLD
+        if order_type == "sell" and (trend_l.startswith("down") or moved_against):
+            target_fill_prob = max(target_fill_prob, float(self.DOWNTURN_TARGET_FILL_PROB))
+            if price_move_pct >= 0.05:
+                target_fill_prob = max(target_fill_prob, float(self.SHARP_DOWNTURN_TARGET_FILL_PROB))
+        if order_type == "buy" and (trend_l.startswith("up") or moved_against):
+            target_fill_prob = max(target_fill_prob, float(self.DOWNTURN_TARGET_FILL_PROB))
+
+        predicted_window_minutes = max(1, int(predicted_window_hours) * 60)
+        time_ratio = time_elapsed_minutes / predicted_window_minutes
+        if moved_against and time_ratio >= 1.0:
+            target_fill_prob = max(target_fill_prob, float(self.SHARP_DOWNTURN_TARGET_FILL_PROB))
+
         # Compute user's current offset from the market reference price.
         # Positive offset means the order is less aggressive than the reference
         # (buy below low tick, sell above high tick). Negative means more aggressive.
@@ -400,7 +438,7 @@ class OrderAdvisor:
         except Exception:
             is_empty = True
         if is_empty:
-            target_prob = float(self.TARGET_FILL_PROB)
+            target_prob = float(target_fill_prob)
             try:
                 target_offset = -math.log(
                     target_prob / self._HEURISTIC_BASE_FILL_PROB
@@ -419,16 +457,29 @@ class OrderAdvisor:
             if suggested <= 0 or suggested == user_price:
                 return None
 
+            # If the market is moving against the user, cap at "at market" to
+            # avoid suggesting a price that is still above (sell) / below (buy)
+            # the current reference tick.
+            if order_type == "sell" and (trend_l.startswith("down") or moved_against):
+                suggested = min(suggested, int(current_high))
+            if order_type == "buy" and (trend_l.startswith("up") or moved_against):
+                suggested = max(suggested, int(current_low))
+            if suggested <= 0 or suggested == user_price:
+                return None
+
             cost_diff = abs(suggested - user_price) * quantity
+            new_prob = self._calculate_fill_probability_at_price(
+                predictions_df, suggested, order_type, current_high, current_low
+            )
             return {
                 "suggested_price": suggested,
-                "new_fill_probability": round(target_prob, 2),
+                "new_fill_probability": round(float(new_prob), 2),
                 "cost_difference": cost_diff,
             }
 
         # Find offset that achieves target fill prob (vectorized)
         # Filter to rows meeting target fill probability
-        viable = predictions_df[predictions_df["fill_probability"] >= self.TARGET_FILL_PROB]
+        viable = predictions_df[predictions_df["fill_probability"] >= target_fill_prob]
 
         if not viable.empty:
             # Get row with minimum offset_pct among viable candidates
@@ -454,12 +505,29 @@ class OrderAdvisor:
         if suggested <= 0 or suggested == user_price:
             return None
 
+        # In a downturn (sell) or upturn (buy), cap at market tick to be more
+        # proactive about fills. This prevents "chasing" down with repeated
+        # adjustments that are still not aggressive enough.
+        if order_type == "sell" and (trend_l.startswith("down") or moved_against):
+            suggested = min(suggested, int(current_high))
+        if order_type == "buy" and (trend_l.startswith("up") or moved_against):
+            suggested = max(suggested, int(current_low))
+        if suggested <= 0 or suggested == user_price:
+            return None
+
         # Calculate cost difference
         cost_diff = abs(suggested - user_price) * quantity
 
         return {
             "suggested_price": suggested,
-            "new_fill_probability": round(float(target_prob), 2),
+            "new_fill_probability": round(
+                float(
+                    self._calculate_fill_probability_at_price(
+                        predictions_df, suggested, order_type, current_high, current_low
+                    )
+                ),
+                2,
+            ),
             "cost_difference": cost_diff,
         }
 
