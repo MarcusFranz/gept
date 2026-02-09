@@ -2939,6 +2939,8 @@ class RecommendationEngine:
         quantity: int,
         time_elapsed_minutes: int,
         user_id: Optional[str] = None,
+        use_beta_model: bool = False,
+        model_id: Optional[str] = None,
     ) -> dict:
         """Evaluate an active order and recommend action.
 
@@ -2957,7 +2959,27 @@ class RecommendationEngine:
         """
         from .order_advisor import OrderAdvisor
 
-        advisor = OrderAdvisor(loader=self.loader, engine=self)
+        # Choose the prediction source:
+        # 1) If a specific model_id is supplied and matches our configured beta model,
+        #    use the beta loader (fixes active trades created under beta when preferred
+        #    model doesn't cover the item).
+        # 2) Else if the request opts into beta, use beta loader when available.
+        # 3) Otherwise use the preferred loader.
+        loader = self.loader
+        selected_beta = False
+        if (
+            model_id
+            and self.config.beta_model_id
+            and model_id == self.config.beta_model_id
+            and self._beta_loader is not None
+        ):
+            loader = self._beta_loader
+            selected_beta = True
+        elif use_beta_model and self._beta_loader is not None:
+            loader = self._beta_loader
+            selected_beta = True
+
+        advisor = OrderAdvisor(loader=loader, engine=self, use_beta_model=selected_beta)
         return advisor.evaluate_order(
             item_id=item_id,
             order_type=order_type,

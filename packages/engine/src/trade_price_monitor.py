@@ -8,6 +8,7 @@ import asyncio
 import math
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from typing import TYPE_CHECKING, Optional
 
 from .alert_dispatcher import (
     AlertDispatcher,
@@ -17,8 +18,11 @@ from .alert_dispatcher import (
 )
 from .config import Config
 from .logging_config import get_logger
-from .prediction_loader import PredictionLoader
 from .trade_events import TradeEvent, TradeEventHandler, TradeEventType
+
+if TYPE_CHECKING:
+    from .prediction_loader import PredictionLoader
+    from .recommendation_engine import RecommendationEngine
 
 logger = get_logger(__name__)
 
@@ -42,7 +46,7 @@ class TradePriceMonitor:
     def __init__(
         self,
         trade_event_handler: TradeEventHandler,
-        prediction_loader: PredictionLoader,
+        recommendation_engine: "RecommendationEngine",
         alert_dispatcher: AlertDispatcher,
         config: Config,
     ):
@@ -50,12 +54,14 @@ class TradePriceMonitor:
 
         Args:
             trade_event_handler: Handler providing active trade data
-            prediction_loader: Loader for fetching prediction data
+            recommendation_engine: Engine (provides preferred + beta model loaders)
             alert_dispatcher: Dispatcher for sending alerts to users
             config: Application configuration
         """
         self.trade_event_handler = trade_event_handler
-        self.prediction_loader = prediction_loader
+        self.recommendation_engine = recommendation_engine
+        self._preferred_loader: "PredictionLoader" = recommendation_engine.loader
+        self._beta_loader: Optional["PredictionLoader"] = recommendation_engine._beta_loader
         self.alert_dispatcher = alert_dispatcher
         self.config = config
 
@@ -133,42 +139,74 @@ class TradePriceMonitor:
         Checks prediction staleness, gathers active trades, fetches predictions,
         and evaluates each trade for potential price drop alerts.
         """
-        # Check prediction freshness
-        prediction_age = self.prediction_loader.get_prediction_age_seconds()
-        if prediction_age > self.config.data_stale_seconds:
-            logger.warning(
-                "Skipping price monitor cycle: predictions are stale",
-                prediction_age_seconds=prediction_age,
-                stale_threshold=self.config.data_stale_seconds,
-            )
-            return
-
         # Get active trades
         active_trades = self.trade_event_handler.get_active_trades()
         if not active_trades:
             logger.debug("No active trades to monitor")
             return
 
-        # Group by item_id for batched prediction queries
-        item_ids = list(
-            {trade.payload.item_id for trade in active_trades.values()}
-        )
+        # Split trades by model selection: preferred vs beta (based on trade.payload.model_id).
+        preferred: dict[str, TradeEvent] = {}
+        beta: dict[str, TradeEvent] = {}
+        beta_id = self.config.beta_model_id
+        for trade_id, trade in active_trades.items():
+            if (
+                beta_id
+                and trade.payload.model_id
+                and trade.payload.model_id == beta_id
+                and self._beta_loader is not None
+            ):
+                beta[trade_id] = trade
+            else:
+                preferred[trade_id] = trade
 
+        # Evaluate each group independently so trades created under the beta model
+        # continue receiving alerts even if the preferred model doesn't cover that item.
+        now = datetime.now(timezone.utc).timestamp()
+        await self._monitor_group(preferred, self._preferred_loader, now, model_label="preferred")
+        if beta and self._beta_loader is not None:
+            await self._monitor_group(beta, self._beta_loader, now, model_label="beta")
+
+    async def _monitor_group(
+        self,
+        trades: dict[str, TradeEvent],
+        loader: "PredictionLoader",
+        now: float,
+        *,
+        model_label: str,
+    ) -> None:
+        """Monitor a set of trades using a specific prediction loader."""
+        if not trades:
+            return
+
+        prediction_age = loader.get_prediction_age_seconds()
+        if prediction_age > self.config.data_stale_seconds:
+            logger.warning(
+                "Skipping price monitor group: predictions are stale",
+                model=model_label,
+                prediction_age_seconds=prediction_age,
+                stale_threshold=self.config.data_stale_seconds,
+            )
+            return
+
+        item_ids = list({trade.payload.item_id for trade in trades.values()})
         logger.debug(
             "Monitoring active trades",
-            trade_count=len(active_trades),
+            model=model_label,
+            trade_count=len(trades),
             unique_items=len(item_ids),
         )
 
-        # Fetch predictions for all monitored items in one batch
-        predictions_df = self.prediction_loader.get_predictions_for_items(item_ids)
+        predictions_df = loader.get_predictions_for_items(item_ids)
         if predictions_df.empty:
-            logger.warning("No predictions found for monitored items")
+            logger.warning(
+                "No predictions found for monitored items",
+                model=model_label,
+                unique_items=len(item_ids),
+            )
             return
 
-        # Evaluate each trade
-        now = datetime.now(timezone.utc).timestamp()
-        for trade_id, trade in active_trades.items():
+        for trade_id, trade in trades.items():
             try:
                 self._evaluate_trade(trade_id, trade, predictions_df, now)
             except Exception:
@@ -176,6 +214,7 @@ class TradePriceMonitor:
                     "Error evaluating trade for price drop",
                     trade_id=trade_id,
                     item_id=trade.payload.item_id,
+                    model=model_label,
                 )
 
     def _evaluate_trade(

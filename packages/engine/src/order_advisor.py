@@ -42,15 +42,19 @@ class OrderAdvisor:
         self,
         loader: "PredictionLoader",
         engine: Optional["RecommendationEngine"] = None,
+        use_beta_model: bool = False,
     ):
         """Initialize the OrderAdvisor.
 
         Args:
             loader: PredictionLoader for accessing price and prediction data
             engine: RecommendationEngine for finding alternatives (optional)
+            use_beta_model: Whether to use the engine's beta model for any follow-on
+                recommendation calls (e.g., alternative item suggestions).
         """
         self.loader = loader
         self.engine = engine
+        self.use_beta_model = use_beta_model
 
     def evaluate_order(
         self,
@@ -580,6 +584,7 @@ class OrderAdvisor:
                 risk="medium",
                 slots=3,
                 exclude_item_ids={item_id},
+                use_beta_model=self.use_beta_model,
             )
 
             if not alternatives:

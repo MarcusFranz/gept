@@ -236,7 +236,7 @@ async def lifespan(app: FastAPI):
         # Start trade price monitor background task
         trade_monitor = TradePriceMonitor(
             trade_event_handler=state.trade_event_handler,
-            prediction_loader=state.engine.loader,
+            recommendation_engine=state.engine,
             alert_dispatcher=state.alert_dispatcher,
             config=config,
         )

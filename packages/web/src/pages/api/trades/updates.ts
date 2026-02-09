@@ -1,6 +1,6 @@
 import type { APIRoute } from 'astro';
 import type { UpdateCheckResponse, UpdateRecommendation } from '../../../lib/types';
-import { activeTradesRepo } from '../../../lib/repositories';
+import { activeTradesRepo, userRepo } from '../../../lib/repositories';
 import { cache, cacheKey, TTL, KEY } from '../../../lib/cache';
 import { calculateNetProceeds } from '../../../lib/ge-tax';
 
@@ -59,6 +59,9 @@ export const GET: APIRoute = async ({ locals }) => {
   const userId = locals.user.id;
 
   try {
+    const user = await userRepo.findById(userId);
+    const useBetaModel = Boolean(user?.use_beta_model);
+
     // Price alerts currently only support revising SELL offers. (PATCH /trades/active/:id
     // updates sellPrice, not buyPrice.) So we only evaluate trades in the selling phase.
     const trades = await activeTradesRepo.findByUserId(userId);
@@ -104,6 +107,8 @@ export const GET: APIRoute = async ({ locals }) => {
               user_price: trade.sell_price,
               quantity: trade.quantity,
               time_elapsed_minutes: timeElapsedMinutes,
+              use_beta_model: useBetaModel,
+              model_id: trade.model_id,
             }),
             signal: AbortSignal.timeout(5000)
           }
