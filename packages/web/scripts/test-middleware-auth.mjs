@@ -1,6 +1,7 @@
 import { spawn } from 'node:child_process';
 import path from 'node:path';
 import { createHmac } from 'node:crypto';
+import { rm } from 'node:fs/promises';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 function run(cmd, args, opts = {}) {
@@ -40,6 +41,11 @@ async function main() {
   process.env.WEBHOOK_SECRET = 'test-webhook-secret-min-32-chars-xxxxxxxx';
 
   // Build first to ensure we're exercising production-mode output.
+  // Astro's Vercel adapter build hook can error if `.vercel/output` already exists
+  // from a previous run, so we clean it to keep this test idempotent.
+  const here = path.dirname(fileURLToPath(import.meta.url));
+  await rm(path.resolve(here, '..', '.vercel', 'output'), { recursive: true, force: true });
+
   const build = run('npm', ['run', 'build'], {
     env: { ...process.env, NODE_ENV: 'production' },
   });
@@ -58,7 +64,6 @@ async function main() {
   // The Vercel adapter does not support `astro preview`. Instead, we validate
   // production behavior by importing the built internal middleware module from
   // `.vercel/output/...` and invoking it directly with mocked contexts.
-  const here = path.dirname(fileURLToPath(import.meta.url));
   const builtMiddlewarePath = path.resolve(
     here,
     '..',

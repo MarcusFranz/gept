@@ -249,7 +249,8 @@ export const updateMockTradeProgress = (id: string, progress: number, nextCheckI
 
 export const updateMockTradeSellPrice = (id: string, sellPrice: number) => {
   mockTrades = mockTrades.map((trade) =>
-    trade.id === id ? { ...trade, sell_price: sellPrice } : trade
+    // Mirror prod behavior: accepting a suggested price clears the suggested flag.
+    trade.id === id ? { ...trade, sell_price: sellPrice, suggested_sell_price: null } : trade
   );
   return findMockTrade(id);
 };
