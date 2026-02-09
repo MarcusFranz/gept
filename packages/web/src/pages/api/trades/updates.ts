@@ -117,6 +117,8 @@ export const GET: APIRoute = async ({ locals }) => {
               time_elapsed_minutes: timeElapsedMinutes,
               use_beta_model: useBetaModel,
               model_id: trade.model_id,
+              buy_price: trade.actual_buy_price ?? trade.buy_price,
+              expected_hours: trade.expected_hours ?? undefined,
             }),
             signal: AbortSignal.timeout(5000)
           }

@@ -36,6 +36,15 @@ class Config:
         )
     )
 
+    # When using rank metric "ev_x_fill", optionally apply an exponent to fill_probability:
+    #   rank_score = expected_value * (fill_probability ** fill_prob_alpha)
+    #
+    # Values > 1 bias more strongly toward trades that are likely to complete, reducing
+    # the "buys fill, sells get stuck" failure mode at the cost of lower average EV.
+    fill_prob_alpha: float = field(
+        default_factory=lambda: float(environ.get("FILL_PROB_ALPHA", "1.0"))
+    )
+
     # Active Trades Database (optional) - connects to the web app database (Neon/Postgres)
     # If set, the engine will load active trades directly on startup to seed the in-memory
     # trade monitor, avoiding dependency on web resync endpoints (which may be blocked by WAF/CDN).
@@ -52,6 +61,13 @@ class Config:
     )
     prediction_stale_seconds: int = field(
         default_factory=lambda: int(environ.get("PREDICTION_STALE_SECONDS", "300"))
+    )
+
+    # Maximum hour_offset horizon to consider across the engine.
+    # We intentionally cap this below 48h because long-horizon predictions have
+    # historically been less reliable and can lead to over-holding risk.
+    max_hour_offset: int = field(
+        default_factory=lambda: int(environ.get("MAX_HOUR_OFFSET", "24"))
     )
 
     # Minimum 24-hour volume threshold for item recommendations
@@ -327,6 +343,12 @@ class Config:
             errors.append(
                 "BEST_PREDICTION_RANK_METRIC must be one of: expected_value, ev_x_fill"
             )
+        try:
+            alpha = float(self.fill_prob_alpha)
+            if alpha <= 0:
+                errors.append("FILL_PROB_ALPHA must be > 0")
+        except Exception:
+            errors.append("FILL_PROB_ALPHA must be a number")
         return errors
 
 

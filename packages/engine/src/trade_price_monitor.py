@@ -14,11 +14,13 @@ from .alert_dispatcher import (
     AlertDispatcher,
     AlertUrgency,
     create_adjust_price_alert,
+    create_hold_alert,
     create_sell_now_alert,
 )
 from .config import Config
 from .logging_config import get_logger
 from .trade_events import TradeEvent, TradeEventHandler, TradeEventType
+from .tax_calculator import calculate_flip_profit
 
 if TYPE_CHECKING:
     from .prediction_loader import PredictionLoader
@@ -246,8 +248,8 @@ class TradePriceMonitor:
                 datetime.now(timezone.utc) - trade.payload.created_at
             ).total_seconds() / 3600
             remaining = trade.payload.expected_hours - elapsed_hours
-            # Clamp to at least 1h and at most 48h (predictions table range)
-            max_hour_offset = max(1, min(48, math.ceil(remaining)))
+            # Clamp to at least 1h and at most the configured max horizon.
+            max_hour_offset = max(1, min(self.config.max_hour_offset, math.ceil(remaining)))
 
         # Filter predictions for this item within the remaining trade window,
         # using the lowest offset_pct (most conservative margin) per hour_offset.
@@ -261,10 +263,14 @@ class TradePriceMonitor:
         if item_preds.empty:
             return
 
-        # For each hour_offset, take the row with the highest offset_pct
-        # (= widest margin = most conservative/lowest-risk sell price)
+        # For each hour_offset, take the row with the lowest offset_pct
+        # (= narrowest margin = most fill-friendly / conservative sell target).
+        #
+        # Using the lowest offset makes this monitor bias toward earlier alerts
+        # when the market moves against a user's sell price, which helps prevent
+        # capital getting stuck in unfilled sells.
         conservative_preds = item_preds.loc[
-            item_preds.groupby("hour_offset")["offset_pct"].idxmax()
+            item_preds.groupby("hour_offset")["offset_pct"].idxmin()
         ]
 
         # Best predicted sell = max across all hour offsets at conservative margin
@@ -284,10 +290,7 @@ class TradePriceMonitor:
             return
 
         # Determine alert severity
-        if (
-            drop_pct > self.config.price_drop_high_pct
-            or best_predicted_sell <= buy_price
-        ):
+        if drop_pct > self.config.price_drop_high_pct:
             urgency = AlertUrgency.HIGH
             cooldown = self.config.price_drop_cooldown_high
             is_sell_now = True
@@ -302,6 +305,13 @@ class TradePriceMonitor:
 
         # Suggested price: 0.5% above predicted sell
         suggested_sell = round(best_predicted_sell * 1.005)
+
+        # Never recommend a sell that would realize a loss relative to buy_price.
+        # If the minimum break-even price is still above the market, the correct
+        # user action under this constraint is to hold rather than liquidate.
+        min_profitable_sell = self._min_profitable_sell_price(buy_price, quantity)
+        if suggested_sell < min_profitable_sell:
+            suggested_sell = min_profitable_sell
 
         # Check cooldown and price change deduplication
         existing = self._cooldowns.get(trade_id)
@@ -331,7 +341,22 @@ class TradePriceMonitor:
         best_row = conservative_preds.loc[conservative_preds["sell_price"].idxmax()]
         confidence = float(best_row["fill_probability"])
 
-        if is_sell_now:
+        # If the "best" suggested price would still be a loss after tax, we cannot
+        # recommend an exit. Emit a HOLD alert instead.
+        if calculate_flip_profit(buy_price, suggested_sell, quantity) < 0:
+            reason = (
+                f"Price predicted to drop {drop_pct:.1%}, but selling now would realize a loss "
+                f"after GE tax. Holding is recommended."
+            )
+            alert = create_hold_alert(
+                alert_id=alert_id,
+                trade_id=trade_id,
+                reason=reason,
+                confidence=confidence,
+                urgency=urgency,
+            )
+            is_sell_now = False
+        elif is_sell_now:
             reason = (
                 f"Price predicted to drop {drop_pct:.1%}. "
                 f"Predicted sell {int(best_predicted_sell)}gp "
@@ -379,7 +404,21 @@ class TradePriceMonitor:
             item_id=item_id,
             drop_pct=f"{drop_pct:.2%}",
             urgency=urgency.value,
-            alert_type="SELL_NOW" if is_sell_now else "ADJUST_PRICE",
+            alert_type=getattr(getattr(alert, "type", None), "value", None) or str(getattr(alert, "type", "unknown")),
             suggested_sell=suggested_sell,
             original_sell=sell_price,
         )
+
+    def _min_profitable_sell_price(self, buy_price: int, qty: int) -> int:
+        """Return the minimum sell price that is break-even after GE tax."""
+        buy_price_i = max(1, int(buy_price))
+        qty_i = max(1, int(qty))
+        low = buy_price_i
+        high = buy_price_i + 5_000_000 + 10
+        while low < high:
+            mid = (low + high) // 2
+            if calculate_flip_profit(buy_price_i, mid, qty_i) >= 0:
+                high = mid
+            else:
+                low = mid + 1
+        return low

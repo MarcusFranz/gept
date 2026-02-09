@@ -2576,6 +2576,48 @@ class TestVolumeFiltering:
             assert call_args.kwargs["min_volume_24h"] == 0
 
 
+class TestFillProbAlphaRanking:
+    def test_fill_prob_alpha_biases_toward_fills(self, mock_db_connection):
+        """Higher FILL_PROB_ALPHA should prefer higher fill_probability even if EV is slightly lower."""
+        from src.config import Config
+
+        with patch("src.recommendation_engine.PredictionLoader") as MockLoader:
+            mock_loader = MagicMock()
+            MockLoader.return_value = mock_loader
+
+            # Two configs for the same item:
+            # - A: higher EV but lower fill
+            # - B: slightly lower EV but higher fill
+            #
+            # With alpha > 1, config B should win.
+            df = pd.DataFrame(
+                {
+                    "item_id": [999, 999],
+                    "item_name": ["Test item", "Test item"],
+                    "hour_offset": [4, 4],
+                    "offset_pct": [0.0200, 0.0125],
+                    "fill_probability": [0.30, 0.45],
+                    "expected_value": [0.032, 0.020],
+                    "buy_price": [100, 100],
+                    "sell_price": [105, 103],
+                    "current_high": [102, 102],
+                    "current_low": [98, 98],
+                    "confidence": ["medium", "medium"],
+                    "prediction_time": ["2024-01-01T00:00:00Z", "2024-01-01T00:00:00Z"],
+                }
+            )
+            mock_loader.get_predictions_for_item.return_value = df
+
+            cfg = Config()
+            cfg.fill_prob_alpha = 2.0
+            engine = RecommendationEngine(db_connection_string=mock_db_connection, config=cfg)
+            engine.loader = mock_loader
+
+            out = engine.get_prediction_for_item(item_id=999)
+            assert out is not None
+            assert out["sell_price"] == 103
+
+
 class TestPortfolioOptimizer:
     """Test cases for ILP-based portfolio optimizer (issue #69).
 

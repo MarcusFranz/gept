@@ -34,7 +34,7 @@ async def get_item_price_lookup(
     item_id: int = Path(..., gt=0, description="OSRS item ID"),
     _api_key: Optional[str] = Depends(verify_api_key),
     side: Literal["buy", "sell"] = Query(default="buy", description="Trade side - buy or sell"),
-    window: int = Query(default=24, ge=1, le=48, description="Target time window in hours"),
+    window: int = Query(default=24, ge=1, le=24, description="Target time window in hours"),
     offset: Optional[float] = Query(default=None, ge=0.01, le=0.03, description="Target offset percentage"),
     include_price_history: bool = Query(default=False, description="Include 24h price history for charts"),
     engine: RecommendationEngine = Depends(get_engine),

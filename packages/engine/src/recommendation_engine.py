@@ -42,7 +42,7 @@ class RecommendationEngine:
     HOUR_RANGES = {
         "active": (1, 4),  # Quick flips
         "hybrid": (2, 12),  # Medium-term
-        "passive": (8, 48),  # Overnight/long-term
+        "passive": (8, 24),  # Overnight/long-term (capped to reduce long-horizon risk)
     }
 
     # Minimum fill probability thresholds by risk
@@ -207,7 +207,7 @@ class RecommendationEngine:
             offset_pct: Optional specific offset percentage to filter by (takes precedence)
             min_offset_pct: Optional minimum offset percentage threshold
             max_offset_pct: Optional maximum offset percentage threshold
-            max_hour_offset: Optional max time horizon override (1-48)
+            max_hour_offset: Optional max time horizon override (1-24)
             min_ev: Optional minimum expected value threshold override
 
         Returns:
@@ -242,12 +242,12 @@ class RecommendationEngine:
         min_ev_threshold = (
             min_ev if min_ev is not None else self.EV_THRESHOLDS.get(risk, 0.005)
         )
-        min_hour, max_hour = self.HOUR_RANGES.get(style, (1, 48))
+        min_hour, max_hour = self.HOUR_RANGES.get(style, (1, self.config.max_hour_offset))
         min_fill = self.FILL_PROB_MINIMUMS.get(risk, 0.05)
 
         # Allow max_hour_offset parameter to override style default
         if max_hour_offset is not None:
-            max_hour = min(max_hour_offset, 48)
+            max_hour = min(max_hour_offset, self.config.max_hour_offset)
 
         # Determine offset range (priority: offset_pct > explicit min/max > risk-based)
         if offset_pct is not None:
@@ -427,7 +427,7 @@ class RecommendationEngine:
             offset_pct: Optional specific offset percentage to filter by
             min_offset_pct: Optional minimum offset percentage threshold
             max_offset_pct: Optional maximum offset percentage threshold
-            max_hour_offset: Optional max time horizon override (1-48)
+            max_hour_offset: Optional max time horizon override (1-24)
             min_ev: Optional minimum expected value threshold override
 
         Returns:
@@ -456,12 +456,12 @@ class RecommendationEngine:
         min_ev_threshold = (
             min_ev if min_ev is not None else self.EV_THRESHOLDS.get(risk, 0.005)
         )
-        min_hour, max_hour = self.HOUR_RANGES.get(style, (1, 48))
+        min_hour, max_hour = self.HOUR_RANGES.get(style, (1, self.config.max_hour_offset))
         min_fill = self.FILL_PROB_MINIMUMS.get(risk, 0.05)
 
         # Allow max_hour_offset parameter to override style default
         if max_hour_offset is not None:
-            max_hour = min(max_hour_offset, 48)
+            max_hour = min(max_hour_offset, self.config.max_hour_offset)
 
         # Determine offset range
         if offset_pct is not None:
@@ -2166,7 +2166,7 @@ class RecommendationEngine:
         self,
         use_beta_model: bool = False,
         min_hour_offset: int = 1,
-        max_hour_offset: int = 48,
+        max_hour_offset: int = 24,
     ) -> list[dict]:
         """Get all valid trading opportunities for browsing.
 
@@ -2194,16 +2194,16 @@ class RecommendationEngine:
         try:
             max_hour_offset_int = int(max_hour_offset)
         except Exception:
-            max_hour_offset_int = 48
+            max_hour_offset_int = self.config.max_hour_offset
 
         if min_hour_offset_int < 1:
             min_hour_offset_int = 1
         if max_hour_offset_int < 1:
             max_hour_offset_int = 1
-        if max_hour_offset_int > 48:
-            max_hour_offset_int = 48
-        if min_hour_offset_int > 48:
-            min_hour_offset_int = 48
+        if max_hour_offset_int > self.config.max_hour_offset:
+            max_hour_offset_int = self.config.max_hour_offset
+        if min_hour_offset_int > self.config.max_hour_offset:
+            min_hour_offset_int = self.config.max_hour_offset
         if min_hour_offset_int > max_hour_offset_int:
             return []
 
@@ -2491,7 +2491,7 @@ class RecommendationEngine:
         """
         # Get filtering parameters based on style/risk
         min_ev = self.EV_THRESHOLDS.get(risk, 0.005)
-        min_hour, max_hour = self.HOUR_RANGES.get(style, (1, 48))
+        min_hour, max_hour = self.HOUR_RANGES.get(style, (1, self.config.max_hour_offset))
         min_fill = self.FILL_PROB_MINIMUMS.get(risk, 0.05)
 
         # Fetch predictions for this specific item
@@ -2571,9 +2571,15 @@ class RecommendationEngine:
         # Pure EV selection can be too aggressive (prices that don't fill). Prefer
         # EV * fill_probability to bias toward configs that actually execute.
         filtered = filtered.copy()
-        filtered["_rank_score"] = filtered["expected_value"].astype(float) * filtered[
-            "fill_probability"
-        ].astype(float)
+        try:
+            alpha = float(getattr(self.config, "fill_prob_alpha", 1.0))
+        except Exception:
+            alpha = 1.0
+        if alpha <= 0:
+            alpha = 1.0
+        filtered["_rank_score"] = filtered["expected_value"].astype(float) * (
+            filtered["fill_probability"].astype(float) ** alpha
+        )
         best = filtered.loc[filtered["_rank_score"].idxmax()]
         pred_age = self.loader.get_prediction_age_seconds()
 
@@ -2716,7 +2722,15 @@ class RecommendationEngine:
 
         # Use the same less-aggressive ranking as recommendations.
         df = df.copy()
-        df["_rank_score"] = df["expected_value"].astype(float) * df["fill_probability"].astype(float)
+        try:
+            alpha = float(getattr(self.config, "fill_prob_alpha", 1.0))
+        except Exception:
+            alpha = 1.0
+        if alpha <= 0:
+            alpha = 1.0
+        df["_rank_score"] = df["expected_value"].astype(float) * (
+            df["fill_probability"].astype(float) ** alpha
+        )
         best = df.loc[df["_rank_score"].idxmax()]
 
         return {
@@ -2751,13 +2765,21 @@ class RecommendationEngine:
         Args:
             item_id: OSRS item ID
             side: Trade side - "buy" or "sell"
-            window_hours: Target time window in hours (1-48)
+            window_hours: Target time window in hours (1-24)
             offset_pct: Optional target offset percentage (0.01-0.03)
             include_price_history: Whether to include 24h price history for charts
 
         Returns:
             Dict with price info or None if item not found
         """
+        # Cap to configured horizon. (Predictions may exist at longer offsets in the DB,
+        # but we intentionally avoid serving those as recommendations.)
+        try:
+            window_hours = int(window_hours)
+        except Exception:
+            window_hours = 24
+        window_hours = max(1, min(window_hours, self.config.max_hour_offset))
+
         # Fetch predictions for this item
         predictions_df = self.loader.get_predictions_for_item(item_id)
 
@@ -2941,6 +2963,8 @@ class RecommendationEngine:
         user_id: Optional[str] = None,
         use_beta_model: bool = False,
         model_id: Optional[str] = None,
+        buy_price: Optional[int] = None,
+        expected_hours: Optional[int] = None,
     ) -> dict:
         """Evaluate an active order and recommend action.
 
@@ -2987,6 +3011,8 @@ class RecommendationEngine:
             quantity=quantity,
             time_elapsed_minutes=time_elapsed_minutes,
             user_id=user_id,
+            buy_price=buy_price,
+            expected_hours=expected_hours,
         )
 
     def close(self):
