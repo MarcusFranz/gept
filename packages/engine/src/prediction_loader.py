@@ -2,7 +2,7 @@
 
 import logging
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Literal, Optional
 
 import pandas as pd
 from sqlalchemy import and_, case, create_engine, func, literal_column, select, text
@@ -198,12 +198,17 @@ class PredictionLoader:
         max_hour_offset: Optional[int] = None,
         min_offset_pct: Optional[float] = None,
         max_offset_pct: Optional[float] = None,
+        rank_metric: Literal["expected_value", "ev_x_fill"] = "ev_x_fill",
         limit: int = 100,
         min_volume_24h: Optional[int] = None,
     ) -> pd.DataFrame:
         """Get the single best prediction for each item.
 
-        Selects the hour_offset/offset_pct combination with highest EV per item.
+        Selects the hour_offset/offset_pct combination with the best rank per item.
+
+        Ranking options:
+        - expected_value: legacy behavior (most aggressive, maximizes EV)
+        - ev_x_fill: EV * fill_probability (less aggressive, improves fills)
 
         Args:
             min_fill_prob: Minimum fill probability
@@ -212,6 +217,7 @@ class PredictionLoader:
             max_hour_offset: Maximum hours ahead
             min_offset_pct: Minimum offset percentage (e.g., 0.0125 for 1.25%)
             max_offset_pct: Maximum offset percentage (e.g., 0.0250 for 2.5%)
+            rank_metric: How to rank per-item configs (see above)
             limit: Maximum number of items
             min_volume_24h: Minimum 24-hour volume (excludes illiquid items)
 
@@ -239,9 +245,24 @@ class PredictionLoader:
         # Build column list with optional volume
         rank_cols = list(_prediction_columns())
 
+        # Rank "best" config per item. Pure EV tends to be too aggressive; EV*fill
+        # biases toward higher fill probability while still preferring higher EV.
+        if rank_metric == "expected_value":
+            per_item_order = [p.c.expected_value.desc(), p.c.fill_probability.desc()]
+            overall_order_col = "expected_value"
+        else:
+            rank_score = (p.c.expected_value * p.c.fill_probability).label("rank_score")
+            rank_cols.append(rank_score)
+            per_item_order = [
+                rank_score.desc(),
+                p.c.fill_probability.desc(),
+                p.c.expected_value.desc(),
+            ]
+            overall_order_col = "rank_score"
+
         rn_col = func.row_number().over(
             partition_by=p.c.item_id,
-            order_by=p.c.expected_value.desc(),
+            order_by=per_item_order,
         ).label("rn")
 
         if needs_volume:
@@ -306,12 +327,8 @@ class PredictionLoader:
                 .cte("ranked")
             )
 
-        query = (
-            select(ranked)
-            .where(ranked.c.rn == 1)
-            .order_by(ranked.c.expected_value.desc())
-            .limit(limit)
-        )
+        order_expr = getattr(ranked.c, overall_order_col).desc()
+        query = select(ranked).where(ranked.c.rn == 1).order_by(order_expr).limit(limit)
 
         try:
             with self.engine.connect() as conn:

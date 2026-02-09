@@ -283,6 +283,7 @@ class RecommendationEngine:
             max_hour_offset=max_hour,
             min_offset_pct=min_offset,
             max_offset_pct=max_offset,
+            rank_metric=self.config.best_prediction_rank_metric,
             limit=candidate_limit,
             min_volume_24h=self.config.min_volume_24h,
         )
@@ -484,6 +485,7 @@ class RecommendationEngine:
             max_hour_offset=max_hour,
             min_offset_pct=min_offset,
             max_offset_pct=max_offset,
+            rank_metric=self.config.best_prediction_rank_metric,
             limit=candidate_limit,
             min_volume_24h=self.config.min_volume_24h,
         )
@@ -2218,6 +2220,7 @@ class RecommendationEngine:
             max_hour_offset=max_hour_offset_int,
             min_offset_pct=0.0125,
             max_offset_pct=0.0250,
+            rank_metric=self.config.best_prediction_rank_metric,
             limit=candidate_limit,
             min_volume_24h=None,  # Volume filter applied post-fetch via _apply_liquidity_filter
         )
@@ -2563,8 +2566,15 @@ class RecommendationEngine:
                 "spread": round(spread, 4),
             }
 
-        # Get the best prediction for this item matching user preferences
-        best = filtered.loc[filtered["expected_value"].idxmax()]
+        # Get the best prediction for this item matching user preferences.
+        #
+        # Pure EV selection can be too aggressive (prices that don't fill). Prefer
+        # EV * fill_probability to bias toward configs that actually execute.
+        filtered = filtered.copy()
+        filtered["_rank_score"] = filtered["expected_value"].astype(float) * filtered[
+            "fill_probability"
+        ].astype(float)
+        best = filtered.loc[filtered["_rank_score"].idxmax()]
         pred_age = self.loader.get_prediction_age_seconds()
 
         # Build candidate
@@ -2704,8 +2714,10 @@ class RecommendationEngine:
         if df.empty:
             return None
 
-        # Get the best configuration
-        best = df.loc[df["expected_value"].idxmax()]
+        # Use the same less-aggressive ranking as recommendations.
+        df = df.copy()
+        df["_rank_score"] = df["expected_value"].astype(float) * df["fill_probability"].astype(float)
+        best = df.loc[df["_rank_score"].idxmax()]
 
         return {
             "item_id": item_id,
