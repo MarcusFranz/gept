@@ -21,6 +21,18 @@ The production job runs as a `systemd` timer that launches a one-shot Docker con
 
 For full environment setup (database tunnel, env vars, dependencies), see `DEVELOPER_SETUP.md`.
 
+### Quick Local Run (Minimal)
+
+```bash
+cd packages/inference
+python -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env
+set -a && source .env && set +a
+python src/pipeline/run_patchtst_inference.py --model-path /path/to/best_model.pt
+```
+
 ## Deployment
 
 The inference deployment unit is the Docker image `ghcr.io/marcusfranz/gept-inference`.
