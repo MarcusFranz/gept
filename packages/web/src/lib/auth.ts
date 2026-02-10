@@ -11,14 +11,16 @@ if (!process.env.BETTER_AUTH_SECRET) {
   throw new Error('BETTER_AUTH_SECRET environment variable is required');
 }
 
+const baseURL = process.env.BETTER_AUTH_URL || process.env.PUBLIC_APP_URL || 'http://localhost:3000';
+
 // Build trusted origins list
 const trustedOrigins = ['http://localhost:3000', 'http://localhost:4321'];
-if (process.env.BETTER_AUTH_URL && !process.env.BETTER_AUTH_URL.includes('localhost')) {
-  trustedOrigins.push(process.env.BETTER_AUTH_URL);
+if (baseURL && !baseURL.includes('localhost')) {
+  trustedOrigins.push(baseURL);
 }
 
 export const auth = betterAuth({
-  baseURL: process.env.BETTER_AUTH_URL || 'http://localhost:3000',
+  baseURL,
   secret: process.env.BETTER_AUTH_SECRET,
   trustedOrigins,
 
@@ -31,25 +33,43 @@ export const auth = betterAuth({
     enabled: true,
     minPasswordLength: 8,
     sendResetPassword: async ({ user, url }) => {
-      // Dev fallback: log to console when no Resend API key is configured
+      const isProd = process.env.NODE_ENV === 'production';
+
+      if (isProd && url.includes('localhost')) {
+        console.error('[Auth] Password reset URL points at localhost; check BETTER_AUTH_URL / PUBLIC_APP_URL configuration', {
+          url,
+        });
+        throw new Error('Password reset is misconfigured');
+      }
+
+      // Dev fallback: log to console when no Resend API key is configured.
+      // In prod, fail loudly so password reset isn't silently broken.
       if (!process.env.RESEND_API_KEY) {
-        if (process.env.NODE_ENV === 'development') {
-          console.log('\n=== PASSWORD RESET LINK ===');
-          console.log(url);
-          console.log('===========================\n');
-        } else {
-          console.warn(`[Auth] Password reset requested for ${user.email} but RESEND_API_KEY is not configured`);
+        if (isProd) {
+          console.error('[Auth] RESEND_API_KEY is not configured; cannot send password reset email');
+          throw new Error('Password reset email is not configured');
         }
+        console.log('\n=== PASSWORD RESET LINK ===');
+        console.log(url);
+        console.log('===========================\n');
         return;
+      }
+
+      if (isProd && !process.env.EMAIL_FROM) {
+        console.error('[Auth] EMAIL_FROM is not configured; cannot send password reset email');
+        throw new Error('Password reset email is not configured');
       }
 
       const resend = new Resend(process.env.RESEND_API_KEY);
       const fromAddress = process.env.EMAIL_FROM || 'GePT <noreply@gept.gg>';
+      const subject = 'Reset your GePT password';
+      const text = `Reset your GePT password:\n\n${url}\n\nIf you didn't request this, you can ignore this email.`;
 
       const { error } = await resend.emails.send({
         from: fromAddress,
         to: user.email,
-        subject: 'Reset your GePT password',
+        subject,
+        text,
         html: `
           <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
             <h2>Password Reset</h2>
@@ -58,6 +78,11 @@ export const auth = betterAuth({
               <a href="${url}" style="display: inline-block; padding: 12px 24px; background: #2563eb; color: #fff; text-decoration: none; border-radius: 6px;">
                 Reset Password
               </a>
+            </p>
+            <p style="font-size: 14px; color: #666;">
+              If the button doesn't work, copy and paste this URL into your browser:
+              <br />
+              <span style="word-break: break-all;">${url}</span>
             </p>
             <p style="color: #666; font-size: 14px;">
               If you didn't request this, you can safely ignore this email.
