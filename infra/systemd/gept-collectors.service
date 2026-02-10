@@ -1,0 +1,22 @@
+[Unit]
+Description=GePT Collectors (Docker Compose)
+After=network.target docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+User=ubuntu
+
+# deploy_collectors.sh maintains /home/ubuntu/osrs_collector/current as an atomic symlink
+# to the active release, which contains docker-compose.yml + prometheus/ + grafana/.
+WorkingDirectory=/home/ubuntu/osrs_collector/current
+
+# Keep the compose stack running after this unit exits.
+RemainAfterExit=yes
+
+ExecStart=/usr/bin/docker compose pull
+ExecStart=/usr/bin/docker compose up -d --remove-orphans
+ExecStop=/usr/bin/docker compose down
+
+[Install]
+WantedBy=multi-user.target

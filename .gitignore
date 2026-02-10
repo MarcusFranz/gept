@@ -47,17 +47,16 @@ Thumbs.db
 
 # Local experiments and configs
 learning/
-packages/model/configs/
-packages/model/experiments/
-packages/model/scripts/ssh_tunnel.sh
+packages/inference/configs/
+packages/inference/experiments/
 
 # Models (large files)
-packages/model/models/
-!packages/model/models/.gitkeep
+packages/inference/models/
+!packages/inference/models/.gitkeep
 
 # Data caches
-packages/model/data/
-!packages/model/data/.gitkeep
+packages/inference/data/
+!packages/inference/data/.gitkeep
 .claude/
 agents/
 docs/

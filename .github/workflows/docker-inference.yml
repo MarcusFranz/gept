@@ -1,25 +1,26 @@
-name: Build Collectors Docker Image
+name: Build Inference Docker Image
 
 on:
   push:
     branches: [main]
     paths:
-      - "packages/collectors/**"
-      - "!packages/collectors/README.md"
-      - "!packages/collectors/requirements.in"
+      - "packages/inference/src/**"
+      - "packages/inference/requirements.txt"
+      - "packages/inference/Dockerfile"
+      - "packages/inference/.dockerignore"
   workflow_dispatch:
 
 concurrency:
-  group: docker-collectors-${{ github.ref }}
+  group: docker-inference-${{ github.ref }}
   cancel-in-progress: true
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: marcusfranz/gept-collectors
+  IMAGE_NAME: marcusfranz/gept-inference
 
 jobs:
   build-and-push:
-    name: Build and Push Collectors Image
+    name: Build and Push Inference Image
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -54,11 +55,12 @@ jobs:
       - name: Build and push Docker image
         uses: docker/build-push-action@v6
         with:
-          context: packages/collectors
-          file: packages/collectors/Dockerfile
+          context: packages/inference
+          file: packages/inference/Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+

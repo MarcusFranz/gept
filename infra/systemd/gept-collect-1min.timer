@@ -1,9 +1,0 @@
-[Unit]
-Description=Run 1-minute price collection
-
-[Timer]
-OnCalendar=*:0/1
-Persistent=true
-
-[Install]
-WantedBy=timers.target
