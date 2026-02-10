@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 
 from ..api_dependencies import get_trade_event_handler
 from ..api_models import TradeWebhookRequest, TradeWebhookResponse
+from ..config import config
 from ..logging_config import get_logger
 from ..trade_events import TradeEvent, TradeEventHandler, TradeEventType, TradePayload
 from ..webhook import WebhookSignatureError, verify_webhook_signature
@@ -23,6 +24,11 @@ async def receive_trade_webhook(
     trade_event_handler: TradeEventHandler = Depends(get_trade_event_handler),
 ):
     """Receive trade lifecycle events from the web application."""
+    if not config.trade_webhooks_enabled:
+        # Fail fast when feature-flagged off so we don't require webhook secrets
+        # or do any signature verification / event processing.
+        raise HTTPException(status_code=503, detail="Trade webhooks are disabled")
+
     timestamp = request.headers.get("X-Webhook-Timestamp")
     signature = request.headers.get("X-Webhook-Signature")
 
