@@ -41,11 +41,18 @@ cd "$GEPT_DIR" || exit 1
 # Load environment variables
 set -a && source "$GEPT_DIR/.env" && set +a
 
-# Ensure SSH tunnel to Ampere DB is up
+# Ensure SSH tunnel to the DB host is up
 if ! nc -z localhost 5432 2>/dev/null; then
     log "WARNING: DB tunnel not available, attempting to establish..."
-    # Try to establish tunnel (assumes key is configured)
-    ssh -f -N -L 5432:localhost:5432 ubuntu@150.136.170.128 2>/dev/null || {
+    : "${AMPERE_HOST:?AMPERE_HOST is required to establish DB tunnel (e.g. ubuntu@your-host)}"
+
+    ssh_args=()
+    if [ -n "${AMPERE_SSH_KEY:-}" ]; then
+        ssh_args+=(-i "$AMPERE_SSH_KEY" -o IdentitiesOnly=yes)
+    fi
+
+    # Try to establish tunnel (assumes key is configured via agent or AMPERE_SSH_KEY)
+    ssh "${ssh_args[@]}" -f -N -L 5432:localhost:5432 "$AMPERE_HOST" 2>/dev/null || {
         log "ERROR: Could not establish DB tunnel"
         exit 1
     }
