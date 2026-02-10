@@ -7,7 +7,6 @@
 #
 # Prerequisites:
 #   - SSH tunnel: ssh -i .secrets/oracle_key.pem -L 5432:localhost:5432 $AMPERE_HOST
-#     (AMPERE_HOST is defined in config/servers.env, default: ubuntu@150.136.170.128)
 #   - Or run directly on Ampere server
 
 set -euo pipefail
@@ -49,7 +48,6 @@ log_info "Testing database connection..."
 if ! psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -c "SELECT 1" > /dev/null 2>&1; then
     log_error "Cannot connect to database"
     echo "Ensure SSH tunnel is running: ssh -i .secrets/oracle_key.pem -L 5432:localhost:5432 \$AMPERE_HOST"
-    echo "(AMPERE_HOST is defined in config/servers.env)"
     exit 1
 fi
 log_info "Database connection successful"

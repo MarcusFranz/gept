@@ -44,15 +44,12 @@ trap 'error_handler $LINENO' ERR
 # Determine script directory
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
-# Source central server configuration
-if [ -f "$SCRIPT_DIR/config/servers.env" ]; then
-    # shellcheck source=config/servers.env
-    source "$SCRIPT_DIR/config/servers.env"
-fi
-
-# Configuration (uses values from servers.env with fallback defaults)
-SERVER="${AMPERE_HOST:-ubuntu@150.136.170.128}"
-SSH_KEY="${AMPERE_SSH_KEY:-.secrets/oracle_key.pem}"
+# Configuration
+# NOTE: This repo is public; do not bake production hostnames/IPs into defaults.
+: "${AMPERE_HOST:?AMPERE_HOST is required (e.g. ubuntu@your-host)}"
+: "${AMPERE_SSH_KEY:?AMPERE_SSH_KEY is required (path to SSH private key)}"
+SERVER="$AMPERE_HOST"
+SSH_KEY="$AMPERE_SSH_KEY"
 # Resolve relative path for SSH key
 if [[ ! "$SSH_KEY" = /* ]]; then
     SSH_KEY="$SCRIPT_DIR/$SSH_KEY"
