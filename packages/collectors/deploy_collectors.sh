@@ -43,6 +43,7 @@ trap 'error_handler $LINENO' ERR
 
 # Determine script directory
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 # Configuration
 # NOTE: This repo is public; do not bake production hostnames/IPs into defaults.
@@ -52,10 +53,10 @@ SERVER="$AMPERE_HOST"
 SSH_KEY="$AMPERE_SSH_KEY"
 # Resolve relative path for SSH key
 if [[ ! "$SSH_KEY" = /* ]]; then
-    SSH_KEY="$SCRIPT_DIR/$SSH_KEY"
+    SSH_KEY="$REPO_ROOT/$SSH_KEY"
 fi
 REMOTE_DIR="${AMPERE_COLLECTOR_DIR:-/home/ubuntu/osrs_collector}"
-LOCAL_COLLECTORS="collectors"
+LOCAL_COLLECTORS="$SCRIPT_DIR"
 KEEP_RELEASES=5
 DRY_RUN=false
 

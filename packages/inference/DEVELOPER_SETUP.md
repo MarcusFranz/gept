@@ -93,16 +93,17 @@ ORDER BY timestamp;
 ## Project Structure
 
 ```
-gept-foundations/
-├── src/                    # Core ML/prediction code
-│   ├── db_utils.py         # Database connections (use this!)
-│   ├── feature_engine.py   # Feature computation
-│   ├── predictor.py        # Prediction logic
-│   └── ...
-├── collectors/             # Data collection services
-├── training/               # Model training scripts
-├── scripts/                # Utility scripts
-└── .env.example            # Environment template
+gept/
+├── packages/
+│   ├── inference/
+│   │   ├── src/            # Inference pipeline code
+│   │   ├── scripts/        # Backups + migrations + ops helpers
+│   │   ├── Dockerfile      # GHCR image build
+│   │   └── .env.example    # Environment template (local)
+│   ├── collectors/         # Data collection + monitoring (Docker Compose)
+│   ├── engine/             # Recommendation Engine API
+│   └── web/                # Vercel-deployed site
+└── infra/systemd/           # Server systemd units (docker-based)
 ```
 
 ---
@@ -120,7 +121,7 @@ export $(cat .env | xargs)
 ### Run Inference
 ```bash
 source .env
-python run_inference.py
+python src/pipeline/run_patchtst_inference.py --model-path /path/to/best_model.pt
 ```
 
 ### Run Tests
@@ -166,8 +167,8 @@ This project uses [pip-tools](https://pip-tools.readthedocs.io/) for determinist
 ### File Structure
 - `requirements.in` - Source constraints (what we want)
 - `requirements.txt` - Pinned lockfile (what gets installed)
-- `collectors/requirements.in` - Collector source constraints
-- `collectors/requirements.txt` - Collector pinned lockfile
+- `../collectors/requirements.in` - Collector source constraints
+- `../collectors/requirements.txt` - Collector pinned lockfile
 
 ### Installing Dependencies
 ```bash
@@ -184,7 +185,7 @@ pip install pip-tools
 pip-compile requirements.in --upgrade
 
 # Update collectors dependencies
-pip-compile collectors/requirements.in -o collectors/requirements.txt --upgrade
+pip-compile ../collectors/requirements.in -o ../collectors/requirements.txt --upgrade
 
 # Sync your environment
 pip-sync requirements.txt

@@ -1,5 +1,5 @@
 -- Migration: Add price stability and momentum fields for smarter filtering
--- Run: psql $DATABASE_URL -f packages/model/scripts/migrations/015_add_stability_fields.sql
+-- Run: psql $DATABASE_URL -f packages/inference/scripts/migrations/015_add_stability_fields.sql
 
 BEGIN;
 

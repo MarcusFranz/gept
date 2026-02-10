@@ -1,13 +1,14 @@
 [Unit]
-Description=GePT Model Inference
-After=network.target postgresql.service
+Description=GePT Inference (Docker one-shot)
+After=network.target docker.service
+Wants=docker.service
 
 [Service]
 Type=oneshot
 User=ubuntu
-WorkingDirectory=/home/ubuntu/gept/current/packages/model
-Environment="PATH=/home/ubuntu/gept/venv/bin:/usr/bin"
-Environment="PYTHONPATH=/home/ubuntu/gept/current/packages/model/src"
+Environment="PATH=/usr/bin:/bin"
+# Optionally set GEPT_INFERENCE_TAG in /home/ubuntu/gept/.env (defaults to latest).
 EnvironmentFile=/home/ubuntu/gept/.env
-ExecStart=/home/ubuntu/gept/venv/bin/python -m src.batch_predictor_multitarget
+ExecStartPre=/bin/bash -lc '/usr/bin/docker pull ghcr.io/marcusfranz/gept-inference:${GEPT_INFERENCE_TAG:-latest}'
+ExecStart=/bin/bash -lc '/usr/bin/docker run --rm --network host --env-file /home/ubuntu/gept/.env -v /home/ubuntu/gept/models/patchtst:/models/patchtst:ro ghcr.io/marcusfranz/gept-inference:${GEPT_INFERENCE_TAG:-latest}'
 TimeoutStartSec=300
