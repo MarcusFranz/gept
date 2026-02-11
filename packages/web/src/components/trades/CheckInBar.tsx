@@ -45,13 +45,15 @@ export function CheckInBar(props: CheckInBarProps) {
       <Show
         when={props.phase === 'buying'}
         fallback={
-          <button
-            class="check-in-action-btn check-in-primary"
-            onClick={() => props.onMarkSold()}
-            disabled={props.disabled}
-          >
-            Order sold
-          </button>
+          <div class="check-in-single">
+            <button
+              class="check-in-action-btn check-in-primary"
+              onClick={() => props.onMarkSold()}
+              disabled={props.disabled}
+            >
+              Order sold
+            </button>
+          </div>
         }
       >
         <Show
@@ -140,6 +142,11 @@ export function CheckInBar(props: CheckInBarProps) {
           grid-template-columns: repeat(2, minmax(0, 1fr));
         }
 
+        .check-in-single {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr);
+        }
+
         .check-in-actions-inline {
           display: grid;
           gap: 0.65rem;
@@ -147,6 +154,10 @@ export function CheckInBar(props: CheckInBarProps) {
         }
 
         .check-in-action-btn {
+          width: 100%;
+          display: inline-flex;
+          justify-content: center;
+          align-items: center;
           padding: 0.68rem 1rem;
           border-radius: var(--radius-full);
           font-weight: 600;
