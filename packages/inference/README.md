@@ -17,6 +17,12 @@ python src/pipeline/run_patchtst_inference.py --model-path /path/to/best_model.p
 
 The production job runs as a `systemd` timer that launches a one-shot Docker container (see `infra/systemd/gept-inference.*`).
 
+Run from `packages/inference` so relative paths resolve as expected. To see available CLI flags:
+
+```bash
+python src/pipeline/run_patchtst_inference.py --help
+```
+
 ## Local Setup
 
 For full environment setup (database tunnel, env vars, dependencies), see `DEVELOPER_SETUP.md`.

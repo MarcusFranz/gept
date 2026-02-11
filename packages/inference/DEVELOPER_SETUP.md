@@ -53,6 +53,12 @@ source .env
 python -c "from src.db_utils import get_simple_connection; c = get_simple_connection(); print('Connected!'); c.close()"
 ```
 
+You can also verify with `psql` (avoids writing the password to shell history):
+```bash
+source .env
+PGPASSWORD="$DB_PASS" psql -h localhost -U "$DB_USER" -d "$DB_NAME" -c "SELECT now();"
+```
+
 ---
 
 ## Database Access

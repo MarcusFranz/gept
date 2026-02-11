@@ -37,6 +37,12 @@ Optional:
 - `PREDICTION_API` and `PREDICTION_API_KEY` for live recommendations
 - `ENGINE_WEBHOOK_URL` and `WEBHOOK_SECRET` for active-trade alerts
 
+Generate a local auth secret:
+
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+
 ### Local URLs
 
 If you run everything on the Astro dev server, align these values to the dev port:
@@ -48,6 +54,12 @@ BETTER_AUTH_URL=http://localhost:4321
 ```
 
 If auth runs on a separate local server, keep `BETTER_AUTH_URL` pointed at that server instead.
+
+For local development, set `DATABASE_URL` to your local Postgres, for example:
+
+```bash
+DATABASE_URL=postgresql://user:password@localhost:5432/gept
+```
 
 ## Scripts
 
