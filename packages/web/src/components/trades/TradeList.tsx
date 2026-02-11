@@ -1,7 +1,7 @@
 // packages/web/src/components/trades/TradeList.tsx
 import { createEffect, createSignal, For, Show, onCleanup, untrack } from 'solid-js';
 import type { ActiveTrade } from '../../lib/db';
-import { toTradeViewModel, type TradeViewModel, type Guidance } from '../../lib/trade-types';
+import { toTradeViewModel, type TradeViewModel } from '../../lib/trade-types';
 import type { UpdateRecommendation } from '../../lib/types';
 import { TradeCard } from './TradeCard';
 import { TradeDetail } from './TradeDetail';
@@ -59,41 +59,23 @@ export function TradeList(props: TradeListProps) {
     }
   };
 
-  // Handle check-in for a trade
-  const handleCheckIn = async (tradeId: string, progress: number): Promise<{ guidance?: Guidance }> => {
+  // Handle switching from buying -> selling, optionally with partial quantity.
+  const handleAdvanceToSelling = async (tradeId: string, filledQuantity?: number) => {
     try {
-      const res = await fetch(`/api/trades/active/${tradeId}/check-in`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ progress })
-      });
-      if (!res.ok) throw new Error('Failed to save progress');
-      const data = await res.json();
-
-      if (data.success) {
-        setTrades(prev => prev.map(t =>
-          t.id === tradeId
-            ? { ...t, progress, lastCheckIn: new Date() }
-            : t
-        ));
-        setError(null);
+      if (filledQuantity !== undefined) {
+        const qty = Math.max(1, Math.floor(filledQuantity));
+        const patchRes = await fetch(`/api/trades/active/${tradeId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ quantity: qty })
+        });
+        if (!patchRes.ok) throw new Error('Failed to save filled amount');
       }
 
-      return { guidance: data.guidance };
-    } catch (err) {
-      console.error('Check-in failed:', err);
-      setError('Failed to save progress. Please try again.');
-      return {};
-    }
-  };
-
-  // Handle advancing to next phase
-  const handleAdvance = async (tradeId: string) => {
-    try {
       const res = await fetch(`/api/trades/active/${tradeId}/advance`, {
         method: 'POST'
       });
-      if (!res.ok) throw new Error('Failed to advance trade');
+      if (!res.ok) throw new Error('Failed to switch to selling');
       const data = await res.json();
 
       if (data.success) {
@@ -106,8 +88,30 @@ export function TradeList(props: TradeListProps) {
         setError(null);
       }
     } catch (err) {
-      console.error('Advance failed:', err);
-      setError('Failed to advance trade. Please try again.');
+      console.error('Advance to selling failed:', err);
+      setError('Failed to update order fill. Please try again.');
+    }
+  };
+
+  // Handle completing the selling phase with chosen sale price.
+  const handleCompleteSale = async (tradeId: string, sellPrice: number) => {
+    try {
+      const res = await fetch(`/api/trades/active/${tradeId}/complete`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sellPrice })
+      });
+      if (!res.ok) throw new Error('Failed to complete trade');
+      const data = await res.json();
+
+      if (data.success) {
+        setTrades(prev => prev.filter(t => t.id !== tradeId));
+        setExpandedId(null);
+        setError(null);
+      }
+    } catch (err) {
+      console.error('Complete sale failed:', err);
+      setError('Failed to complete sale. Please try again.');
     }
   };
 
@@ -257,8 +261,8 @@ export function TradeList(props: TradeListProps) {
                   <Show when={expandedId() === trade.id}>
                     <TradeDetail
 	                      trade={trade}
-	                      onCheckIn={(progress) => handleCheckIn(trade.id, progress)}
-	                      onAdvance={() => handleAdvance(trade.id)}
+	                      onAdvanceToSelling={(filledQuantity) => handleAdvanceToSelling(trade.id, filledQuantity)}
+	                      onCompleteSale={(sellPrice) => handleCompleteSale(trade.id, sellPrice)}
 	                      onCancel={() => promptCancel(trade.id)}
 	                      onClose={() => startCollapse()}
 	                      showHeader={false}

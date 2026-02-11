@@ -1,71 +1,123 @@
 // packages/web/src/components/trades/CheckInBar.tsx
-import { createSignal, createEffect } from 'solid-js';
+import { Show, createSignal } from 'solid-js';
 
 interface CheckInBarProps {
-  progress: number;
   phase: 'buying' | 'selling';
-  onProgressChange: (progress: number) => void;
-  onDone: () => void;
+  quantity: number;
+  onMarkFilled: () => void;
+  onMarkPartiallyFilled: (filledQuantity: number) => void;
+  onMarkSold: () => void;
   disabled?: boolean;
 }
 
 export function CheckInBar(props: CheckInBarProps) {
-  const [localProgress, setLocalProgress] = createSignal(props.progress);
-  let barRef: HTMLInputElement | undefined;
+  const [partialMode, setPartialMode] = createSignal(false);
+  const [partialQuantityInput, setPartialQuantityInput] = createSignal(String(props.quantity));
+  const [error, setError] = createSignal<string | null>(null);
 
-  // Sync with prop changes
-  createEffect(() => {
-    setLocalProgress(props.progress);
-  });
-
-  const handleSliderInput = (e: Event) => {
-    const target = e.currentTarget as HTMLInputElement;
-    const value = Number(target.value);
-    const clamped = Math.max(0, Math.min(100, value));
-    setLocalProgress(clamped);
-    props.onProgressChange(clamped);
+  const submitPartial = () => {
+    const qty = Number(partialQuantityInput());
+    if (!Number.isFinite(qty)) {
+      setError('Enter a valid amount.');
+      return;
+    }
+    const normalized = Math.floor(qty);
+    if (normalized <= 0) {
+      setError('Amount must be at least 1.');
+      return;
+    }
+    if (normalized > props.quantity) {
+      setError(`Amount cannot be more than ${props.quantity.toLocaleString()}.`);
+      return;
+    }
+    setError(null);
+    props.onMarkPartiallyFilled(normalized);
   };
 
   return (
     <div class="check-in-bar-container">
       <p class="check-in-prompt">
         {props.phase === 'buying'
-          ? 'How much of your buy offer has filled?'
-          : 'How much of your sell offer has filled?'}
+          ? 'Did your buy order fill?'
+          : 'Did your sell order complete?'}
       </p>
 
-      <div class="check-in-bar-wrapper">
-        <div class={`check-in-slider ${props.phase === 'buying' ? 'is-buying' : 'is-selling'}`} style={{ '--progress': `${localProgress()}%` }}>
-          <input
-            ref={barRef}
-            class="check-in-range"
-            type="range"
-            min="0"
-            max="100"
-            value={localProgress()}
-            onInput={handleSliderInput}
+      <Show
+        when={props.phase === 'buying'}
+        fallback={
+          <button
+            class="check-in-action-btn check-in-primary"
+            onClick={() => props.onMarkSold()}
             disabled={props.disabled}
-            aria-label="Fill indicator"
-          />
-          <div class="check-in-track" aria-hidden="true">
-            <div class="check-in-fill" />
-            <div class="check-in-thumb" />
-          </div>
-          <div class="check-in-labels">
-            <span>0%</span>
-            <span class="check-in-hint">Drag to set fill</span>
-            <span>100%</span>
-          </div>
-        </div>
-
-        <button
-          class="check-in-done-btn"
-          onClick={() => props.onDone()}
-          disabled={props.disabled}
+          >
+            Order sold
+          </button>
+        }
+      >
+        <Show
+          when={!partialMode()}
+          fallback={
+            <div class="check-in-partial">
+              <label class="check-in-input-label" for="partial-fill-qty">
+                Amount bought (max {props.quantity.toLocaleString()})
+              </label>
+              <input
+                id="partial-fill-qty"
+                class="check-in-input"
+                type="number"
+                min="1"
+                max={props.quantity}
+                inputmode="numeric"
+                value={partialQuantityInput()}
+                disabled={props.disabled}
+                onInput={(e) => {
+                  setPartialQuantityInput(e.currentTarget.value);
+                  if (error()) setError(null);
+                }}
+              />
+              <Show when={error()}>
+                <p class="check-in-error">{error()}</p>
+              </Show>
+              <div class="check-in-actions-inline">
+                <button
+                  class="check-in-action-btn check-in-secondary"
+                  onClick={() => {
+                    setPartialMode(false);
+                    setError(null);
+                  }}
+                  disabled={props.disabled}
+                >
+                  Back
+                </button>
+                <button
+                  class="check-in-action-btn check-in-primary"
+                  onClick={submitPartial}
+                  disabled={props.disabled}
+                >
+                  Save amount & switch to selling
+                </button>
+              </div>
+            </div>
+          }
         >
-          Done ✓
-        </button>
-      </div>
+          <div class="check-in-actions">
+            <button
+              class="check-in-action-btn check-in-primary"
+              onClick={() => props.onMarkFilled()}
+              disabled={props.disabled}
+            >
+              Order filled
+            </button>
+            <button
+              class="check-in-action-btn check-in-secondary"
+              onClick={() => setPartialMode(true)}
+              disabled={props.disabled}
+            >
+              Order partially filled
+            </button>
+          </div>
+        </Show>
+      </Show>
 
       <style>{`
         .check-in-bar-container {
@@ -82,117 +134,95 @@ export function CheckInBar(props: CheckInBarProps) {
           font-size: var(--font-size-sm);
         }
 
-        .check-in-bar-wrapper {
-          display: flex;
-          align-items: flex-start;
-          gap: 1rem;
+        .check-in-actions {
+          display: grid;
+          gap: 0.65rem;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
         }
 
-        .check-in-slider {
-          flex: 1;
-          min-width: 0;
-          position: relative;
-          padding-top: 0.5rem;
+        .check-in-actions-inline {
+          display: grid;
+          gap: 0.65rem;
+          grid-template-columns: minmax(120px, auto) minmax(0, 1fr);
         }
 
-        .check-in-slider.is-buying {
-          --fill-color: var(--phase-buy);
-          --fill-glow: rgba(134, 216, 162, 0.45);
-        }
-
-        .check-in-slider.is-selling {
-          --fill-color: var(--phase-sell);
-          --fill-glow: rgba(240, 181, 96, 0.45);
-        }
-
-        .check-in-range {
-          position: absolute;
-          inset: 0;
-          width: 100%;
-          height: 42px;
-          opacity: 0;
-          cursor: pointer;
-          z-index: 3;
-        }
-
-        .check-in-track {
-          position: relative;
-          height: 18px;
-          border-radius: var(--radius-full);
-          background: var(--surface-3);
-          border: 1px solid var(--border);
-          overflow: hidden;
-          z-index: 1;
-          pointer-events: none;
-        }
-
-        .check-in-fill {
-          position: absolute;
-          top: 0;
-          left: 0;
-          height: 100%;
-          width: var(--progress);
-          background: linear-gradient(90deg, color-mix(in srgb, var(--fill-color) 90%, #fff) 0%, var(--fill-color) 100%);
-          transition: width 0.35s var(--ease-hero);
-        }
-
-        .check-in-thumb {
-          position: absolute;
-          top: 50%;
-          left: var(--progress);
-          width: 20px;
-          height: 20px;
-          border-radius: 50%;
-          transform: translate(-50%, -50%);
-          background: var(--surface-1);
-          border: 2px solid var(--fill-color);
-          box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
-          transition: left 0.35s var(--ease-hero);
-        }
-
-        .check-in-done-btn {
-          padding: 0.6rem 1.2rem;
-          background: var(--action);
-          color: var(--btn-text-dark);
-          border: 1px solid color-mix(in srgb, var(--action) 70%, #000);
+        .check-in-action-btn {
+          padding: 0.68rem 1rem;
           border-radius: var(--radius-full);
           font-weight: 600;
           cursor: pointer;
-          white-space: nowrap;
-          transition: transform 0.4s var(--ease-hero), box-shadow 0.4s var(--ease-hero), background 0.3s ease;
+          transition: transform 0.22s ease, background 0.22s ease, border-color 0.22s ease;
         }
 
-        .check-in-done-btn:hover:not(:disabled) {
-          transform: translateY(-2px) scale(1.01);
-          box-shadow: 0 18px 30px -20px rgba(168, 240, 8, 0.6);
-        }
-
-        .check-in-done-btn:disabled {
-          opacity: 0.5;
+        .check-in-action-btn:disabled {
+          opacity: 0.6;
           cursor: not-allowed;
+          transform: none;
         }
 
-        .check-in-labels {
-          display: flex;
-          justify-content: space-between;
-          margin-top: 0.55rem;
+        .check-in-action-btn:hover:not(:disabled) {
+          transform: translateY(-1px);
+        }
+
+        .check-in-primary {
+          background: var(--action);
+          color: var(--btn-text-dark);
+          border: 1px solid color-mix(in srgb, var(--action) 70%, #000);
+        }
+
+        .check-in-primary:hover:not(:disabled) {
+          background: var(--action-hover);
+        }
+
+        .check-in-secondary {
+          background: var(--surface-2);
+          color: var(--text-primary);
+          border: 1px solid var(--border);
+        }
+
+        .check-in-secondary:hover:not(:disabled) {
+          border-color: var(--border-light);
+          background: color-mix(in srgb, var(--surface-2) 85%, #fff 15%);
+        }
+
+        .check-in-partial {
+          display: grid;
+          gap: 0.7rem;
+        }
+
+        .check-in-input-label {
           font-size: var(--font-size-xs);
           color: var(--text-muted);
-          pointer-events: none;
         }
 
-        .check-in-hint {
-          color: var(--text-secondary);
+        .check-in-input {
+          width: 100%;
+          border-radius: var(--radius-lg);
+          border: 1px solid var(--border);
+          background: var(--surface-1);
+          color: var(--text-primary);
+          padding: 0.6rem 0.7rem;
+          font-size: var(--font-size-sm);
+        }
+
+        .check-in-input:focus {
+          outline: none;
+          border-color: var(--border-light);
+        }
+
+        .check-in-error {
+          margin: 0;
+          color: var(--danger);
+          font-size: var(--font-size-xs);
         }
 
         @media (max-width: 640px) {
-          .check-in-bar-wrapper {
-            flex-direction: column;
-            align-items: stretch;
+          .check-in-actions {
+            grid-template-columns: 1fr;
           }
 
-          .check-in-done-btn {
-            width: 100%;
+          .check-in-actions-inline {
+            grid-template-columns: 1fr;
           }
         }
       `}</style>

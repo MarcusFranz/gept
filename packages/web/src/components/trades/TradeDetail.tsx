@@ -1,16 +1,15 @@
 // packages/web/src/components/trades/TradeDetail.tsx
 import { createSignal, onCleanup, onMount, Show } from 'solid-js';
-import type { TradeViewModel, Guidance } from '../../lib/trade-types';
+import type { TradeViewModel } from '../../lib/trade-types';
 import type { UpdateRecommendation } from '../../lib/types';
 import { CheckInBar } from './CheckInBar';
-import { GuidancePrompt } from './GuidancePrompt';
 import { Sparkline } from '../Sparkline';
 import { fetchPriceHistoryWithFallback, type PriceHistoryData } from '../../lib/price-history';
 
 interface TradeDetailProps {
   trade: TradeViewModel;
-  onCheckIn: (progress: number) => Promise<{ guidance?: Guidance }>;
-  onAdvance: () => Promise<void>;
+  onAdvanceToSelling: (filledQuantity?: number) => Promise<void>;
+  onCompleteSale: (sellPrice: number) => Promise<void>;
   onCancel: () => void;
   onClose: () => void;
   alert?: UpdateRecommendation;
@@ -56,64 +55,54 @@ export function TradeDetail(props: TradeDetailProps) {
     })();
   });
   const [loading, setLoading] = createSignal(false);
-  const [guidance, setGuidance] = createSignal<Guidance | undefined>(undefined);
-  const [pendingProgress, setPendingProgress] = createSignal<number | undefined>(undefined);
   const [closing, setClosing] = createSignal(false);
-
-  const formatGold = (amount: number) => {
-    if (amount >= 1_000_000) {
-      return (amount / 1_000_000).toFixed(2) + 'M';
-    } else if (amount >= 1_000) {
-      return (amount / 1_000).toFixed(1) + 'K';
-    }
-    return amount.toLocaleString() + ' gp';
-  };
+  const [showSoldPrompt, setShowSoldPrompt] = createSignal(false);
+  const [soldAtRecommended, setSoldAtRecommended] = createSignal(true);
+  const [customSellPrice, setCustomSellPrice] = createSignal('');
+  const [saleError, setSaleError] = createSignal<string | null>(null);
 
   // Exact GP price for GE offers - no abbreviation
   const formatExactGold = (amount: number) => {
     return amount.toLocaleString() + ' gp';
   };
 
-  const handleProgressChange = async (progress: number) => {
-    setPendingProgress(progress);
-  };
-
-  const handleDone = async () => {
+  const handleBuyFilled = async () => {
     setLoading(true);
     try {
-      // If there's pending progress, submit it first
-      if (pendingProgress() !== undefined) {
-        await props.onCheckIn(pendingProgress()!);
-      }
-      // Advance to next phase
-      await props.onAdvance();
+      await props.onAdvanceToSelling();
     } finally {
       setLoading(false);
     }
   };
 
-  const handleCheckIn = async () => {
-    if (pendingProgress() === undefined) return;
-
+  const handleBuyPartiallyFilled = async (filledQuantity: number) => {
     setLoading(true);
     try {
-      const result = await props.onCheckIn(pendingProgress()!);
-      if (result.guidance) {
-        setGuidance(result.guidance);
-      }
-      setPendingProgress(undefined);
+      await props.onAdvanceToSelling(filledQuantity);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleGuidanceAccept = async () => {
+  const handleMarkSold = () => {
+    setShowSoldPrompt(true);
+    setSoldAtRecommended(true);
+    setCustomSellPrice(String(recommendedSalePrice()));
+    setSaleError(null);
+  };
+
+  const submitSale = async () => {
+    const price = soldAtRecommended() ? recommendedSalePrice() : Number(customSellPrice());
+    if (!Number.isFinite(price) || price <= 0) {
+      setSaleError('Enter a valid sell price.');
+      return;
+    }
+
     setLoading(true);
     try {
-      // Guidance actions (relist/exit/sell_now) will call additional API endpoints
-      // when implemented. For now, accepting guidance just dismisses the prompt.
-      // The parent component will handle the actual action in a future phase.
-      setGuidance(undefined);
+      await props.onCompleteSale(Math.round(price));
+      setShowSoldPrompt(false);
+      setSaleError(null);
     } finally {
       setLoading(false);
     }
@@ -143,6 +132,7 @@ export function TradeDetail(props: TradeDetailProps) {
 
   const suggestedSell = () => alertSuggestedSell() ?? props.trade.suggestedSellPrice;
   const hasSuggestedSell = () => suggestedSell() != null;
+  const recommendedSalePrice = () => suggestedSell() ?? actualSell();
 
   const applySuggestedSell = () => {
     // Prefer the alert-backed accept flow when it has an explicit suggested price,
@@ -246,32 +236,93 @@ export function TradeDetail(props: TradeDetailProps) {
         </div>
       </Show>
 
-      {guidance() ? (
-        <GuidancePrompt
-          guidance={guidance()!}
-          onAccept={handleGuidanceAccept}
-          onDismiss={() => setGuidance(undefined)}
-          loading={loading()}
-        />
-      ) : (
-        <CheckInBar
-          progress={pendingProgress() ?? props.trade.progress}
-          phase={props.trade.phase}
-          onProgressChange={handleProgressChange}
-          onDone={handleDone}
-          disabled={loading()}
-        />
-      )}
+      <CheckInBar
+        phase={props.trade.phase}
+        quantity={props.trade.quantity}
+        onMarkFilled={handleBuyFilled}
+        onMarkPartiallyFilled={handleBuyPartiallyFilled}
+        onMarkSold={handleMarkSold}
+        disabled={loading()}
+      />
 
-      {pendingProgress() !== undefined && pendingProgress() !== props.trade.progress && !guidance() && (
-        <button
-          class="trade-detail-submit"
-          onClick={handleCheckIn}
-          disabled={loading()}
-        >
-          {loading() ? 'Saving...' : 'Save progress'}
-        </button>
-      )}
+      <Show when={showSoldPrompt() && props.trade.phase === 'selling'}>
+        <div class="trade-sale-prompt">
+          <h4 class="trade-sale-title">How did it sell?</h4>
+
+          <label class={`trade-sale-option ${soldAtRecommended() ? 'is-selected' : ''}`}>
+            <input
+              type="radio"
+              name={`sale-price-mode-${props.trade.id}`}
+              checked={soldAtRecommended()}
+              onChange={() => {
+                setSoldAtRecommended(true);
+                setSaleError(null);
+              }}
+              disabled={loading()}
+            />
+            <span>
+              Sold at recommended price ({formatExactGold(recommendedSalePrice())})
+            </span>
+          </label>
+
+          <label class={`trade-sale-option ${!soldAtRecommended() ? 'is-selected' : ''}`}>
+            <input
+              type="radio"
+              name={`sale-price-mode-${props.trade.id}`}
+              checked={!soldAtRecommended()}
+              onChange={() => {
+                setSoldAtRecommended(false);
+                setSaleError(null);
+              }}
+              disabled={loading()}
+            />
+            <span>Sold at other price</span>
+          </label>
+
+          <Show when={!soldAtRecommended()}>
+            <label class="trade-sale-input-label" for={`sale-price-${props.trade.id}`}>
+              Actual sell price
+            </label>
+            <input
+              id={`sale-price-${props.trade.id}`}
+              class="trade-sale-input"
+              type="number"
+              min="1"
+              inputmode="numeric"
+              value={customSellPrice()}
+              onInput={(e) => {
+                setCustomSellPrice(e.currentTarget.value);
+                if (saleError()) setSaleError(null);
+              }}
+              disabled={loading()}
+            />
+          </Show>
+
+          <Show when={saleError()}>
+            <p class="trade-sale-error">{saleError()}</p>
+          </Show>
+
+          <div class="trade-sale-actions">
+            <button
+              class="trade-sale-btn trade-sale-btn-secondary"
+              onClick={() => {
+                setShowSoldPrompt(false);
+                setSaleError(null);
+              }}
+              disabled={loading()}
+            >
+              Cancel
+            </button>
+            <button
+              class="trade-sale-btn trade-sale-btn-primary"
+              onClick={submitSale}
+              disabled={loading()}
+            >
+              {loading() ? 'Saving...' : 'Confirm sale'}
+            </button>
+          </div>
+        </div>
+      </Show>
 
       <hr class="trade-detail-divider" />
 
@@ -502,44 +553,120 @@ export function TradeDetail(props: TradeDetailProps) {
           padding: 0.75rem 0.75rem;
         }
 
-        .trade-detail-profit {
-          margin-top: 0.25rem;
-          color: var(--text-secondary);
-          font-size: var(--font-size-sm);
-        }
-
-        .trade-detail-profit strong {
-          color: var(--success);
-        }
-
         .trade-detail-divider {
           border: none;
           border-top: 1px solid var(--border);
           margin: 1rem 0;
         }
 
-        .trade-detail-submit {
+        .trade-sale-prompt {
+          margin-top: 0.85rem;
+          padding: 0.9rem;
+          border-radius: var(--radius-lg);
+          border: 1px solid var(--border);
+          background: color-mix(in srgb, var(--surface-1) 85%, transparent);
+          display: grid;
+          gap: 0.7rem;
+        }
+
+        .trade-sale-title {
+          margin: 0;
+          font-size: var(--font-size-sm);
+          color: var(--text-primary);
+        }
+
+        .trade-sale-option {
+          display: grid;
+          grid-template-columns: 18px 1fr;
+          gap: 0.65rem;
+          align-items: center;
+          padding: 0.6rem 0.7rem;
+          border-radius: var(--radius-md);
+          border: 1px solid var(--border);
+          background: var(--surface-2);
+          font-size: var(--font-size-sm);
+          color: var(--text-secondary);
+          cursor: pointer;
+        }
+
+        .trade-sale-option.is-selected {
+          border-color: color-mix(in srgb, var(--action) 55%, var(--border));
+          background: color-mix(in srgb, var(--action) 9%, var(--surface-2));
+          color: var(--text-primary);
+        }
+
+        .trade-sale-option input {
+          accent-color: var(--action);
+        }
+
+        .trade-sale-input-label {
+          font-size: var(--font-size-xs);
+          color: var(--text-muted);
+        }
+
+        .trade-sale-input {
           width: 100%;
-          padding: 0.7rem;
+          border-radius: var(--radius-md);
+          border: 1px solid var(--border);
+          background: var(--surface-1);
+          color: var(--text-primary);
+          padding: 0.58rem 0.7rem;
+          font-size: var(--font-size-sm);
+        }
+
+        .trade-sale-input:focus {
+          outline: none;
+          border-color: var(--border-light);
+        }
+
+        .trade-sale-error {
+          margin: 0;
+          font-size: var(--font-size-xs);
+          color: var(--danger);
+        }
+
+        .trade-sale-actions {
+          display: grid;
+          grid-template-columns: minmax(120px, auto) minmax(0, 1fr);
+          gap: 0.65rem;
+        }
+
+        .trade-sale-btn {
+          border-radius: var(--radius-full);
+          padding: 0.62rem 0.9rem;
+          font-weight: 600;
+          cursor: pointer;
+          transition: transform 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+        }
+
+        .trade-sale-btn:hover:not(:disabled) {
+          transform: translateY(-1px);
+        }
+
+        .trade-sale-btn:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+          transform: none;
+        }
+
+        .trade-sale-btn-primary {
           background: var(--action);
           color: var(--btn-text-dark);
           border: 1px solid color-mix(in srgb, var(--action) 75%, #000);
-          border-radius: var(--radius-full);
-          font-weight: 600;
-          cursor: pointer;
-          margin-top: 0.5rem;
-          transition: transform 0.4s var(--ease-hero), box-shadow 0.4s var(--ease-hero), background 0.3s ease;
         }
 
-        .trade-detail-submit:hover:not(:disabled) {
+        .trade-sale-btn-primary:hover:not(:disabled) {
           background: var(--action-hover);
-          transform: translateY(-2px) scale(1.01);
-          box-shadow: 0 20px 34px -22px rgba(168, 240, 8, 0.55);
         }
 
-        .trade-detail-submit:disabled {
-          opacity: 0.6;
-          cursor: not-allowed;
+        .trade-sale-btn-secondary {
+          background: var(--surface-2);
+          color: var(--text-primary);
+          border: 1px solid var(--border);
+        }
+
+        .trade-sale-btn-secondary:hover:not(:disabled) {
+          border-color: var(--border-light);
         }
 
         .trade-detail-cancel {
@@ -561,6 +688,12 @@ export function TradeDetail(props: TradeDetailProps) {
         .trade-detail-cancel:disabled {
           opacity: 0.5;
           cursor: not-allowed;
+        }
+
+        @media (max-width: 640px) {
+          .trade-sale-actions {
+            grid-template-columns: 1fr;
+          }
         }
       `}</style>
     </div>

@@ -69,7 +69,7 @@ export function TradeCard(props: TradeCardProps) {
     switch (props.trade.status) {
       case 'check_in':
         return (
-          <Tooltip text="Tap to report how much of your GE offer has filled" position="bottom" delay={200}>
+          <Tooltip text="Tap to mark your order as filled or partially filled" position="bottom" delay={200}>
             <span class="status-badge status-check-in">Check-in</span>
           </Tooltip>
         );
@@ -97,7 +97,9 @@ export function TradeCard(props: TradeCardProps) {
           {(props.alert || props.trade.suggestedSellPrice) ? (
             <span class="status-badge status-alert">Price alert</span>
           ) : isOverdue() ? (
-            <span class="status-badge status-overdue">Overdue</span>
+            <Tooltip text="This trade has been open longer than the expected completion time." position="bottom" delay={200}>
+              <span class="status-badge status-overdue">Overdue</span>
+            </Tooltip>
           ) : (
             getStatusBadge()
           )}
