@@ -58,6 +58,9 @@ pip install -r requirements.txt
 Create a local `.env` in `packages/engine` (loaded by `src/main.py`) with the minimum required values:
 
 ```bash
+# Start from the template
+cp .env.example .env
+
 # Database (via SSH tunnel)
 DB_CONNECTION_STRING=postgresql://user:password@localhost:5432/osrs_data
 
@@ -94,6 +97,18 @@ uvicorn src.api:app --host 0.0.0.0 --port 8000 --reload
 
 # Or use the main entry point
 python -m src.main
+```
+
+Ensure your Python virtualenv is activated before starting the server so dependencies resolve correctly.
+
+### Development Commands
+
+Run these from the repo root:
+
+```bash
+npm run test --workspace=@gept/engine
+npm run lint --workspace=@gept/engine
+npm run format --workspace=@gept/engine
 ```
 
 ### Running (Docker)
