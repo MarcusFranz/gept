@@ -152,11 +152,11 @@ source .env
 ### "Connection refused on port 5432"
 SSH tunnel not running:
 ```bash
-ssh -i .secrets/oracle_key.pem -L 5432:localhost:5432 ubuntu@<server_ip> -N &
+ssh -i <ssh_key_path> -L 5432:localhost:5432 <ssh_user>@<host> -N &
 ```
 
 ### Missing SSH key
-Ask Marcus for the `.secrets/oracle_key.pem` file.
+Ask the repository maintainer for the SSH key file.
 
 ---
 

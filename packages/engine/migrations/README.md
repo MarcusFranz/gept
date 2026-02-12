@@ -38,6 +38,26 @@ Apply migrations in numeric order:
 ls -1 migrations/*.sql | sort
 ```
 
+### Apply with a Transaction (Recommended)
+
+Wrap the migration in a transaction so you can roll back if it fails:
+
+```bash
+psql -v ON_ERROR_STOP=1 "$DB_CONNECTION_STRING" <<'SQL'
+BEGIN;
+\i migrations/001_create_trade_outcomes_table.sql
+COMMIT;
+SQL
+```
+
+If anything errors, replace `COMMIT;` with `ROLLBACK;` and re-run after fixing.
+
+### Verify Migration Applied
+
+```bash
+psql "$DB_CONNECTION_STRING" -c "\\dt" | rg trade_outcomes
+```
+
 ## Migration Files
 
 - `001_create_trade_outcomes_table.sql` - Creates the `trade_outcomes` table for storing user-reported trade results

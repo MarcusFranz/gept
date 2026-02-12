@@ -23,6 +23,12 @@ Create your local env file:
 cp packages/web/.env.example packages/web/.env.local
 ```
 
+Generate a local auth secret if you don't have one yet:
+
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+
 ## Environment Variables
 
 Required:
@@ -48,6 +54,16 @@ BETTER_AUTH_URL=http://localhost:4321
 ```
 
 If auth runs on a separate local server, keep `BETTER_AUTH_URL` pointed at that server instead.
+
+### Example `.env.local`
+
+```bash
+DATABASE_URL=postgresql://user:password@localhost:5432/gept
+BETTER_AUTH_SECRET=replace-with-generated-secret
+BETTER_AUTH_URL=http://localhost:4321
+PUBLIC_APP_URL=http://localhost:4321
+SITE=http://localhost:4321
+```
 
 ## Scripts
 

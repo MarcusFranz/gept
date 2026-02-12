@@ -17,6 +17,24 @@ python src/pipeline/run_patchtst_inference.py --model-path /path/to/best_model.p
 
 The production job runs as a `systemd` timer that launches a one-shot Docker container (see `infra/systemd/gept-inference.*`).
 
+## Local Environment
+
+For local runs, create a `.env` (gitignored) with your DB credentials and load it before running:
+
+```bash
+cat <<'EOF' > .env
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=osrs_data
+DB_USER=osrs_user
+DB_PASS=replace-with-secure-password
+EOF
+
+set -a
+source .env
+set +a
+```
+
 ## Local Setup
 
 For full environment setup (database tunnel, env vars, dependencies), see `DEVELOPER_SETUP.md`.

@@ -57,6 +57,15 @@ X-API-Key: <token>
 }
 ```
 
+### Quick cURL Example
+
+```bash
+curl -X POST "http://localhost:8000/api/v1/feedback" \
+  -H "X-API-Key: $INTERNAL_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"userId":"sha256_hash","itemId":536,"itemName":"Dragon bones","feedbackType":"did_not_fill","submittedAt":"2026-01-15T10:00:00Z"}'
+```
+
 ### Fields
 
 | Field | Type | Required | Description |
@@ -139,6 +148,15 @@ The Discord bot should call this endpoint when:
 - User IDs must be SHA256 hashed before submission
 - No Discord IDs or PII stored
 - Data used only for ML training and analytics
+
+### Hashing Helper
+
+```bash
+python - <<'PY'
+import hashlib
+print(hashlib.sha256(b"discord_user_id").hexdigest())
+PY
+```
 
 ## Database Schema
 
