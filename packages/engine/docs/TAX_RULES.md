@@ -70,6 +70,14 @@ See `src/tax_calculator.py` for the reference implementation of all GE tax rules
 
 Tests are located in `tests/test_tax_calculator.py`.
 
+### Quick Verification
+
+From `packages/engine`:
+
+```bash
+pytest -q tests/test_tax_calculator.py
+```
+
 ## References
 
 - [OSRS Wiki - Grand Exchange Tax](https://oldschool.runescape.wiki/w/Grand_Exchange#Tax)

@@ -7,6 +7,8 @@
 
 OSRS Grand Exchange flipping recommendation API. Provides optimized trade recommendations based on ML predictions, user capital, trading style, and risk tolerance.
 
+**Port configuration:** the base URL uses `API_PORT` from the engine environment (default `8000`). If you run with Docker Compose, the host port must match the port mapping in `docker-compose.yml`.
+
 ---
 
 ## Authentication
@@ -171,6 +173,12 @@ GET /api/v1/recommendations/item/{item_id}
 ```
 
 Get recommendation for a specific OSRS item by its ID.
+
+**Example:**
+```bash
+curl -H "X-API-Key: $INTERNAL_API_KEY" \
+  "http://localhost:8000/api/v1/recommendations/item/4151?capital=10000000&include_price_history=true"
+```
 
 **Parameters:**
 

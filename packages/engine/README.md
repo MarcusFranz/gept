@@ -58,6 +58,9 @@ pip install -r requirements.txt
 Create a local `.env` in `packages/engine` (loaded by `src/main.py`) with the minimum required values:
 
 ```bash
+# Start from the example file
+cp .env.example .env
+
 # Database (via SSH tunnel)
 DB_CONNECTION_STRING=postgresql://user:password@localhost:5432/osrs_data
 
@@ -111,6 +114,12 @@ Then open `http://localhost:8000/docs` or hit `http://localhost:8000/healthz`.
 
 ```bash
 curl http://localhost:8000/api/v1/health
+```
+
+### Tests
+
+```bash
+pytest -q
 ```
 
 ## API Endpoints
