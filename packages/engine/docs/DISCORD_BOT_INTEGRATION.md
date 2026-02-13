@@ -11,6 +11,7 @@ This document tracks integration details and coordination between the Discord bo
 | Endpoint | Bot Usage | Status |
 |----------|-----------|--------|
 | `GET /api/v1/recommendations` | Main flip command | ✅ Active |
+| `POST /api/v1/recommendations` | Rich flip command (tier + metadata) | ✅ Active |
 | `GET /api/v1/recommendations/item/{id}` | Item lookup | ✅ Active |
 | `GET /api/v1/items/search` | Autocomplete for `/report`, `/item` | ✅ Active |
 | `POST /api/v1/recommendations/{rec_id}/outcome` | Trade outcome reporting | ✅ Active |
@@ -63,6 +64,15 @@ GET /api/v1/recommendations?capital=10000000&user_id=sha256_hash&exclude=rec_123
 **Status:**
 - [x] `exclude_item_ids` implemented (PR #33)
 - [x] Crowding tracker active
+
+### 4. Recommendation Tiers + Metadata
+
+For paid tiers, prefer the POST endpoint so we can send `user_tier` and request
+`include_metadata` or `return_all` for experimentation.
+
+```
+POST /api/v1/recommendations
+```
 
 ---
 

@@ -64,6 +64,10 @@ X-API-Key: <token>
 | `actualProfit` | integer | Yes | Actual profit/loss after GE tax (can be negative) |
 | `reportedAt` | string | Yes | ISO 8601 timestamp when user reported outcome |
 
+`recId` must follow `rec_{item_id}_{YYYYMMDDHH}`.
+
+Use the tax rules in `docs/TAX_RULES.md` when computing `actualProfit`.
+
 ## Response Format
 
 ### Success Response (200 OK)

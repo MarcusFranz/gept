@@ -110,9 +110,33 @@ curl -X POST "http://localhost:8000/api/v1/recommendations" \
 | `style` | string | No | `passive`, `hybrid`, `active` (default: `hybrid`) |
 | `capital` | integer | **Yes** | Available GP (minimum: 1000) |
 | `risk` | string | No | `low`, `medium`, `high` (default: `medium`) |
-| `slots` | integer | No | Available GE slots, 1-8 (default: 4) |
+| `slots` | integer | No | Available GE slots, 1-20 (default: 4) |
+| `user_tier` | string | No | `free`, `premium`, `unlimited` (default: `free`) |
 | `activeTrades` | array | No | Currently tracked trades (auto-excluded) |
 | `userId` | string | No | Hashed user ID for crowding tracking |
+| `offset_pct` | number | No | Target offset percentage (0.0125 to 0.0250) |
+| `min_offset_pct` | number | No | Minimum offset percentage (0.0125 to 0.0250) |
+| `max_offset_pct` | number | No | Maximum offset percentage (0.0125 to 0.0250) |
+| `include_metadata` | boolean | No | Include freshness metadata in response |
+| `return_all` | boolean | No | Return all viable flips instead of slot-limited portfolio |
+
+**Slot limits:** when `return_all=false`, the API enforces max `slots=8` for `free`/`premium` and max `slots=20` for `unlimited`.
+
+**Example (metadata):**
+```bash
+curl -X POST "http://localhost:8000/api/v1/recommendations" \
+  -H "X-API-Key: $INTERNAL_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"style":"hybrid","capital":5000000,"include_metadata":true}'
+```
+
+**Example (return all):**
+```bash
+curl -X POST "http://localhost:8000/api/v1/recommendations" \
+  -H "X-API-Key: $INTERNAL_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"style":"active","capital":15000000,"return_all":true}'
+```
 
 #### GET (Alternative)
 
@@ -133,10 +157,15 @@ curl -H "X-API-Key: $INTERNAL_API_KEY" \
 | `style` | string | No | `passive`, `hybrid`, `active` (default: `hybrid`) |
 | `capital` | integer | **Yes** | Available GP (minimum: 1000) |
 | `risk` | string | No | `low`, `medium`, `high` (default: `medium`) |
-| `slots` | integer | No | Available GE slots, 1-8 (default: 4) |
+| `slots` | integer | No | Available GE slots, 1-20 (default: 4) |
+| `user_tier` | string | No | `free`, `premium`, `unlimited` (default: `free`) |
 | `exclude` | string | No | Comma-separated recommendation IDs to exclude |
 | `exclude_item_ids` | string | No | Comma-separated item IDs to exclude (e.g., `536,5295,4151`) |
 | `user_id` | string | No | Hashed user ID for crowding tracking |
+| `offset_pct` | number | No | Target offset percentage (0.0125 to 0.0250) |
+| `min_offset_pct` | number | No | Minimum offset percentage (0.0125 to 0.0250) |
+| `max_offset_pct` | number | No | Maximum offset percentage (0.0125 to 0.0250) |
+| `max_hour_offset` | integer | No | Override time horizon in hours (1-24) |
 
 **Response:**
 ```json

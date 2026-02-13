@@ -16,10 +16,17 @@ python src/pipeline/run_patchtst_inference.py --model-path /path/to/best_model.p
 ```
 
 The production job runs as a `systemd` timer that launches a one-shot Docker container (see `infra/systemd/gept-inference.*`).
+For cron-style runs outside Docker, use `run_inference.py` as the entry point.
 
 ## Local Setup
 
 For full environment setup (database tunnel, env vars, dependencies), see `DEVELOPER_SETUP.md`.
+If you already have a local `.env`, load it before running inference:
+
+```bash
+source .env
+python run_inference.py
+```
 
 ## Deployment
 

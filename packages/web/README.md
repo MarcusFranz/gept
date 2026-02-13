@@ -49,12 +49,15 @@ BETTER_AUTH_URL=http://localhost:4321
 
 If auth runs on a separate local server, keep `BETTER_AUTH_URL` pointed at that server instead.
 
+`ENGINE_WEBHOOK_URL` defaults to `http://localhost:8000/webhooks/trades` if unset. Set `WEBHOOK_SECRET` (min 32 chars) to enable outbound webhooks and the `/api/trades/resync` endpoint.
+
 ## Scripts
 
 ```bash
 npm run dev:web      # local dev server
 npm run build:web    # production build
 npm run preview --workspace=@gept/web
+npm run test --workspace=@gept/web  # build + middleware/auth checks
 ```
 
 `npm run preview --workspace=@gept/web` requires a prior `npm run build:web`.
