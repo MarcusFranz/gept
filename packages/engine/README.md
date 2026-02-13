@@ -55,6 +55,12 @@ pip install -r requirements.txt
 
 ### Environment Setup
 
+Start from the templates:
+
+```bash
+cp .env.example .env
+```
+
 Create a local `.env` in `packages/engine` (loaded by `src/main.py`) with the minimum required values:
 
 ```bash
@@ -105,6 +111,9 @@ cp .env.docker.example .env.docker
 docker compose -f docker-compose.local.yml --env-file .env.docker up --build
 ```
 
+Optional: set `REDIS_URL=redis://redis:6379/0` in `.env.docker` to enable caching
+using the bundled Redis container.
+
 Then open `http://localhost:8000/docs` or hit `http://localhost:8000/healthz`.
 
 ### Verify Connection
@@ -122,6 +131,8 @@ curl http://localhost:8000/api/v1/health
 | `/api/v1/recommendations/item/{item_id}` | GET | Lookup by item ID |
 | `/api/v1/predictions/{item_id}` | GET | Get all predictions for an item |
 | `/api/v1/health` | GET | Health check |
+
+Full request/response shapes live in `docs/API.md` and `docs/openapi.json`.
 
 ### Get Recommendations
 

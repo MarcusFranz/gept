@@ -49,6 +49,7 @@ X-API-Key: <token>
   "itemName": "Dragon bones",
   "feedbackType": "price_too_high",
   "recId": "rec_536_2026011510",
+  "offsetPct": 0.018,
   "side": "buy",
   "notes": "Price jumped 10% right after recommendation",
   "recommendedPrice": 2000,
@@ -66,11 +67,20 @@ X-API-Key: <token>
 | `itemName` | string | Yes | Item name |
 | `feedbackType` | string | Yes | One of the feedback types above |
 | `recId` | string | No | Recommendation ID to link feedback |
+| `offsetPct` | number | No | Offset percentage associated with the recommendation |
 | `side` | string | No | `buy` or `sell` |
 | `notes` | string | No | Free-text notes (max 500 chars) |
 | `recommendedPrice` | integer | No | Price from recommendation |
 | `actualPrice` | integer | No | Actual price user encountered |
 | `submittedAt` | string | Yes | ISO 8601 timestamp |
+
+`recId`, when provided, must match `rec_{item_id}_{YYYYMMDDHH}`.
+
+To hash a user ID quickly:
+
+```bash
+python - <<'PY'\nimport hashlib\nprint(hashlib.sha256(b\"123456789012345678\").hexdigest())\nPY
+```
 
 ### Response
 
@@ -87,6 +97,8 @@ X-API-Key: <token>
 ```
 GET /api/v1/feedback/analytics?period=week
 ```
+
+Requires the same `X-API-Key` header as the write endpoint.
 
 ### Query Parameters
 

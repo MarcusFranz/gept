@@ -9,3 +9,25 @@ This repo is organized by deployment unit:
 - `packages/shared`: Shared TypeScript utilities/types used by web
 
 Server `systemd` units live in `infra/systemd/`.
+
+## Local Dev Quick Start
+
+From the repo root:
+
+```bash
+npm install
+
+# Frontend
+npm run dev:web
+
+# Engine API
+npm run dev:engine
+```
+
+Common workspace helpers:
+
+```bash
+npm run test
+npm run lint
+npm run typecheck
+```

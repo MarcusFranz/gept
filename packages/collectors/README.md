@@ -44,6 +44,7 @@ OSRS Wiki API → Docker Collectors → PostgreSQL/TimescaleDB → ML Pipeline
    EOF
    ```
    You can also start from `gept-export.env.example` and trim it down for local use. Keep `.env` gitignored.
+   Required envs: `DB_PASS` (others default to the values above). Optional: `USER_AGENT` to customize OSRS Wiki API requests.
 
 2. **Deploy with Docker Compose**:
    ```bash
@@ -57,7 +58,14 @@ OSRS Wiki API → Docker Collectors → PostgreSQL/TimescaleDB → ML Pipeline
    curl http://localhost:9100/metrics  # Prometheus metrics
    ```
 
-**Note:** `docker-compose.yml` uses `network_mode: host`, so the ports above are exposed directly on the host.
+**Note:** `docker-compose.yml` uses `network_mode: host`, so the ports above are exposed directly on the host. Host networking is Linux-only; on macOS/Windows, use a Linux VM or adjust the compose file to publish ports.
+
+### Run a Single Collector Locally
+
+```bash
+source .env
+python collect_5m_pg.py
+```
 
 ### Monitoring
 

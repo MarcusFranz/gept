@@ -38,6 +38,15 @@ Apply migrations in numeric order:
 ls -1 migrations/*.sql | sort
 ```
 
+### Verify Applied
+
+After running a migration, verify the table exists:
+
+```bash
+psql "$DB_CONNECTION_STRING" -c "\\dt"
+psql "$DB_CONNECTION_STRING" -c "\\d trade_outcomes"
+```
+
 ## Migration Files
 
 - `001_create_trade_outcomes_table.sql` - Creates the `trade_outcomes` table for storing user-reported trade results
