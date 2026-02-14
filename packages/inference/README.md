@@ -10,8 +10,11 @@ PatchTST-based inference job for the GePT Grand Exchange prediction system.
 ## Running Inference
 
 ```bash
+python -m venv venv
+source venv/bin/activate
+cp .env.example .env
+source .env
 pip install -r requirements.txt
-export DB_PASS=replace-with-secure-password
 python src/pipeline/run_patchtst_inference.py --model-path /path/to/best_model.pt
 ```
 

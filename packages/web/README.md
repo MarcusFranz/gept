@@ -37,6 +37,14 @@ Optional:
 - `PREDICTION_API` and `PREDICTION_API_KEY` for live recommendations
 - `ENGINE_WEBHOOK_URL` and `WEBHOOK_SECRET` for active-trade alerts
 
+### Generate Local Secrets
+
+```bash
+python -c "import secrets; print(secrets.token_urlsafe(32))"
+```
+
+Use the output for `BETTER_AUTH_SECRET` (and `WEBHOOK_SECRET` if you're testing alerts).
+
 ### Local URLs
 
 If you run everything on the Astro dev server, align these values to the dev port:
@@ -58,6 +66,7 @@ npm run preview --workspace=@gept/web
 ```
 
 `npm run preview --workspace=@gept/web` requires a prior `npm run build:web`.
+For a local preview on the same port, pass `-- --port 4321` and keep `PUBLIC_APP_URL`/`SITE` in sync.
 
 ## Production Notes
 

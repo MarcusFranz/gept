@@ -103,6 +103,8 @@ CREATE TABLE predictions (
 
 ## Querying Predictions
 
+If the `latest_predictions` or `top_opportunities` views are not available in your database, use the explicit queries shown below instead.
+
 ### Get Latest Predictions (Most Recent Batch)
 
 ```sql

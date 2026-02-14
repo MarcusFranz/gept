@@ -55,7 +55,13 @@ pip install -r requirements.txt
 
 ### Environment Setup
 
-Create a local `.env` in `packages/engine` (loaded by `src/main.py`) with the minimum required values:
+Start from the template:
+
+```bash
+cp .env.example .env
+```
+
+Then edit the local `.env` in `packages/engine` (loaded by `src/main.py`) with the minimum required values:
 
 ```bash
 # Database (via SSH tunnel)
@@ -94,6 +100,12 @@ uvicorn src.api:app --host 0.0.0.0 --port 8000 --reload
 
 # Or use the main entry point
 python -m src.main
+```
+
+### Tests
+
+```bash
+pytest
 ```
 
 ### Running (Docker)

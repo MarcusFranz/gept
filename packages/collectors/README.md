@@ -47,7 +47,7 @@ OSRS Wiki API → Docker Collectors → PostgreSQL/TimescaleDB → ML Pipeline
 
 2. **Deploy with Docker Compose**:
    ```bash
-   docker-compose up -d
+   docker compose --env-file .env up -d
    ```
 
 3. **Verify Services**:
@@ -58,6 +58,18 @@ OSRS Wiki API → Docker Collectors → PostgreSQL/TimescaleDB → ML Pipeline
    ```
 
 **Note:** `docker-compose.yml` uses `network_mode: host`, so the ports above are exposed directly on the host.
+
+To run a single collector during development:
+
+```bash
+docker compose --env-file .env up ge-5m-collector
+```
+
+To stop everything:
+
+```bash
+docker compose down
+```
 
 ### Monitoring
 

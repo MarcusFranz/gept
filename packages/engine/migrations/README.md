@@ -38,6 +38,15 @@ Apply migrations in numeric order:
 ls -1 migrations/*.sql | sort
 ```
 
+### Verify Applied
+
+After running a migration, confirm the table exists and is queryable:
+
+```bash
+psql -v ON_ERROR_STOP=1 "$DB_CONNECTION_STRING" -c "\\dt trade_outcomes"
+psql -v ON_ERROR_STOP=1 "$DB_CONNECTION_STRING" -c "SELECT COUNT(*) FROM trade_outcomes;"
+```
+
 ## Migration Files
 
 - `001_create_trade_outcomes_table.sql` - Creates the `trade_outcomes` table for storing user-reported trade results

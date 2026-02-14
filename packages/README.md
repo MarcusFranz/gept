@@ -9,3 +9,21 @@ This repo is organized by deployment unit:
 - `packages/shared`: Shared TypeScript utilities/types used by web
 
 Server `systemd` units live in `infra/systemd/`.
+
+## Common Monorepo Commands
+
+Run from repo root:
+
+```bash
+npm install
+npm run dev:web
+npm run dev:engine
+```
+
+Other helpful scripts:
+
+```bash
+npm run test
+npm run lint
+npm run typecheck
+```
