@@ -4,8 +4,9 @@
 
 ### 1. Clone the Repository
 ```bash
-git clone https://github.com/MarcusFranz/gept-foundations.git
-cd gept-foundations
+git clone https://github.com/MarcusFranz/gept.git
+cd gept
+cd packages/inference
 ```
 
 ### 2. Set Up Environment Variables
