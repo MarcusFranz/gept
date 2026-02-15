@@ -38,6 +38,15 @@ Apply migrations in numeric order:
 ls -1 migrations/*.sql | sort
 ```
 
+### Verify a Migration
+
+Confirm that a table was created successfully:
+
+```bash
+psql -v ON_ERROR_STOP=1 "$DB_CONNECTION_STRING" \
+  -c "SELECT to_regclass('public.trade_outcomes');"
+```
+
 ## Migration Files
 
 - `001_create_trade_outcomes_table.sql` - Creates the `trade_outcomes` table for storing user-reported trade results
