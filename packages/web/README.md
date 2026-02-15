@@ -37,6 +37,12 @@ Optional:
 - `PREDICTION_API` and `PREDICTION_API_KEY` for live recommendations
 - `ENGINE_WEBHOOK_URL` and `WEBHOOK_SECRET` for active-trade alerts
 
+Generate a local auth secret if you need one:
+
+```bash
+python -c "import secrets; print(secrets.token_urlsafe(32))"
+```
+
 ### Local URLs
 
 If you run everything on the Astro dev server, align these values to the dev port:

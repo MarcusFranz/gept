@@ -73,6 +73,17 @@ source .env
 set +a
 ```
 
+### Env Templates
+
+Start from the templates if you haven't created local files yet:
+
+```bash
+cp .env.example .env
+cp .env.docker.example .env.docker
+```
+
+Update the values in each file as needed for your environment.
+
 ### Database Connection
 
 Create an SSH tunnel to the prediction database host:
@@ -190,6 +201,15 @@ All API endpoints require the `X-API-Key` header. Example:
 
 ```bash
 curl -H "X-API-Key: $INTERNAL_API_KEY" http://localhost:8000/api/v1/health
+```
+
+## Tests & Lint
+
+```bash
+# From packages/engine
+pytest
+flake8 src tests
+black --check src tests
 ```
 
 ## Project Structure

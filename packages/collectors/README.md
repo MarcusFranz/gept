@@ -47,7 +47,11 @@ OSRS Wiki API → Docker Collectors → PostgreSQL/TimescaleDB → ML Pipeline
 
 2. **Deploy with Docker Compose**:
    ```bash
-   docker-compose up -d
+   # Compose v2
+   docker compose --env-file .env up -d
+
+   # Or legacy compose
+   docker-compose --env-file .env up -d
    ```
 
 3. **Verify Services**:
@@ -55,6 +59,11 @@ OSRS Wiki API → Docker Collectors → PostgreSQL/TimescaleDB → ML Pipeline
    docker-compose ps
    curl http://localhost:8080  # Dashboard
    curl http://localhost:9100/metrics  # Prometheus metrics
+   ```
+
+4. **Stop Services**:
+   ```bash
+   docker compose down
    ```
 
 **Note:** `docker-compose.yml` uses `network_mode: host`, so the ports above are exposed directly on the host.
