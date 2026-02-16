@@ -23,6 +23,16 @@ Create your local env file:
 cp packages/web/.env.example packages/web/.env.local
 ```
 
+Minimal `.env.local` example:
+
+```bash
+DATABASE_URL=postgresql://user:password@localhost:5432/gept
+BETTER_AUTH_SECRET=replace-with-random-token-at-least-32-chars
+BETTER_AUTH_URL=http://localhost:4321
+PUBLIC_APP_URL=http://localhost:4321
+SITE=http://localhost:4321
+```
+
 ## Environment Variables
 
 Required:
@@ -48,6 +58,11 @@ BETTER_AUTH_URL=http://localhost:4321
 ```
 
 If auth runs on a separate local server, keep `BETTER_AUTH_URL` pointed at that server instead.
+
+### Troubleshooting
+
+- **Auth redirect loop or callback mismatch**: make sure `BETTER_AUTH_URL`, `PUBLIC_APP_URL`, and `SITE` all point to the same local base URL (for example, `http://localhost:4321`), then restart the dev server.
+- **Missing env errors**: confirm `packages/web/.env.local` exists and contains the required variables above.
 
 ## Scripts
 

@@ -425,6 +425,7 @@ SELECT * FROM timescaledb_information.compressed_chunk_stats;
    ```bash
    export DB_HOST=localhost
    export DB_PASS=dev_password
+   export METRICS_PORT=9100  # change if the port is already in use
    python collect_5m_pg.py
    ```
 
@@ -567,7 +568,7 @@ Before deploying to production:
 
 ## Support & Maintenance
 
-**Maintainer**: Marcus Franz (@marcusfranz)
+**Maintainer**: Repository maintainer (redacted)
 
 **Issues**: Report to GitHub issues
 

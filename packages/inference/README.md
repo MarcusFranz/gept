@@ -7,6 +7,21 @@ PatchTST-based inference job for the GePT Grand Exchange prediction system.
 - **Inference pipeline**: reads recent market data from Postgres/TimescaleDB and writes predictions back
 - **Scripts**: backup and migration utilities
 
+## Quick Start (Local)
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+
+export DB_HOST=localhost
+export DB_PORT=5432
+export DB_NAME=osrs_data
+export DB_USER=osrs_user
+export DB_PASS=replace-with-secure-password
+python src/pipeline/run_patchtst_inference.py --model-path /path/to/best_model.pt
+```
+
 ## Running Inference
 
 ```bash

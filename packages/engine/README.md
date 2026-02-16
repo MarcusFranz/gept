@@ -96,6 +96,17 @@ uvicorn src.api:app --host 0.0.0.0 --port 8000 --reload
 python -m src.main
 ```
 
+### Scripts
+
+From `packages/engine`:
+
+```bash
+npm run dev       # start API with reload
+npm run test      # pytest
+npm run lint      # flake8
+npm run format    # black
+```
+
 ### Running (Docker)
 
 ```bash
@@ -191,6 +202,8 @@ All API endpoints require the `X-API-Key` header. Example:
 ```bash
 curl -H "X-API-Key: $INTERNAL_API_KEY" http://localhost:8000/api/v1/health
 ```
+
+If you get `401 Unauthorized`, confirm `INTERNAL_API_KEY` is set in your environment (or `.env`) and that you're sending the header with the exact same value.
 
 ## Project Structure
 

@@ -103,6 +103,8 @@ CREATE TABLE predictions (
 
 ## Querying Predictions
 
+If the convenience views (`latest_predictions`, `top_opportunities`) are not present in your database, use the raw `predictions` queries below instead or apply the latest migrations in `packages/engine/migrations/`.
+
 ### Get Latest Predictions (Most Recent Batch)
 
 ```sql
