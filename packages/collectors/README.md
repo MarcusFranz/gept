@@ -59,6 +59,27 @@ OSRS Wiki API → Docker Collectors → PostgreSQL/TimescaleDB → ML Pipeline
 
 **Note:** `docker-compose.yml` uses `network_mode: host`, so the ports above are exposed directly on the host.
 
+### Run a Single Collector Locally (No Docker)
+
+If you only need one script for debugging:
+
+```bash
+python -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+
+export DB_HOST=localhost
+export DB_PORT=5432
+export DB_NAME=osrs_data
+export DB_USER=osrs_user
+export DB_PASS=replace-with-secure-password
+
+python collect_latest_1m.py
+```
+
+Each collector writes to its own table; see the "Service Details" section below
+for table names.
+
 ### Monitoring
 
 - **Dashboard**: http://localhost:8080
