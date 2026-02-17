@@ -103,7 +103,13 @@ CREATE TABLE predictions (
 
 ## Querying Predictions
 
+**Note:** Access should be read-only for analytics or downstream consumers. Use
+least-privilege credentials and avoid hardcoding passwords in code samples.
+
 ### Get Latest Predictions (Most Recent Batch)
+
+The `latest_predictions` view is used in most examples. If your environment does
+not include the view, use the explicit `MAX(time)` query shown below.
 
 ```sql
 SELECT * FROM latest_predictions;
@@ -118,6 +124,9 @@ WHERE time = (SELECT MAX(time) FROM predictions);
 ```
 
 ### Top Opportunities by Expected Value
+
+The `top_opportunities` view is optional; if missing, use the custom filter
+query below.
 
 ```sql
 SELECT * FROM top_opportunities;

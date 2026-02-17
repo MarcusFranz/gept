@@ -15,6 +15,13 @@ export DB_PASS=replace-with-secure-password
 python src/pipeline/run_patchtst_inference.py --model-path /path/to/best_model.pt
 ```
 
+`run_inference.py` is a thin wrapper around the pipeline script (same environment
+variables), so you can also run:
+
+```bash
+python run_inference.py
+```
+
 The production job runs as a `systemd` timer that launches a one-shot Docker container (see `infra/systemd/gept-inference.*`).
 
 ## Local Setup
@@ -41,6 +48,15 @@ export DB_HOST=localhost
 export DB_PORT=5432
 export DB_NAME=osrs_data
 export DB_USER=osrs_user
+```
+
+If you prefer a local env file, create `packages/inference/.env` and load it
+before running:
+
+```bash
+set -a
+source .env
+set +a
 ```
 
 ## License

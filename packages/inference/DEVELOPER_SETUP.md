@@ -2,6 +2,8 @@
 
 ## Quick Start
 
+Run the commands below from `packages/inference` unless noted otherwise.
+
 ### 1. Clone the Repository
 ```bash
 git clone https://github.com/MarcusFranz/gept-foundations.git
@@ -9,11 +11,9 @@ cd gept-foundations
 ```
 
 ### 2. Set Up Environment Variables
-```bash
-cp .env.example .env
-```
 
-Edit `.env` with the actual credentials (request via a secure channel):
+Create a local `.env` file in `packages/inference` with the minimum required
+values (request credentials via a secure channel):
 ```bash
 DB_HOST=localhost
 DB_PORT=5432
@@ -34,7 +34,7 @@ The database runs on a remote server. To connect locally:
 ssh -i <ssh_key_path> -L 5432:localhost:5432 <ssh_user>@<host> -N &
 ```
 
-You'll need the SSH key file from the repository maintainer.
+Request the SSH key and host details from the team maintaining the database.
 To stop the background tunnel later:
 ```bash
 pkill -f "ssh -i .* -L 5432:localhost:5432"
@@ -99,7 +99,7 @@ gept/
 │   │   ├── src/            # Inference pipeline code
 │   │   ├── scripts/        # Backups + migrations + ops helpers
 │   │   ├── Dockerfile      # GHCR image build
-│   │   └── .env.example    # Environment template (local)
+│   │   └── .env            # Environment file (local, gitignored)
 │   ├── collectors/         # Data collection + monitoring (Docker Compose)
 │   ├── engine/             # Recommendation Engine API
 │   └── web/                # Vercel-deployed site
@@ -152,11 +152,11 @@ source .env
 ### "Connection refused on port 5432"
 SSH tunnel not running:
 ```bash
-ssh -i .secrets/oracle_key.pem -L 5432:localhost:5432 ubuntu@<server_ip> -N &
+ssh -i <ssh_key_path> -L 5432:localhost:5432 <ssh_user>@<host> -N &
 ```
 
 ### Missing SSH key
-Ask Marcus for the `.secrets/oracle_key.pem` file.
+Request access from the team maintaining the database.
 
 ---
 

@@ -12,6 +12,13 @@ npm run dev:web
 
 The dev server runs at `http://localhost:4321`.
 
+If you prefer running from the package directory:
+
+```bash
+cd packages/web
+npm run dev
+```
+
 ## Requirements
 
 - Node.js 20+
@@ -58,6 +65,12 @@ npm run preview --workspace=@gept/web
 ```
 
 `npm run preview --workspace=@gept/web` requires a prior `npm run build:web`.
+
+## Tests
+
+```bash
+npm run test --workspace=@gept/web
+```
 
 ## Production Notes
 

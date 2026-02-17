@@ -12,7 +12,7 @@ Run commands from the `packages/engine` directory so relative paths resolve corr
 
 ```bash
 # Connect to the database
-psql -v ON_ERROR_STOP=1 postgresql://[USER]:[PASS]@[HOST]:5432/gept
+psql -v ON_ERROR_STOP=1 postgresql://[USER]:[PASS]@[HOST]:5432/osrs_data
 
 # Apply a migration
 \i migrations/001_create_trade_outcomes_table.sql
@@ -27,7 +27,7 @@ psql -v ON_ERROR_STOP=1 "$DB_CONNECTION_STRING" -f migrations/001_create_trade_o
 ### Using psql from command line
 
 ```bash
-psql -v ON_ERROR_STOP=1 postgresql://[USER]:[PASS]@[HOST]:5432/gept -f migrations/001_create_trade_outcomes_table.sql
+psql -v ON_ERROR_STOP=1 postgresql://[USER]:[PASS]@[HOST]:5432/osrs_data -f migrations/001_create_trade_outcomes_table.sql
 ```
 
 ### Apply in Order
@@ -40,7 +40,10 @@ ls -1 migrations/*.sql | sort
 
 ## Migration Files
 
-- `001_create_trade_outcomes_table.sql` - Creates the `trade_outcomes` table for storing user-reported trade results
+- `001_create_trade_outcomes_table.sql` - Trade outcomes table
+- `002_create_model_registry_table.sql` - Model registry table
+- `003_create_recommendation_feedback_table.sql` - Recommendation feedback table
+- `004_add_offset_pct_to_outcomes_and_feedback.sql` - Adds `offset_pct` column
 
 ## Migration Naming Convention
 

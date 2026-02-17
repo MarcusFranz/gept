@@ -105,7 +105,8 @@ cp .env.docker.example .env.docker
 docker compose -f docker-compose.local.yml --env-file .env.docker up --build
 ```
 
-Then open `http://localhost:8000/docs` or hit `http://localhost:8000/healthz`.
+Then open `http://localhost:8000/docs` (see "Docs UI" below) or hit
+`http://localhost:8000/api/v1/health`.
 
 ### Verify Connection
 
@@ -209,7 +210,7 @@ gept-engine/
 
 ## Configuration
 
-Environment variables (see `.env.example`):
+Environment variables (define these in your local `.env`):
 
 ```bash
 # Database (via SSH tunnel)
@@ -217,6 +218,10 @@ DB_CONNECTION_STRING=postgresql://user:password@localhost:5432/osrs_data
 
 # API auth (required)
 INTERNAL_API_KEY=replace-with-random-token
+
+# Optional services
+# REDIS_URL=redis://localhost:6379/0
+# CACHE_ENABLED=true
 
 # Thresholds
 MIN_EV_THRESHOLD=0.005
@@ -231,6 +236,15 @@ Generate a key if you don't have one yet:
 
 ```bash
 python -c "import secrets; print(secrets.token_urlsafe(32))"
+```
+
+## Docs UI
+
+The OpenAPI docs are disabled by default in production. Enable them locally by
+setting:
+
+```bash
+ENGINE_DOCS_ENABLED=true
 ```
 
 ## Database Schema
