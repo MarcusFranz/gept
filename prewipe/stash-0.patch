@@ -1,0 +1,959 @@
+diff --git a/packages/engine/migrations/README.md b/packages/engine/migrations/README.md
+index de1f617..6ef448f 100644
+--- a/packages/engine/migrations/README.md
++++ b/packages/engine/migrations/README.md
+@@ -31,6 +31,10 @@ psql postgresql://[USER]:[PASS]@[HOST]:5432/gept -f migrations/001_create_trade_
+ ## Migration Files
+ 
+ - `001_create_trade_outcomes_table.sql` - Creates the `trade_outcomes` table for storing user-reported trade results
++- `002_create_model_registry_table.sql` - Creates the `model_registry` table for tracking model runs/status
++- `003_create_recommendation_feedback_table.sql` - Creates the `recommendation_feedback` table for structured feedback
++- `004_add_offset_pct_to_outcomes_and_feedback.sql` - Adds `offset_pct` attribution to outcomes and feedback
++- `005_add_model_id_to_trade_outcomes.sql` - Adds `model_id` attribution to trade outcomes for model comparisons
+ 
+ ## Migration Naming Convention
+ 
+diff --git a/packages/engine/src/api_models.py b/packages/engine/src/api_models.py
+index e22e611..d26d645 100644
+--- a/packages/engine/src/api_models.py
++++ b/packages/engine/src/api_models.py
+@@ -80,7 +80,9 @@ class RecommendationResponse(BaseModel):
+         None  # Optional: for expanded view
+     )
+     # Model attribution fields (for tracking which model generated the prediction)
+-    modelId: Optional[int] = None  # ID of the model that generated this prediction
++    # Note: This is the `predictions.model_id` string (e.g. "patchtst_patchtst", "gept_v2"),
++    # not a numeric surrogate key.
++    modelId: Optional[str] = None
+     modelStatus: Optional[str] = None  # Status of the model (ACTIVE, DEPRECATED, etc.)
+     # Rationale fields (for "Why this item?" UX)
+     reason: Optional[str] = None  # Human-readable explanation for the recommendation
+@@ -274,6 +276,10 @@ class TradeOutcomeRequest(BaseModel):
+     itemId: int = Field(description="OSRS item ID")
+     itemName: str = Field(description="Item name")
+     recId: str = Field(description="Recommendation ID that led to this trade")
++    modelId: Optional[str] = Field(
++        default=None,
++        description="Model identifier that generated the recommendation (e.g. 'patchtst_patchtst', 'gept_v2')",
++    )
+     offsetPct: Optional[float] = Field(
+         default=None,
+         ge=0.0125,
+@@ -672,6 +678,16 @@ class TradeOutcomeWebRequest(BaseModel):
+     userId: str = Field(description="Hashed user ID (SHA256 of user identifier)")
+     itemId: int = Field(description="OSRS item ID")
+     itemName: str = Field(description="Item name")
++    modelId: Optional[str] = Field(
++        default=None,
++        description="Model identifier that generated the recommendation (e.g. 'patchtst_patchtst', 'gept_v2')",
++    )
++    offsetPct: Optional[float] = Field(
++        default=None,
++        ge=0.0125,
++        le=0.0250,
++        description="Offset percentage used for the underlying recommendation (optional)",
++    )
+     buyPrice: int = Field(ge=1, description="Buy price in gp")
+     sellPrice: int = Field(ge=1, description="Sell price in gp")
+     quantity: int = Field(ge=1, description="Quantity traded")
+diff --git a/packages/engine/src/api_routes/legacy.py b/packages/engine/src/api_routes/legacy.py
+index 242fb33..a3b4df9 100644
+--- a/packages/engine/src/api_routes/legacy.py
++++ b/packages/engine/src/api_routes/legacy.py
+@@ -63,6 +63,7 @@ async def recommendations_web(
+         default=None, ge=0.0125, le=0.0250, description="Minimum margin percentage"
+     ),
+     include_metadata: bool = Query(default=False, description="Include freshness metadata"),
++    use_beta_model: bool = Query(default=False, description="Use beta model predictions if available"),
+     engine: RecommendationEngine = Depends(get_engine),
+ ):
+     """Get recommendations for web frontend."""
+@@ -84,7 +85,7 @@ async def recommendations_web(
+         min_ev=None,
+         include_metadata=include_metadata,
+         return_all=False,
+-        use_beta_model=False,
++        use_beta_model=use_beta_model,
+         engine=engine,
+     )
+ 
+@@ -99,6 +100,7 @@ async def get_item_web(
+     risk: Optional[Literal["low", "medium", "high"]] = Query(default=None, description="Risk tolerance"),
+     style: Optional[Literal["passive", "hybrid", "active"]] = Query(default=None, description="Trading style"),
+     include_price_history: bool = Query(default=False, description="Include price history for charts"),
++    use_beta_model: bool = Query(default=False, description="Use beta model predictions if available"),
+     engine: RecommendationEngine = Depends(get_engine),
+ ):
+     """Web-friendly endpoint alias for item recommendations by ID."""
+@@ -111,6 +113,7 @@ async def get_item_web(
+         style=style,
+         slots=None,
+         include_price_history=include_price_history,
++        use_beta_model=use_beta_model,
+         engine=engine,
+     )
+ 
+@@ -149,6 +152,8 @@ async def report_trade_outcome_web(
+         itemId=body.itemId,
+         itemName=body.itemName,
+         recId=body.rec_id,
++        modelId=body.modelId,
++        offsetPct=body.offsetPct,
+         buyPrice=body.buyPrice,
+         sellPrice=body.sellPrice,
+         quantity=body.quantity,
+diff --git a/packages/engine/src/api_routes/outcomes.py b/packages/engine/src/api_routes/outcomes.py
+index eec4928..a19efff 100644
+--- a/packages/engine/src/api_routes/outcomes.py
++++ b/packages/engine/src/api_routes/outcomes.py
+@@ -50,6 +50,7 @@ async def report_trade_outcome(
+         rec_id=body.recId,
+         item_id=body.itemId,
+         item_name=body.itemName,
++        model_id=body.modelId,
+         offset_pct=body.offsetPct,
+         buy_price=body.buyPrice,
+         sell_price=body.sellPrice,
+diff --git a/packages/engine/src/api_routes/recommendations.py b/packages/engine/src/api_routes/recommendations.py
+index 35df104..47f0b05 100644
+--- a/packages/engine/src/api_routes/recommendations.py
++++ b/packages/engine/src/api_routes/recommendations.py
+@@ -426,6 +426,7 @@ async def get_recommendation_by_item_id(
+     style: Optional[Literal["passive", "hybrid", "active"]] = Query(default=None, description="Trading style"),
+     slots: Optional[int] = Query(default=None, ge=1, le=8, description="Available GE slots"),
+     include_price_history: bool = Query(default=False, description="Include 24h price history for charts"),
++    use_beta_model: bool = Query(default=False, description="Use beta model predictions if available"),
+     engine: RecommendationEngine = Depends(get_engine),
+ ):
+     """Get recommendation for a specific item by ID."""
+@@ -437,6 +438,7 @@ async def get_recommendation_by_item_id(
+             style=style,
+             slots=slots,
+             include_price_history=include_price_history,
++            use_beta_model=use_beta_model,
+         )
+ 
+         if rec is None:
+diff --git a/packages/engine/src/prediction_loader.py b/packages/engine/src/prediction_loader.py
+index 6aacf1b..d954e60 100644
+--- a/packages/engine/src/prediction_loader.py
++++ b/packages/engine/src/prediction_loader.py
+@@ -92,6 +92,18 @@ class PredictionLoader:
+             q = q.where(p.c.model_id == self.preferred_model_id)
+         return q.scalar_subquery()
+ 
++    def _add_model_filter(self, conditions: list) -> None:
++        """Append a model_id filter to a WHERE-condition list when configured.
++
++        NOTE: Scoping MAX(time) via `_max_time_subquery()` is not sufficient when
++        multiple models write predictions for the same timestamp. In that case,
++        `p.time == max_time_for_model` would still match other model rows that
++        share the same timestamp. This helper enforces the model_id constraint
++        on the outer query as well.
++        """
++        if self.preferred_model_id:
++            conditions.append(p.c.model_id == self.preferred_model_id)
++
+     def _matview_exists(self, view_name: str) -> bool:
+         """Check if a materialized view exists (cached per instance)."""
+         if not hasattr(self, "_matview_cache"):
+@@ -134,6 +146,7 @@ class PredictionLoader:
+             p.c.fill_probability >= min_fill_prob,
+             p.c.expected_value >= min_ev,
+         ]
++        self._add_model_filter(conditions)
+ 
+         if max_hour_offset is not None:
+             conditions.append(p.c.hour_offset <= max_hour_offset)
+@@ -171,14 +184,15 @@ class PredictionLoader:
+         Returns:
+             DataFrame with all hour_offset/offset_pct combinations for the item
+         """
++        conditions = [
++            p.c.time == self._max_time_subquery(),
++            p.c.item_id == item_id,
++        ]
++        self._add_model_filter(conditions)
++
+         query = (
+             select(*_prediction_columns())
+-            .where(
+-                and_(
+-                    p.c.time == self._max_time_subquery(),
+-                    p.c.item_id == item_id,
+-                )
+-            )
++            .where(and_(*conditions))
+             .order_by(p.c.hour_offset, p.c.offset_pct)
+         )
+ 
+@@ -233,6 +247,7 @@ class PredictionLoader:
+             p.c.fill_probability >= min_fill_prob,
+             p.c.expected_value >= min_ev,
+         ]
++        self._add_model_filter(conditions)
+         if min_hour_offset is not None:
+             conditions.append(p.c.hour_offset >= int(min_hour_offset))
+         if max_hour_offset is not None:
+@@ -1133,16 +1148,19 @@ class PredictionLoader:
+         max_time = self._max_time_subquery()
+ 
+         # Subquery: distinct items matching the search
++        conditions = [
++            p.c.time == max_time,
++            func.lower(p.c.item_name).like(
++                func.lower(f"%{safe_query}%"), escape="\\"
++            ),
++        ]
++        self._add_model_filter(conditions)
++
+         items_sub = (
+             select(p.c.item_id, p.c.item_name)
+             .distinct()
+             .where(
+-                and_(
+-                    p.c.time == max_time,
+-                    func.lower(p.c.item_name).like(
+-                        func.lower(f"%{safe_query}%"), escape="\\"
+-                    ),
+-                )
++                and_(*conditions)
+             )
+             .subquery("items")
+         )
+@@ -1365,14 +1383,15 @@ class PredictionLoader:
+         if not item_ids:
+             return pd.DataFrame()
+ 
++        conditions = [
++            p.c.time == self._max_time_subquery(),
++            p.c.item_id.in_(item_ids),
++        ]
++        self._add_model_filter(conditions)
++
+         query = (
+             select(*_prediction_columns())
+-            .where(
+-                and_(
+-                    p.c.time == self._max_time_subquery(),
+-                    p.c.item_id.in_(item_ids),
+-                )
+-            )
++            .where(and_(*conditions))
+             .order_by(p.c.item_id, p.c.hour_offset, p.c.offset_pct)
+         )
+ 
+diff --git a/packages/engine/src/recommendation_engine.py b/packages/engine/src/recommendation_engine.py
+index 240890e..db8c140 100644
+--- a/packages/engine/src/recommendation_engine.py
++++ b/packages/engine/src/recommendation_engine.py
+@@ -219,6 +219,7 @@ class RecommendationEngine:
+ 
+         # Select loader based on beta model preference
+         loader = self._get_loader(use_beta_model)
++        active_model_id = loader.preferred_model_id or None
+ 
+         # Calculate remaining capital and slots after active trades
+         capital_in_use = sum(t["quantity"] * t["buyPrice"] for t in active_trades)
+@@ -377,6 +378,9 @@ class RecommendationEngine:
+         # Store and format final recommendations
+         recommendations = []
+         for rec in selected:
++            # Propagate model attribution so active trades, alerts, and outcomes
++            # can consistently use the correct prediction source.
++            rec["modelId"] = active_model_id
+             self.store.store(rec)
+             recommendations.append(rec)
+ 
+@@ -438,6 +442,7 @@ class RecommendationEngine:
+ 
+         # Select loader based on beta model preference
+         loader = self._get_loader(use_beta_model)
++        active_model_id = loader.preferred_model_id or None
+ 
+         # Calculate remaining capital after active trades
+         capital_in_use = sum(t["quantity"] * t["buyPrice"] for t in active_trades)
+@@ -601,6 +606,7 @@ class RecommendationEngine:
+                 "fillConfidence": self._determine_fill_confidence(
+                     fill_prob, all_fill_probs
+                 ),
++                "modelId": active_model_id,
+                 "_expectedValue": round(ev, 6),
+                 "_score": round(composite_score, 6),
+                 "reason": self._build_reason(cand),
+@@ -2435,6 +2441,7 @@ class RecommendationEngine:
+         style: Optional[TradingStyle] = None,
+         slots: Optional[int] = None,
+         include_price_history: bool = False,
++        use_beta_model: bool = False,
+     ) -> Optional[dict]:
+         """Get recommendation by item ID, with optional user context.
+ 
+@@ -2455,7 +2462,7 @@ class RecommendationEngine:
+         # If user context provided, generate fresh recommendation
+         if capital is not None and risk is not None and style is not None:
+             rec = self._generate_item_recommendation(
+-                item_id, capital, risk, style, slots or 4
++                item_id, capital, risk, style, slots or 4, use_beta_model=use_beta_model
+             )
+         else:
+             # Otherwise return from cache
+@@ -2476,6 +2483,8 @@ class RecommendationEngine:
+         risk: RiskLevel,
+         style: TradingStyle,
+         slots: int,
++        *,
++        use_beta_model: bool = False,
+     ) -> Optional[dict]:
+         """Generate a recommendation for a specific item with user context.
+ 
+@@ -2489,13 +2498,16 @@ class RecommendationEngine:
+         Returns:
+             Recommendation dict with explanation, or dict with isRecommended=False
+         """
++        loader = self._get_loader(use_beta_model)
++        active_model_id = loader.preferred_model_id or None
++
+         # Get filtering parameters based on style/risk
+         min_ev = self.EV_THRESHOLDS.get(risk, 0.005)
+         min_hour, max_hour = self.HOUR_RANGES.get(style, (1, self.config.max_hour_offset))
+         min_fill = self.FILL_PROB_MINIMUMS.get(risk, 0.05)
+ 
+         # Fetch predictions for this specific item
+-        predictions_df = self.loader.get_predictions_for_item(item_id)
++        predictions_df = loader.get_predictions_for_item(item_id)
+ 
+         if predictions_df.empty:
+             return {
+@@ -2581,7 +2593,7 @@ class RecommendationEngine:
+             filtered["fill_probability"].astype(float) ** alpha
+         )
+         best = filtered.loc[filtered["_rank_score"].idxmax()]
+-        pred_age = self.loader.get_prediction_age_seconds()
++        pred_age = loader.get_prediction_age_seconds()
+ 
+         # Build candidate
+         candidate = self._build_candidate(best, capital, pred_age)
+@@ -2634,6 +2646,7 @@ class RecommendationEngine:
+             "reason": reason,
+             "fillProbability": round(fill_prob, 4),
+             "fillConfidence": self._determine_fill_confidence(fill_prob, None),
++            "modelId": active_model_id,
+             "_expectedValue": round(candidate["expected_value"], 6),
+             "whyChips": self.generate_why_chips(candidate),
+         }
+@@ -2984,22 +2997,35 @@ class RecommendationEngine:
+         from .order_advisor import OrderAdvisor
+ 
+         # Choose the prediction source:
+-        # 1) If a specific model_id is supplied and matches our configured beta model,
+-        #    use the beta loader (fixes active trades created under beta when preferred
+-        #    model doesn't cover the item).
+-        # 2) Else if the request opts into beta, use beta loader when available.
+-        # 3) Otherwise use the preferred loader.
++        # 1) If the trade supplies an explicit model_id, honor it when possible so
++        #    active trades remain stable even if the user toggles beta later.
++        # 2) Otherwise, use the request's beta preference when available.
++        # 3) Fallback to the preferred loader.
+         loader = self.loader
+         selected_beta = False
+-        if (
+-            model_id
+-            and self.config.beta_model_id
+-            and model_id == self.config.beta_model_id
+-            and self._beta_loader is not None
+-        ):
+-            loader = self._beta_loader
+-            selected_beta = True
+-        elif use_beta_model and self._beta_loader is not None:
++        model_id_norm = (model_id or "").strip()
++        if model_id_norm.lower() in ("unknown", "null"):
++            model_id_norm = ""
++
++        if model_id_norm:
++            if (
++                self.config.beta_model_id
++                and model_id_norm == self.config.beta_model_id
++                and self._beta_loader is not None
++            ):
++                loader = self._beta_loader
++                selected_beta = True
++            elif (
++                self.config.preferred_model_id
++                and model_id_norm == self.config.preferred_model_id
++            ):
++                loader = self.loader
++                selected_beta = False
++            else:
++                # Unknown model id — fall back to request preference.
++                model_id_norm = ""
++
++        if (not model_id_norm) and use_beta_model and self._beta_loader is not None:
+             loader = self._beta_loader
+             selected_beta = True
+ 
+diff --git a/packages/engine/src/schema.py b/packages/engine/src/schema.py
+index b32a597..ccce455 100644
+--- a/packages/engine/src/schema.py
++++ b/packages/engine/src/schema.py
+@@ -95,6 +95,8 @@ trade_outcomes = Table(
+     Column("rec_id", Text),
+     Column("item_id", Integer),
+     Column("item_name", Text),
++    # Attribution: which prediction model produced the underlying recommendation.
++    Column("model_id", Text),
+     Column("offset_pct", Numeric(5, 4)),
+     Column("buy_price", Numeric(12, 2)),
+     Column("sell_price", Numeric(12, 2)),
+diff --git a/packages/engine/tests/test_api.py b/packages/engine/tests/test_api.py
+index ac8a74b..1008364 100644
+--- a/packages/engine/tests/test_api.py
++++ b/packages/engine/tests/test_api.py
+@@ -2583,6 +2583,7 @@ class TestWebFrontendEndpoints:
+             style="passive",
+             slots=None,
+             include_price_history=True,
++            use_beta_model=False,
+         )
+ 
+     def test_item_web_not_found(self, client):
+diff --git a/packages/engine/tests/test_item_recommendations.py b/packages/engine/tests/test_item_recommendations.py
+index f371182..05002a5 100644
+--- a/packages/engine/tests/test_item_recommendations.py
++++ b/packages/engine/tests/test_item_recommendations.py
+@@ -79,6 +79,7 @@ class TestItemRecommendations:
+             style="active",
+             slots=4,
+             include_price_history=False,
++            use_beta_model=False,
+         )
+ 
+     def test_get_recommendation_by_item_id_without_context(self, client):
+@@ -117,6 +118,7 @@ class TestItemRecommendations:
+             style=None,
+             slots=None,
+             include_price_history=False,
++            use_beta_model=False,
+         )
+ 
+     def test_get_recommendation_item_not_recommended(self, client):
+diff --git a/packages/web/src/components/opportunities/OpportunityBrowser.tsx b/packages/web/src/components/opportunities/OpportunityBrowser.tsx
+index 3a05068..65da3cd 100644
+--- a/packages/web/src/components/opportunities/OpportunityBrowser.tsx
++++ b/packages/web/src/components/opportunities/OpportunityBrowser.tsx
+@@ -378,6 +378,11 @@ export function OpportunityBrowser(props: OpportunityBrowserProps) {
+         >
+           <div class="opportunity-browser-count">
+             Showing {visibleOpportunities().length} of {total()} opportunities
++            <Show when={opportunities().length > 0}>
++              <span class="opportunity-browser-model">
++                Model: {opportunities()[0]?.modelId ?? 'unknown'}
++              </span>
++            </Show>
+           </div>
+ 
+           <div class="opportunity-browser-list">
+@@ -421,6 +426,15 @@ export function OpportunityBrowser(props: OpportunityBrowserProps) {
+           margin-bottom: 0.75rem;
+         }
+ 
++        .opportunity-browser-model {
++          margin-left: 0.5rem;
++          padding-left: 0.5rem;
++          border-left: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
++          color: var(--text-muted);
++          letter-spacing: 0.01em;
++          white-space: nowrap;
++        }
++
+         .opportunity-browser-error {
+           background: var(--surface-2);
+           color: var(--danger);
+diff --git a/packages/web/src/lib/api.ts b/packages/web/src/lib/api.ts
+index 29aef7e..41620be 100644
+--- a/packages/web/src/lib/api.ts
++++ b/packages/web/src/lib/api.ts
+@@ -40,7 +40,7 @@ interface ApiRecommendation {
+   reason: string;
+   volume24h: number;
+   priceHistory?: number[] | null;
+-  modelId?: number | null;
++  modelId?: string | null;
+   isMultiLimitStrategy?: boolean;
+ }
+ 
+@@ -262,6 +262,9 @@ export async function getRecommendationByItemId(
+           style: settings.style,
+           risk: settings.risk
+         });
++        if (settings.useBetaModel) {
++          params.append('use_beta_model', 'true');
++        }
+         const url = `${getApiBase()}/api/v1/recommendations/item/${itemId}?${params}`;
+         const apiResponse = await fetchWithRetry<ApiRecommendation>(url);
+         return transformRecommendation(apiResponse);
+@@ -321,6 +324,7 @@ export async function reportTradeOutcome(data: {
+       itemId: data.itemId,
+       itemName: data.itemName,
+       recId: data.recId,
++      modelId: data.modelId,
+       offsetPct: data.offsetPct,
+       buyPrice: data.buyPrice,
+       sellPrice: data.sellPrice,
+diff --git a/packages/web/src/pages/account.astro b/packages/web/src/pages/account.astro
+index 7501881..7733770 100644
+--- a/packages/web/src/pages/account.astro
++++ b/packages/web/src/pages/account.astro
+@@ -221,242 +221,257 @@ const user = Astro.locals.user;
+ <script>
+   import { signOut, authClient } from '../lib/auth-client';
+ 
+-  // Save profile changes
+-  const saveProfileBtn = document.getElementById('save-profile-btn');
+-  const profileMessage = document.getElementById('profile-message');
++  let cleanup: AbortController | null = null;
++
++  function initAccountPage() {
++    // Guard: if we're not on the account/settings page, don't bind anything.
++    const betaModelToggle = document.getElementById('beta-model-toggle') as HTMLInputElement | null;
++    if (!betaModelToggle) return;
++
++    // Ensure we don't stack multiple listeners across view transitions.
++    cleanup?.abort();
++    cleanup = new AbortController();
++    const { signal } = cleanup;
++
++    // Helper function to show messages
++    function showMessage(element: HTMLElement | null, message: string, type: 'success' | 'error') {
++      if (!element) return;
++      element.textContent = message;
++      element.className = `form-message ${type}`;
++
++      // Clear message after 5 seconds
++      setTimeout(() => {
++        element.textContent = '';
++        element.className = 'form-message';
++      }, 5000);
++    }
+ 
+-  saveProfileBtn?.addEventListener('click', async () => {
+-    const displayName = (document.getElementById('display-name') as HTMLInputElement).value;
++    // Save profile changes
++    const saveProfileBtn = document.getElementById('save-profile-btn') as HTMLButtonElement | null;
++    const profileMessage = document.getElementById('profile-message');
+ 
+-    if (!displayName.trim()) {
+-      showMessage(profileMessage, 'Please enter a display name', 'error');
+-      return;
+-    }
++    saveProfileBtn?.addEventListener('click', async () => {
++      const displayName = (document.getElementById('display-name') as HTMLInputElement).value;
+ 
+-    saveProfileBtn.textContent = 'Saving...';
+-    (saveProfileBtn as HTMLButtonElement).disabled = true;
++      if (!displayName.trim()) {
++        showMessage(profileMessage, 'Please enter a display name', 'error');
++        return;
++      }
+ 
+-    try {
+-      const result = await authClient.updateUser({
+-        name: displayName.trim()
+-      });
++      saveProfileBtn.textContent = 'Saving...';
++      saveProfileBtn.disabled = true;
++
++      try {
++        const result = await authClient.updateUser({
++          name: displayName.trim()
++        });
+ 
+-      if (result.error) {
+-        showMessage(profileMessage, result.error.message || 'Failed to save changes', 'error');
+-      } else {
+-        showMessage(profileMessage, 'Profile updated successfully', 'success');
++        if (result.error) {
++          showMessage(profileMessage, result.error.message || 'Failed to save changes', 'error');
++        } else {
++          showMessage(profileMessage, 'Profile updated successfully', 'success');
++        }
++      } catch {
++        showMessage(profileMessage, 'Something went wrong. Please try again.', 'error');
++      } finally {
++        saveProfileBtn.textContent = 'Save Changes';
++        saveProfileBtn.disabled = false;
+       }
+-    } catch (err) {
+-      showMessage(profileMessage, 'Something went wrong. Please try again.', 'error');
+-    } finally {
+-      saveProfileBtn.textContent = 'Save Changes';
+-      (saveProfileBtn as HTMLButtonElement).disabled = false;
+-    }
+-  });
++    }, { signal });
+ 
+-  // Update password
+-  const updatePasswordBtn = document.getElementById('update-password-btn');
+-  const passwordMessage = document.getElementById('password-message');
++    // Update password
++    const updatePasswordBtn = document.getElementById('update-password-btn') as HTMLButtonElement | null;
++    const passwordMessage = document.getElementById('password-message');
+ 
+-  updatePasswordBtn?.addEventListener('click', async () => {
+-    const currentPassword = (document.getElementById('current-password') as HTMLInputElement).value;
+-    const newPassword = (document.getElementById('new-password') as HTMLInputElement).value;
+-    const confirmPassword = (document.getElementById('confirm-password') as HTMLInputElement).value;
++    updatePasswordBtn?.addEventListener('click', async () => {
++      const currentPassword = (document.getElementById('current-password') as HTMLInputElement).value;
++      const newPassword = (document.getElementById('new-password') as HTMLInputElement).value;
++      const confirmPassword = (document.getElementById('confirm-password') as HTMLInputElement).value;
+ 
+-    if (!currentPassword || !newPassword || !confirmPassword) {
+-      showMessage(passwordMessage, 'Please fill in all password fields', 'error');
+-      return;
+-    }
++      if (!currentPassword || !newPassword || !confirmPassword) {
++        showMessage(passwordMessage, 'Please fill in all password fields', 'error');
++        return;
++      }
+ 
+-    if (newPassword.length < 8) {
+-      showMessage(passwordMessage, 'New password must be at least 8 characters', 'error');
+-      return;
+-    }
++      if (newPassword.length < 8) {
++        showMessage(passwordMessage, 'New password must be at least 8 characters', 'error');
++        return;
++      }
+ 
+-    if (newPassword !== confirmPassword) {
+-      showMessage(passwordMessage, 'New passwords do not match', 'error');
+-      return;
+-    }
++      if (newPassword !== confirmPassword) {
++        showMessage(passwordMessage, 'New passwords do not match', 'error');
++        return;
++      }
+ 
+-    updatePasswordBtn.textContent = 'Updating...';
+-    (updatePasswordBtn as HTMLButtonElement).disabled = true;
++      updatePasswordBtn.textContent = 'Updating...';
++      updatePasswordBtn.disabled = true;
+ 
+-    try {
+-      const result = await authClient.changePassword({
+-        currentPassword,
+-        newPassword
+-      });
++      try {
++        const result = await authClient.changePassword({
++          currentPassword,
++          newPassword
++        });
+ 
+-      if (result.error) {
+-        showMessage(passwordMessage, result.error.message || 'Failed to update password', 'error');
+-      } else {
+-        showMessage(passwordMessage, 'Password updated successfully', 'success');
+-        // Clear password fields
+-        (document.getElementById('current-password') as HTMLInputElement).value = '';
+-        (document.getElementById('new-password') as HTMLInputElement).value = '';
+-        (document.getElementById('confirm-password') as HTMLInputElement).value = '';
++        if (result.error) {
++          showMessage(passwordMessage, result.error.message || 'Failed to update password', 'error');
++        } else {
++          showMessage(passwordMessage, 'Password updated successfully', 'success');
++          // Clear password fields
++          (document.getElementById('current-password') as HTMLInputElement).value = '';
++          (document.getElementById('new-password') as HTMLInputElement).value = '';
++          (document.getElementById('confirm-password') as HTMLInputElement).value = '';
++        }
++      } catch {
++        showMessage(passwordMessage, 'Something went wrong. Please try again.', 'error');
++      } finally {
++        updatePasswordBtn.textContent = 'Update Password';
++        updatePasswordBtn.disabled = false;
+       }
+-    } catch (err) {
+-      showMessage(passwordMessage, 'Something went wrong. Please try again.', 'error');
+-    } finally {
+-      updatePasswordBtn.textContent = 'Update Password';
+-      (updatePasswordBtn as HTMLButtonElement).disabled = false;
+-    }
+-  });
++    }, { signal });
+ 
+-  // Sign out
+-  const signOutBtn = document.getElementById('sign-out-btn');
++    // Sign out
++    const signOutBtn = document.getElementById('sign-out-btn') as HTMLButtonElement | null;
+ 
+-  signOutBtn?.addEventListener('click', async () => {
+-    signOutBtn.textContent = 'Signing out...';
+-    (signOutBtn as HTMLButtonElement).disabled = true;
++    signOutBtn?.addEventListener('click', async () => {
++      signOutBtn.textContent = 'Signing out...';
++      signOutBtn.disabled = true;
+ 
+-    try {
+-      await signOut();
+-      window.location.href = '/login';
+-    } catch (err) {
+-      signOutBtn.textContent = 'Sign Out';
+-      (signOutBtn as HTMLButtonElement).disabled = false;
+-    }
+-  });
++      try {
++        await signOut();
++        window.location.href = '/login';
++      } catch {
++        signOutBtn.textContent = 'Sign Out';
++        signOutBtn.disabled = false;
++      }
++    }, { signal });
+ 
+-  // Delete account
+-  const deleteAccountBtn = document.getElementById('delete-account-btn');
++    // Delete account
++    const deleteAccountBtn = document.getElementById('delete-account-btn') as HTMLButtonElement | null;
+ 
+-  deleteAccountBtn?.addEventListener('click', async () => {
+-    const confirmed = confirm(
+-      'Are you sure you want to delete your account? This action cannot be undone and all your data will be permanently deleted.'
+-    );
++    deleteAccountBtn?.addEventListener('click', async () => {
++      const confirmed = confirm(
++        'Are you sure you want to delete your account? This action cannot be undone and all your data will be permanently deleted.'
++      );
+ 
+-    if (!confirmed) return;
++      if (!confirmed) return;
+ 
+-    const doubleConfirm = confirm(
+-      'This is your final warning. Your account and all associated data will be permanently deleted. Continue?'
+-    );
++      const doubleConfirm = confirm(
++        'This is your final warning. Your account and all associated data will be permanently deleted. Continue?'
++      );
+ 
+-    if (!doubleConfirm) return;
++      if (!doubleConfirm) return;
+ 
+-    deleteAccountBtn.textContent = 'Deleting...';
+-    (deleteAccountBtn as HTMLButtonElement).disabled = true;
++      deleteAccountBtn.textContent = 'Deleting...';
++      deleteAccountBtn.disabled = true;
+ 
+-    try {
+-      const result = await authClient.deleteUser();
++      try {
++        const result = await authClient.deleteUser();
+ 
+-      if (result.error) {
+-        alert('Failed to delete account: ' + (result.error.message || 'Unknown error'));
++        if (result.error) {
++          alert('Failed to delete account: ' + (result.error.message || 'Unknown error'));
++          deleteAccountBtn.textContent = 'Delete Account';
++          deleteAccountBtn.disabled = false;
++        } else {
++          window.location.href = '/login';
++        }
++      } catch {
++        alert('Something went wrong. Please try again.');
+         deleteAccountBtn.textContent = 'Delete Account';
+-        (deleteAccountBtn as HTMLButtonElement).disabled = false;
+-      } else {
+-        window.location.href = '/login';
++        deleteAccountBtn.disabled = false;
+       }
+-    } catch (err) {
+-      alert('Something went wrong. Please try again.');
+-      deleteAccountBtn.textContent = 'Delete Account';
+-      (deleteAccountBtn as HTMLButtonElement).disabled = false;
+-    }
+-  });
++    }, { signal });
+ 
+-  // Beta model toggle
+-  const betaModelToggle = document.getElementById('beta-model-toggle') as HTMLInputElement;
++    // Hero toggles
++    const heroToggleSyncMap = new Map<HTMLInputElement, () => void>();
+ 
+-  // Load current setting
+-  fetch('/api/settings')
+-    .then(res => res.json())
+-    .then(data => {
+-      if (data.success && betaModelToggle) {
+-        betaModelToggle.checked = data.data.user.useBetaModel === true;
+-        heroToggleSyncMap.get(betaModelToggle)?.();
+-      }
+-    })
+-    .catch(() => {});
+-
+-  const heroToggleSyncMap = new Map<HTMLInputElement, () => void>();
+-
+-  const initHeroToggles = () => {
+-    const groups = document.querySelectorAll<HTMLElement>('[data-hero-toggle]');
+-    const updateToggle = (group: HTMLElement) => {
+-      const input = group.querySelector<HTMLInputElement>('input[type=\"checkbox\"]');
+-      if (!input) return;
+-      const isOn = input.checked;
+-      const label = group.querySelector<HTMLElement>('.toggle-label');
+-      if (label) {
+-        label.textContent = isOn ? 'ON' : 'OFF';
+-      }
+-    };
++    const initHeroToggles = () => {
++      const groups = document.querySelectorAll<HTMLElement>('[data-hero-toggle]');
++      const updateToggle = (group: HTMLElement) => {
++        const input = group.querySelector<HTMLInputElement>('input[type=\"checkbox\"]');
++        if (!input) return;
++        const isOn = input.checked;
++        const label = group.querySelector<HTMLElement>('.toggle-label');
++        if (label) {
++          label.textContent = isOn ? 'ON' : 'OFF';
++        }
++      };
+ 
+-    groups.forEach((group) => {
+-      const input = group.querySelector<HTMLInputElement>('input[type=\"checkbox\"]');
+-      const buttons = Array.from(group.querySelectorAll<HTMLButtonElement>('button'));
+-      if (!input || buttons.length < 1) return;
++      groups.forEach((group) => {
++        const input = group.querySelector<HTMLInputElement>('input[type=\"checkbox\"]');
++        const buttons = Array.from(group.querySelectorAll<HTMLButtonElement>('button'));
++        if (!input || buttons.length < 1) return;
++
++        const sync = () => {
++          const isOn = input.checked;
++          group.classList.toggle('is-on', isOn);
++          buttons.forEach((btn) => {
++            const onButton = btn.dataset.value === 'on';
++            const active = isOn ? onButton : !onButton;
++            btn.classList.toggle('active', active);
++            btn.setAttribute('aria-pressed', active ? 'true' : 'false');
++          });
++          updateToggle(group);
++        };
++
++        heroToggleSyncMap.set(input, sync);
+ 
+-      const sync = () => {
+-        const isOn = input.checked;
+-        group.classList.toggle('is-on', isOn);
+         buttons.forEach((btn) => {
+-          const onButton = btn.dataset.value === 'on';
+-          const active = isOn ? onButton : !onButton;
+-          btn.classList.toggle('active', active);
+-          btn.setAttribute('aria-pressed', active ? 'true' : 'false');
++          btn.addEventListener('click', () => {
++            if (btn.dataset.value) {
++              const shouldOn = btn.dataset.value === 'on';
++              if (input.checked === shouldOn) return;
++              input.checked = shouldOn;
++            } else {
++              input.checked = !input.checked;
++            }
++            input.dispatchEvent(new Event('change', { bubbles: true }));
++            sync();
++          }, { signal });
+         });
+-        updateToggle(group);
+-      };
+ 
+-      heroToggleSyncMap.set(input, sync);
+-
+-      buttons.forEach((btn) => {
+-        btn.addEventListener('click', () => {
+-          if (btn.dataset.value) {
+-            const shouldOn = btn.dataset.value === 'on';
+-            if (input.checked === shouldOn) return;
+-            input.checked = shouldOn;
+-          } else {
+-            input.checked = !input.checked;
+-          }
+-          input.dispatchEvent(new Event('change', { bubbles: true }));
+-          sync();
+-        });
++        input.addEventListener('change', sync, { signal });
++        sync();
+       });
+ 
+-      input.addEventListener('change', sync);
+-      sync();
+-    });
+-
+-    window.addEventListener('resize', () => {
+-      groups.forEach((group) => updateToggle(group));
+-    });
+-  };
+-
+-  initHeroToggles();
++      window.addEventListener('resize', () => {
++        groups.forEach((group) => updateToggle(group));
++      }, { signal });
++    };
+ 
+-  betaModelToggle?.addEventListener('change', async () => {
+-    try {
+-      const res = await fetch('/api/settings', {
+-        method: 'PUT',
+-        headers: { 'Content-Type': 'application/json' },
+-        body: JSON.stringify({ useBetaModel: betaModelToggle.checked })
+-      });
+-      if (!res.ok) {
++    initHeroToggles();
++
++    // Load current setting
++    fetch('/api/settings')
++      .then(res => res.json())
++      .then(data => {
++        if (data.success && betaModelToggle) {
++          betaModelToggle.checked = data.data.user.useBetaModel === true;
++          heroToggleSyncMap.get(betaModelToggle)?.();
++        }
++      })
++      .catch(() => {});
++
++    betaModelToggle.addEventListener('change', async () => {
++      try {
++        const res = await fetch('/api/settings', {
++          method: 'PUT',
++          headers: { 'Content-Type': 'application/json' },
++          body: JSON.stringify({ useBetaModel: betaModelToggle.checked })
++        });
++        if (!res.ok) {
++          betaModelToggle.checked = !betaModelToggle.checked;
++          heroToggleSyncMap.get(betaModelToggle)?.();
++        }
++      } catch {
++        // Revert on failure
+         betaModelToggle.checked = !betaModelToggle.checked;
++        heroToggleSyncMap.get(betaModelToggle)?.();
+       }
+-    } catch {
+-      // Revert on failure
+-      betaModelToggle.checked = !betaModelToggle.checked;
+-      heroToggleSyncMap.get(betaModelToggle)?.();
+-    }
+-  });
+-
+-  // Helper function to show messages
+-  function showMessage(element: HTMLElement | null, message: string, type: 'success' | 'error') {
+-    if (!element) return;
+-    element.textContent = message;
+-    element.className = `form-message ${type}`;
+-
+-    // Clear message after 5 seconds
+-    setTimeout(() => {
+-      element.textContent = '';
+-      element.className = 'form-message';
+-    }, 5000);
++    }, { signal });
+   }
++
++  // Run on initial load and after each navigation (Astro View Transitions).
++  document.addEventListener('astro:page-load', initAccountPage);
+ </script>
+ 
+ <style>
