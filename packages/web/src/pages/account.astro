@@ -218,7 +218,7 @@ const user = Astro.locals.user;
   </div>
 </Layout>
 
-<script>
+<script data-astro-rerun>
   import { signOut, authClient } from '../lib/auth-client';
 
   // Save profile changes
@@ -421,9 +421,16 @@ const user = Astro.locals.user;
       sync();
     });
 
-    window.addEventListener('resize', () => {
+    // With ViewTransitions enabled, this script can re-run on client-side navigation.
+    // Ensure we don't accumulate resize handlers across visits.
+    const prev = (window as any)['__geptAccountResizeHandler'];
+    if (typeof prev === 'function') window.removeEventListener('resize', prev);
+
+    const handler = () => {
       groups.forEach((group) => updateToggle(group));
-    });
+    };
+    (window as any)['__geptAccountResizeHandler'] = handler;
+    window.addEventListener('resize', handler);
   };
 
   initHeroToggles();

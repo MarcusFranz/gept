@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+WATCH_SESSION="${WATCH_SESSION:-gept3_watchdog_m4}"
+WATCH_SCRIPT="${WATCH_SCRIPT:-$SCRIPT_DIR/watch_hybrid_m4.sh}"
+
+pkill -TERM -f "$WATCH_SCRIPT" >/dev/null 2>&1 || true
+sleep 1
+pgrep -f "$WATCH_SCRIPT" | xargs -I{} kill -KILL {} 2>/dev/null || true
+screen -S "$WATCH_SESSION" -X quit >/dev/null 2>&1 || true
+screen -dmS "$WATCH_SESSION" bash -lc "$WATCH_SCRIPT"
+sleep 1
+
+echo "started watchdog session: ${WATCH_SESSION}"
+screen -ls | rg -n "${WATCH_SESSION}" || true

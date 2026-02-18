@@ -1,0 +1,29 @@
+services:
+  gept3-train:
+    image: ${IMAGE:-docker.io/your-dockerhub-user/gept3-train:latest}
+    container_name: ${CONTAINER_NAME:-gept3-train}
+    restart: ${RESTART_POLICY:-unless-stopped}
+    gpus: all
+    environment:
+      ROOT: /workspace/gept
+      RUN_NAME: ${RUN_NAME:-gept3_hybrid_cuda_scaleup_s128_t48_n4500_d384_l6_tl3_e12_b2_ga4}
+      DATASET: ${DATASET:-/workspace/gept/packages/inference/data/gept3_hybrid_snap_365d_preditems_allmodels_s128_t48_n4500_min24_multitask_h1-24.npz}
+      AUTO_RESUME: ${AUTO_RESUME:-1}
+      CHECKPOINT_EVERY_EPOCHS: ${CHECKPOINT_EVERY_EPOCHS:-1}
+      DEVICE: ${DEVICE:-cuda}
+      PRECISION: ${PRECISION:-fp16}
+      EPOCHS: ${EPOCHS:-12}
+      BATCH_SIZE: ${BATCH_SIZE:-2}
+      EVAL_BATCH_SIZE: ${EVAL_BATCH_SIZE:-2}
+      EVAL_MAX_BATCHES: ${EVAL_MAX_BATCHES:-250}
+      GRAD_ACCUM_STEPS: ${GRAD_ACCUM_STEPS:-4}
+      D_MODEL: ${D_MODEL:-384}
+      N_HEADS: ${N_HEADS:-12}
+      N_LAYERS: ${N_LAYERS:-6}
+      TEMPORAL_N_HEADS: ${TEMPORAL_N_HEADS:-6}
+      TEMPORAL_N_LAYERS: ${TEMPORAL_N_LAYERS:-3}
+      LR: ${LR:-2.5e-4}
+    volumes:
+      - ${HOST_DATA_DIR:-/opt/gept/inference/data}:/workspace/gept/packages/inference/data
+      - ${HOST_MODELS_DIR:-/opt/gept/inference/models}:/workspace/gept/packages/inference/models
+      - ${HOST_LOGS_DIR:-/opt/gept/inference/logs}:/workspace/gept/packages/inference/logs

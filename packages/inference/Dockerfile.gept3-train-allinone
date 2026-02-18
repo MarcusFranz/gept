@@ -1,0 +1,26 @@
+FROM pytorch/pytorch:2.5.1-cuda12.4-cudnn9-runtime
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends ca-certificates libgomp1 bash \
+  && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /workspace/gept
+
+COPY packages/inference/requirements.txt /tmp/requirements.txt
+RUN python -m pip install --upgrade pip \
+  && grep -v '^torch' /tmp/requirements.txt > /tmp/requirements.notorch.txt \
+  && pip install --no-cache-dir -r /tmp/requirements.notorch.txt
+
+COPY packages/inference/src /workspace/gept/packages/inference/src
+COPY packages/inference/scripts /workspace/gept/packages/inference/scripts
+COPY packages/inference/data /workspace/gept/packages/inference/data
+
+ENV PYTHONPATH=/workspace/gept/packages/inference:/workspace/gept/packages/inference/src
+WORKDIR /workspace/gept/packages/inference
+
+ENTRYPOINT ["bash", "/workspace/gept/packages/inference/scripts/gept3/container/train_entrypoint.sh"]

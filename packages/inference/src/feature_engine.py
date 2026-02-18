@@ -313,6 +313,13 @@ class FeatureEngine:
             cols['dow_sin'] = np.sin(2 * np.pi * day_of_week / 7)
             cols['dow_cos'] = np.cos(2 * np.pi * day_of_week / 7)
 
+            # Day of year (cyclical encoding) to capture longer seasonal patterns.
+            # Use 366 so leap years map smoothly.
+            day_of_year = ts.dt.dayofyear
+            cols['day_of_year'] = day_of_year
+            cols['doy_sin'] = np.sin(2 * np.pi * day_of_year / 366)
+            cols['doy_cos'] = np.cos(2 * np.pi * day_of_year / 366)
+
             # Binary flags
             cols['is_weekend'] = (day_of_week >= 5).astype(int)
 
