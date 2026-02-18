@@ -38,6 +38,15 @@ Apply migrations in numeric order:
 ls -1 migrations/*.sql | sort
 ```
 
+Apply everything in order (run from `packages/engine`):
+
+```bash
+for file in $(ls -1 migrations/*.sql | sort); do
+  echo "Applying $file"
+  psql -v ON_ERROR_STOP=1 "$DB_CONNECTION_STRING" -f "$file"
+done
+```
+
 ## Migration Files
 
 - `001_create_trade_outcomes_table.sql` - Creates the `trade_outcomes` table for storing user-reported trade results

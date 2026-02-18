@@ -9,3 +9,15 @@ This repo is organized by deployment unit:
 - `packages/shared`: Shared TypeScript utilities/types used by web
 
 Server `systemd` units live in `infra/systemd/`.
+
+## Monorepo Scripts
+
+From the repo root:
+
+```bash
+npm install
+npm run dev:web
+npm run dev:engine
+npm run lint
+npm run test
+```
