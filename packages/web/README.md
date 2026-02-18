@@ -7,6 +7,7 @@ Astro + SolidJS frontend for OSRS Grand Exchange flipping recommendations.
 ```bash
 # From repo root
 npm install
+cp packages/web/.env.example packages/web/.env.local
 npm run dev:web
 ```
 

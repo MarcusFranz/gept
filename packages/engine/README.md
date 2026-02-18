@@ -43,7 +43,7 @@ The engine reads pre-computed fill probability predictions from the `predictions
 ### Installation
 
 ```bash
-cd gept-engine
+cd packages/engine
 
 # Create virtual environment
 python -m venv venv
@@ -52,6 +52,8 @@ source venv/bin/activate
 # Install dependencies
 pip install -r requirements.txt
 ```
+
+If you plan to use `npm run dev:engine` from the repo root, run `npm install` once at the root first.
 
 ### Environment Setup
 
@@ -63,6 +65,12 @@ DB_CONNECTION_STRING=postgresql://user:password@localhost:5432/osrs_data
 
 # API auth (required)
 INTERNAL_API_KEY=replace-with-random-token
+```
+
+Start from the template and keep it local:
+
+```bash
+cp .env.example .env
 ```
 
 If you run `uvicorn` directly (instead of `python -m src.main`), make sure your shell loads the env file:

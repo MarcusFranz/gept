@@ -12,7 +12,7 @@ The prediction engine runs every 5 minutes, generating fill probability predicti
 
 ### Production Server Details
 
-Server configuration is centralized in `config/servers.env` (values redacted). Override via environment variables.
+Server connection details are provided out-of-band (values redacted). Set the environment variables below in your shell or env file.
 
 | Property | Variable | Default |
 |----------|----------|---------|

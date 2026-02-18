@@ -49,6 +49,8 @@ OSRS Wiki API → Docker Collectors → PostgreSQL/TimescaleDB → ML Pipeline
    ```bash
    docker-compose up -d
    ```
+   If you use Docker Compose v2, the equivalent is `docker compose up -d`.
+   Compose reads `.env` automatically when you run from this directory; if you run elsewhere, pass `--env-file .env`.
 
 3. **Verify Services**:
    ```bash
@@ -58,6 +60,8 @@ OSRS Wiki API → Docker Collectors → PostgreSQL/TimescaleDB → ML Pipeline
    ```
 
 **Note:** `docker-compose.yml` uses `network_mode: host`, so the ports above are exposed directly on the host.
+This requires a Linux host. On Docker Desktop, use the Local Testing section or create an override that switches to bridge mode
+and exposes only the ports you need (for example, for the dashboard).
 
 ### Monitoring
 

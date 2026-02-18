@@ -10,7 +10,8 @@ cd gept-foundations
 
 ### 2. Set Up Environment Variables
 ```bash
-cp .env.example .env
+cd packages/inference
+touch .env
 ```
 
 Edit `.env` with the actual credentials (request via a secure channel):
@@ -113,9 +114,9 @@ gept/
 ### Load Environment Variables
 Always load your `.env` first:
 ```bash
+set -a
 source .env
-# or
-export $(cat .env | xargs)
+set +a
 ```
 
 ### Run Inference
