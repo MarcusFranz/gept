@@ -37,6 +37,18 @@ Optional:
 - `PREDICTION_API` and `PREDICTION_API_KEY` for live recommendations
 - `ENGINE_WEBHOOK_URL` and `WEBHOOK_SECRET` for active-trade alerts
 
+Generate a local auth secret if you need one:
+
+```bash
+openssl rand -hex 32
+```
+
+Example local database URL:
+
+```bash
+DATABASE_URL=postgresql://osrs_user:replace-with-secure-password@localhost:5432/osrs_data
+```
+
 ### Local URLs
 
 If you run everything on the Astro dev server, align these values to the dev port:

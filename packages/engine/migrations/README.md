@@ -18,6 +18,13 @@ psql -v ON_ERROR_STOP=1 postgresql://[USER]:[PASS]@[HOST]:5432/gept
 \i migrations/001_create_trade_outcomes_table.sql
 ```
 
+For safety, you can wrap a migration in a single transaction:
+
+```bash
+psql --single-transaction -v ON_ERROR_STOP=1 "$DB_CONNECTION_STRING" \
+  -f migrations/001_create_trade_outcomes_table.sql
+```
+
 You can also use the engine's `DB_CONNECTION_STRING` environment variable:
 
 ```bash

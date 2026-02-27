@@ -32,7 +32,12 @@ OSRS Wiki API → Docker Collectors → PostgreSQL/TimescaleDB → ML Pipeline
 
 ### Deployment
 
-1. **Configure Environment**:
+1. **Move into the package directory**:
+   ```bash
+   cd packages/collectors
+   ```
+
+2. **Configure Environment**:
    ```bash
    # Create .env with database credentials
    cat <<'EOF' > .env
@@ -45,14 +50,19 @@ OSRS Wiki API → Docker Collectors → PostgreSQL/TimescaleDB → ML Pipeline
    ```
    You can also start from `gept-export.env.example` and trim it down for local use. Keep `.env` gitignored.
 
-2. **Deploy with Docker Compose**:
-   ```bash
-   docker-compose up -d
+   If you are bootstrapping a fresh database, enable TimescaleDB:
+   ```sql
+   CREATE EXTENSION IF NOT EXISTS timescaledb;
    ```
 
-3. **Verify Services**:
+3. **Deploy with Docker Compose**:
    ```bash
-   docker-compose ps
+   docker compose up -d
+   ```
+
+4. **Verify Services**:
+   ```bash
+   docker compose ps
    curl http://localhost:8080  # Dashboard
    curl http://localhost:9100/metrics  # Prometheus metrics
    ```

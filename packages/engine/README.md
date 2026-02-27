@@ -65,6 +65,12 @@ DB_CONNECTION_STRING=postgresql://user:password@localhost:5432/osrs_data
 INTERNAL_API_KEY=replace-with-random-token
 ```
 
+Generate a local API key if you need one:
+
+```bash
+openssl rand -hex 32
+```
+
 If you run `uvicorn` directly (instead of `python -m src.main`), make sure your shell loads the env file:
 
 ```bash
@@ -111,6 +117,14 @@ Then open `http://localhost:8000/docs` or hit `http://localhost:8000/healthz`.
 
 ```bash
 curl http://localhost:8000/api/v1/health
+```
+
+## Tests & Linting
+
+```bash
+# From packages/engine
+pytest
+flake8 src tests
 ```
 
 ## API Endpoints
