@@ -9,3 +9,21 @@ This repo is organized by deployment unit:
 - `packages/shared`: Shared TypeScript utilities/types used by web
 
 Server `systemd` units live in `infra/systemd/`.
+
+## Workspace Commands
+
+From the repo root, use the workspace scripts:
+
+```bash
+npm run dev:web
+npm run dev:engine
+npm run lint
+npm run typecheck
+npm run test
+```
+
+Run a script in a specific package workspace:
+
+```bash
+npm run dev --workspace=@gept/web
+```

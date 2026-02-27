@@ -44,6 +44,7 @@ OSRS Wiki API → Docker Collectors → PostgreSQL/TimescaleDB → ML Pipeline
    EOF
    ```
    You can also start from `gept-export.env.example` and trim it down for local use. Keep `.env` gitignored.
+   Docker Compose automatically loads `.env` from this directory, or you can pass it explicitly with `--env-file .env`.
 
 2. **Deploy with Docker Compose**:
    ```bash
@@ -65,6 +66,11 @@ OSRS Wiki API → Docker Collectors → PostgreSQL/TimescaleDB → ML Pipeline
 - **Prometheus Metrics**: Ports 9100-9103
 - **Logs**: `docker-compose logs -f [service-name]`
 If you run this on a remote host, access the dashboard via your approved internal method (details intentionally omitted).
+
+**Quick Metrics Check**:
+```bash
+curl http://localhost:9100/metrics | head -n 20
+```
 
 ## Service Details
 
@@ -408,6 +414,31 @@ SELECT * FROM timescaledb_information.compressed_chunk_stats;
 - Clean up Docker logs: `docker system prune`
 
 ## Development
+
+### Local Development (Single Collector)
+
+1. **Create a virtualenv**:
+   ```bash
+   python -m venv venv
+   source venv/bin/activate
+   ```
+2. **Install dependencies**:
+   ```bash
+   pip install -r requirements.txt
+   ```
+3. **Export env vars**:
+   ```bash
+   export DB_HOST=localhost
+   export DB_PORT=5432
+   export DB_NAME=osrs_data
+   export DB_USER=osrs_user
+   export DB_PASS=replace-with-secure-password
+   export METRICS_PORT=9100
+   ```
+4. **Run a collector**:
+   ```bash
+   python collect_5m_pg.py
+   ```
 
 ### Local Testing
 
